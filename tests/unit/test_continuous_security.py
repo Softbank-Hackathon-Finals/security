@@ -43,6 +43,8 @@ def monitor(scope, now):
         "stored": {},
         "allowed": True,
         "store-fails": False,
+        "input-trusted": True,
+        "after-store": lambda: None,
     }
 
     class Repo:
@@ -53,6 +55,7 @@ def monitor(scope, now):
                 raise RuntimeError("Synthetic artifact outage")
             receipt = StoredSecurityArtifact(subject, value, 1, False)
             state["stored"][value.fingerprint] = receipt
+            state["after-store"]()
             return receipt
 
         def get(self, subject, fingerprint):
@@ -75,7 +78,7 @@ def monitor(scope, now):
 
     assessment = AssessmentService(
         authorize=authorize,
-        authenticate_input=lambda *_: None,
+        authenticate_input=lambda *_: state["input-trusted"],
         current_inputs=lambda _: state["inputs"],
         clock=lambda: now + timedelta(seconds=4),
     )
@@ -187,3 +190,22 @@ def test_false_baseline_authentication_cannot_create_a_monitoring_result(
     with pytest.raises(ContractError):
         service.run_once("monitor", scope=scope)
     assert not state["stored"] and not holds.active_holds(scope.application_id)
+
+
+def test_input_signer_revoked_after_audit_store_cannot_return_a_healthy_review(
+    monitor, scope
+):
+    service, state, holds = monitor
+    state["after-store"] = lambda: state.update({"input-trusted": False})
+    with pytest.raises(ContractError):
+        service.run_once("monitor", scope=scope)
+    assert not holds.active_holds(scope.application_id)
+
+
+def test_late_untrusted_inputs_preserve_already_recorded_containment(monitor, scope):
+    service, state, holds = monitor
+    drift(state, "image")
+    state["after-store"] = lambda: state.update({"input-trusted": False})
+    with pytest.raises(ContractError):
+        service.run_once("monitor", scope=scope)
+    assert holds.active_holds(scope.application_id)

@@ -644,3 +644,151 @@ def test_kev_match_uses_signed_collection_and_scoped_pg_without_publishing_expos
         service.propose("operator", scope=scope)
     # Historical match remains audit data; revocation does not turn it into current authority.
     assert artifacts.get(scope, matched.fingerprint).value == matched
+
+
+def test_monitor_rechecks_live_input_key_after_audit_write_and_preserves_hold(
+    database, scope
+):
+    import psycopg
+    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+    from modernization_support import rehearsal_bundle
+    from sova_security.adapters.assessment_evidence import (
+        AssessmentInputAuthority,
+        assessment_input_record,
+    )
+    from sova_security.adapters.ed25519_evidence import Ed25519EvidenceSigner
+    from sova_security.adapters.postgres_modernization import PostgresSecurityArtifacts
+    from sova_security.adapters.postgres_signed_evidence import PostgresSignedEvidence
+    from sova_security.adapters.postgres_verifier_registry import (
+        PostgresVerifierRegistry,
+    )
+    from sova_security.adapters.postgres_governance import PostgresSecurityHolds
+    from sova_security.application.assessment import AssessmentService
+    from sova_security.application.continuous_security import ContinuousSecurityMonitor
+    from sova_security.contracts.evidence import RevisionSet
+    from sova_security.domain.continuous_security import RuntimeSecurityBaseline
+    from sova_security.domain.remediation import TestedArtifact as Artifact
+    from sova_security.domain.signed_evidence import VerifierTrust
+    from sova_security.domain.verifier_registry import VerifierTrustChange
+
+    now = datetime.now(UTC)
+    scope = replace(scope, resource_id="monitor-key-" + uuid4().hex)
+    original, accepted, *_ = rehearsal_bundle(scope, now)
+    inventory = replace(original[0], image_digest="0" * 64)
+    inputs = (
+        inventory,
+        replace(
+            original[1],
+            inventory_digest=inventory.fingerprint,
+            image_digest=inventory.image_digest,
+        ),
+        replace(original[2], inventory_digest=inventory.fingerprint),
+        original[3],
+    )
+    revisions = RevisionSet(
+        inventory.source_digest,
+        inventory.configuration_digest,
+        inputs[3].fingerprint,
+        "f" * 64,
+    )
+    records = {
+        v.fingerprint: assessment_input_record(
+            v, revisions=revisions, evidence_id=uuid4().hex
+        )
+        for v in inputs
+    }
+    signer = Ed25519EvidenceSigner(
+        Ed25519PrivateKey.generate(),
+        issuer_id="monitor-" + uuid4().hex,
+        key_id="test-only-key",
+    )
+    trust = VerifierTrust(
+        signer.issuer_id,
+        signer.key_id,
+        signer.public_key_hex,
+        (scope,),
+        tuple(r.verifier_version for r in records.values()),
+        now - timedelta(seconds=1),
+        now + timedelta(minutes=10),
+    )
+    change = VerifierTrustChange(
+        scope.tenant_id,
+        scope.application_id,
+        1,
+        trust,
+        "requester",
+        "approver",
+        "controlled-monitor-key",
+        now,
+        now + timedelta(minutes=2),
+    )
+    dsn, role, password = database
+
+    def connect():
+        return psycopg.connect(dsn, user=role, password=password)
+
+    registry = PostgresVerifierRegistry(
+        connect, tenant_id=scope.tenant_id, application_id=scope.application_id
+    )
+    registry.publish(change)
+    signed = PostgresSignedEvidence(connect, tenant_id=scope.tenant_id)
+    for record in records.values():
+        signed.save_envelope(signer.sign(record, issued_at=now))
+    authority = AssessmentInputAuthority(
+        envelope_provider=lambda a, s, v: signed.get_envelope(
+            s.application_id, records[v.fingerprint].evidence_id
+        ),
+        current_revisions=lambda _: revisions,
+        issuers_for=lambda *_: (signer.issuer_id,),
+        resolve_trust=registry.resolve,
+        authorize=lambda *_: None,
+        clock=lambda: now + timedelta(seconds=2),
+    )
+    baseline = RuntimeSecurityBaseline(
+        scope,
+        "e" * 64,
+        Artifact(
+            scope,
+            original[0].image_digest,
+            original[0].source_digest,
+            original[0].configuration_digest,
+            "f" * 64,
+        ),
+        original[0].resource_revision,
+        accepted,
+        now + timedelta(seconds=1),
+        now + timedelta(hours=1),
+    )
+    holds = PostgresSecurityHolds(connect, tenant_id=scope.tenant_id)
+    state = {"revoked": False}
+
+    class RevokingStore(PostgresSecurityArtifacts):
+        def register(self, subject, value, *, actor_id):
+            receipt = super().register(subject, value, actor_id=actor_id)
+            if not state["revoked"]:
+                registry.publish(
+                    replace(change, revision=2, trust=replace(trust, revoked=True))
+                )
+                state["revoked"] = True
+            return receipt
+
+    service = ContinuousSecurityMonitor(
+        assessment_service=AssessmentService(
+            authorize=lambda *_: None,
+            authenticate_input=authority,
+            current_inputs=lambda _: inputs,
+            clock=lambda: now + timedelta(seconds=2),
+        ),
+        current_inputs=lambda _: inputs,
+        baseline_provider=lambda _: baseline,
+        # Baseline registration authentication is independent of this input-key race test.
+        authenticate_baseline=lambda _: None,
+        artifacts=RevokingStore(connect, tenant_id=scope.tenant_id),
+        holds=holds,
+        authorize=lambda *_: None,
+        clock=lambda: now + timedelta(seconds=2),
+    )
+    with pytest.raises(ContractError, match="revoked"):
+        service.run_once("monitor", scope=scope)
+    assert state["revoked"]
+    assert any(v.hold.scope == scope for v in holds.active_holds(scope.application_id))

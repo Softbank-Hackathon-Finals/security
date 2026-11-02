@@ -1,5 +1,7 @@
 """One authorized monitoring tick; scheduling and leases remain host-owned."""
 
+from dataclasses import replace
+
 from sova_security.application.boundary import require_accept, require_authentication
 from sova_security.contracts.commands import ContractError, utc
 from sova_security.domain.continuous_security import (
@@ -51,6 +53,18 @@ class ContinuousSecurityMonitor:
             scope=scope,
             expected_inputs=tuple(value.fingerprint for value in inputs),
         )
+
+        def reauthenticate_assessment():
+            # Equal bytes do not imply a still-trusted input signer. Reuse the
+            # existing admission service rather than a hash-only late check.
+            current = self.assessment_service.assess(
+                actor,
+                scope=scope,
+                expected_inputs=tuple(value.fingerprint for value in inputs),
+            )
+            if replace(current, assessed_at=result.assessed_at) != result:
+                raise ContractError("Monitoring assessment authority changed")
+
         review = review_runtime_security(baseline, inputs[0], result, now=self.clock())
         require_accept(self.authorize, actor, scope, "security:monitor")
         require_authentication(self.authenticate_baseline, baseline)
@@ -59,6 +73,7 @@ class ContinuousSecurityMonitor:
             or self.current_inputs(scope) != inputs
         ):
             raise ContractError("Runtime monitoring registration changed")
+        reauthenticate_assessment()
         # Contain first: a later audit-store failure must not silently undo a hold.
         # Deduplicated constant reasons avoid a new hold every polling interval.
         for trigger in review.triggers:
@@ -79,6 +94,7 @@ class ContinuousSecurityMonitor:
         register_artifact(self.artifacts, scope, review, actor_id=actor)
         require_accept(self.authorize, actor, scope, "security:monitor")
         require_authentication(self.authenticate_baseline, baseline)
+        reauthenticate_assessment()
         final = utc(self.clock())
         if final < review.observed_at or final >= review.valid_until:
             raise ContractError("Continuous review expired before return")
