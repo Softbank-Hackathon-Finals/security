@@ -6,6 +6,7 @@ Team Bravo 플랫폼에 설치하는 Python 보안 패키지다. 보호 수준 �
 
 - 통제·보류·해제, 보호 목적 비교와 실행 전 게이트
 - 서명 근거·검증기 신뢰·기한·revision 검증
+- 자산·스캔·정책·리허설 요청의 입력 종류별 서명 인증
 - AI 데이터 위치 정책 판정과 제한된 호출 경계
 - Kubernetes 구성 해석·AWS RDS 읽기 전용 조사 어댑터
 - 보안 snapshot/event, 제한된 무상태 대응 계획과 완료 영수증
@@ -24,7 +25,7 @@ Sova의 실행 원장·승인 서비스·작업 큐·격리 실행 조정기·�
 Python 3.11 이상을 사용한다. 기본 설치에는 클라우드 SDK나 DB 연결이 필요 없다.
 
 ```sh
-python -m pip install /path/to/sova_security-0.5.0-py3-none-any.whl
+python -m pip install /path/to/sova_security-0.6.0-py3-none-any.whl
 # 개발 시 이 저장소에서
 python -m pip install -e '.[dev]'
 python -m pytest -q
@@ -40,7 +41,7 @@ cd /path/to/sova
 .local-notes/venv/bin/python -m pip install -e '../team-bravo/security[postgres,signing,aws]'
 ```
 
-릴리스 소비 환경은 검증한 wheel과 해시를 고정한다. 현재 0.5.0은 최초 추출 이후 보안 개선 계약을 추가한 버전이며 PyPI 배포를 뜻하지 않는다.
+릴리스 소비 환경은 검증한 wheel과 해시를 고정한다. 현재 0.6.0은 최초 추출 이후 보안 개선 계약을 추가한 버전이며 PyPI 배포를 뜻하지 않는다.
 
 ## 통합 계약
 
@@ -48,7 +49,7 @@ cd /path/to/sova
 
 주요 모듈은 `domain`, `application`, `ports`, `adapters`다. `ProtectionParityGuard`와 `GovernanceGuard`에는 신뢰된 정책·현재 revision·근거 인증·보류 조회·시계를 제공한다. 패키지가 브라우저 입력을 신뢰된 사용자·조직 권한으로 승격하지 않는다.
 
-[팀 통제 결과 연결](docs/team-control-integration.md), [Prowler 보고서 계약](docs/prowler-integration.md), [OPA 통합 계약](docs/opa-policy.md)과 [Harbor 담당 경계](docs/harbor-contract.md)를 제공한다.
+[평가 입력 서명 연결](docs/assessment-input-signatures.md), [팀 통제 결과 연결](docs/team-control-integration.md), [Prowler 보고서 계약](docs/prowler-integration.md), [OPA 통합 계약](docs/opa-policy.md)과 [Harbor 담당 경계](docs/harbor-contract.md)를 제공한다.
 
 [지속 보안 개선 계약](docs/security-modernization.md)은 자산·위험·Harbor·패치 승인 연결과 검증 한계를 설명한다. 실제 Harbor 실행기, 이미지 교체 adapter, 기업 인증과 고객 환경 운영 자격은 포함하지 않는다.
 
