@@ -1,0 +1,67 @@
+{
+  "notice": "Projection of official Trivy 0.76.1 local test-image output, with registry identity sanitized. Not a complete scan or deployment evidence.",
+  "sbom": {
+    "bomFormat": "CycloneDX",
+    "specVersion": "1.7",
+    "components": [
+      {
+        "type": "library",
+        "bom-ref": "pkg:pypi/pip@25.0.1",
+        "name": "pip",
+        "version": "25.0.1",
+        "purl": "pkg:pypi/pip@25.0.1"
+      }
+    ]
+  },
+  "report": {
+    "SchemaVersion": 2,
+    "Trivy": {
+      "Version": "0.76.1"
+    },
+    "ArtifactType": "container_image",
+    "Metadata": {
+      "RepoDigests": [
+        "registry.example/qualification@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      ]
+    },
+    "Results": [
+      {
+        "Target": "qualification-python-packages",
+        "Class": "lang-pkgs",
+        "Type": "python-pkg",
+        "Packages": [
+          {
+            "Name": "pip",
+            "Identifier": {
+              "PURL": "pkg:pypi/pip@25.0.1",
+              "UID": "7d864d9a4bf3bfe8"
+            },
+            "Version": "25.0.1",
+            "Licenses": [
+              "MIT"
+            ],
+            "Layer": {
+              "Digest": "sha256:c0680a512a880359f326a631472b3286ca7d2fbee3fe1299f0c17557bde96652",
+              "DiffID": "sha256:0778dda6f39e1204b0585aa87377671ca10801bf7bd54b0e71f1c63f807d5829"
+            },
+            "FilePath": "usr/local/lib/python3.12/site-packages/pip-25.0.1.dist-info/METADATA",
+            "AnalyzedBy": "python-pkg"
+          }
+        ],
+        "Vulnerabilities": [
+          {
+            "VulnerabilityID": "CVE-2025-8869",
+            "PkgName": "pip",
+            "InstalledVersion": "25.0.1",
+            "Severity": "MEDIUM",
+            "FixedVersion": "25.3",
+            "PkgIdentifier": {
+              "PURL": "pkg:pypi/pip@25.0.1",
+              "UID": "7d864d9a4bf3bfe8"
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -31,6 +31,29 @@ def test_risk_binds_inputs_without_granting_execution(scope, now):
     assert "reachable" in result.decisions[0].reasons
 
 
+def test_report_version_and_complete_package_coverage_are_not_caller_claims(scope, now):
+    inventory, _, _, _, _, report = modern_bundle(scope, now)
+
+    def parse():
+        return trivy_scan(
+            json.dumps(report).encode(),
+            inventory=inventory,
+            profile=scanner_profile(),
+            coverage=Coverage.COMPLETE,
+            observed_at=now,
+            valid_until=now + timedelta(minutes=1),
+        )
+
+    report["Trivy"] = {"Version": "other-version"}
+    with pytest.raises(ContractError, match="version"):
+        parse()
+    report.pop("Trivy")
+    report["Results"][0]["Packages"].append(
+        {"Name": "omitted-by-sbom", "Version": "2.0"}
+    )
+    assert parse().coverage == Coverage.PARTIAL
+
+
 @pytest.mark.parametrize("field", ["scope", "inventory_digest", "image_digest"])
 def test_scan_cannot_move_between_assets_or_images(scope, now, field):
     inventory, scan, exposure, policy, *_ = modern_bundle(scope, now)
