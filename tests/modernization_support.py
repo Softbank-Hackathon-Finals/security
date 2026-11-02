@@ -105,3 +105,124 @@ def modern_bundle(scope, now):
         (scanner_profile().fingerprint,),
     )
     return inventory, scan, exposure, policy, sbom, report
+
+
+def rehearsal_bundle(scope, now):
+    from sova_security.contracts.evidence import VerificationResult as R
+    from sova_security.domain.assessment import assess_risk
+    from sova_security.domain.remediation import (
+        Applicability,
+        ChangeKind,
+        FileChange,
+        RemediationProposal,
+        SandboxProfile,
+        RehearsalTarget,
+        TargetRole,
+        VerificationRequirement,
+        RehearsalRequest,
+        TestedArtifact,
+        TestProof,
+        RehearsalReceipt,
+        fix_test_id,
+    )
+
+    inputs = modern_bundle(scope, now)[:4]
+    inventory, _, _, _ = inputs
+    assessment = assess_risk(*inputs, now=now)
+    until = now + timedelta(minutes=2)
+    changes = (FileChange("src/app.py", "1" * 64, "2" * 64),)
+    proposal = RemediationProposal(
+        scope,
+        assessment.fingerprint,
+        inventory.fingerprint,
+        assessment.policy_digest,
+        inventory.source_digest,
+        inventory.image_digest,
+        inventory.configuration_digest,
+        "3" * 64,
+        ChangeKind.PATCH,
+        Applicability.SOURCE_ONLY,
+        (assessment.decisions[0].fingerprint,),
+        changes,
+        "operator",
+        now,
+        until,
+    )
+    profile = SandboxProfile(
+        "registered-harbor-profile",
+        "4" * 64,
+        "5" * 64,
+        "6" * 64,
+        "7" * 64,
+        120,
+        512,
+        ("src/app.py",),
+    )
+    target = RehearsalTarget(
+        scope, TargetRole.SOURCE, inventory.fingerprint, inventory.image_digest
+    )
+    requirements = tuple(
+        VerificationRequirement(scope, name, baseline)
+        for name, baseline in (
+            (fix_test_id(proposal.findings[0]), R.FAIL),
+            ("functional", R.PASS),
+            ("compatibility", None),
+        )
+    )
+    request = RehearsalRequest(
+        "rehearsal-1",
+        proposal,
+        profile,
+        (target,),
+        requirements,
+        "independent-verifier",
+        now,
+        until,
+    )
+    proofs = []
+    for test in requirements:
+        if test.baseline_expected is not None:
+            proofs.append(
+                TestProof(
+                    scope,
+                    test.test_id,
+                    "before",
+                    test.baseline_expected,
+                    inventory.image_digest,
+                    "9" * 64,
+                    now + timedelta(seconds=1),
+                    until,
+                )
+            )
+        proofs.append(
+            TestProof(
+                scope,
+                test.test_id,
+                "after",
+                R.PASS,
+                "8" * 64,
+                "9" * 64,
+                now + timedelta(seconds=2),
+                until,
+            )
+        )
+    receipt = RehearsalReceipt(
+        request.fingerprint,
+        proposal.fingerprint,
+        request.verifier_issuer,
+        profile.runner_image_digest,
+        profile.verifier_image_digest,
+        profile.test_bundle_digest,
+        profile.egress_policy_digest,
+        True,
+        2,
+        128,
+        R.PASS,
+        R.PASS,
+        changes,
+        (TestedArtifact(scope, "8" * 64),),
+        tuple(proofs),
+        now + timedelta(seconds=3),
+        until,
+    )
+    return inputs, assessment, request, receipt

@@ -26,3 +26,23 @@
 - [CycloneDX 1.6 JSON 규격](https://cyclonedx.org/docs/1.6/json/)
 
 외부 도구가 실제로 실행됐다는 증거와 adapter parser 시험은 구분한다. 합성 시험의 SOVA-TEST advisory는 실제 취약점 번호가 아니다.
+
+## Harbor 요청과 독립 검증
+
+`RehearsalRequest`는 제안·정책·기준 소스/이미지·패치 artifact·파일별 전후 digest, sandbox runner/egress/verifier/test bundle digest, 등록 대상 snapshot과 유효기간을 묶는다. 지원 첫 프로필은 **등록된 regular-file 패치**이며 격리·재구축·자격증명 회전·데이터 이전 자체를 실행하는 runner는 제공하지 않는다. 해당 대응은 호스트 계획으로 연결해야 한다.
+
+적용 범위는 source_only/target_only/both다. both는 source와 target의 정확한 scope와 별도 baseline image를 요구한다. 각 finding은 평가 decision fingerprint로 참조하며 `security-fix:<finding_digest>` 시험에서 수정 전 FAIL·수정 후 PASS를 요구한다. 기능 시험의 수정 전후 PASS와 목적지 호환성 시험도 별개다. 새 시험 이름이나 임의 PASS로 기존 의무를 대체하지 않는다.
+
+이 프로필은 ASCII 정규 상대 경로만 지원한다. traversal·절대 경로·대소문자 충돌과 정책·독립 시험·검증기·워크플로·인증정보 변경은 거부한다. 보호 정책/신뢰된 test bundle을 수정해서 시험을 통과시키지 못하게 한다. 실제 파일이 regular file인지와 전체 변경 manifest의 정확성은 샌드박스 및 독립 verifier가 검사해 서명해야 한다. 패키지의 경로 검사만으로 호스트 파일시스템을 격리했다고 표현하지 않는다.
+
+`RehearsalReceipt`는 실제 변경 manifest, 대상별 검사한 image digest, test proof, 메타데이터/egress 차단 결과, production credential 부재, 시간·메모리 사용을 반환한다. 누락/중복/추가 scope, 다른 이미지·시험 묶음, 결과 UNKNOWN/FAIL, 자원 초과, 만료는 admission을 차단한다. 보고된 자원 사용과 네트워크 시험이 진짜인지 확인하는 주체는 등록된 독립 verifier다.
+
+`RehearsalReceiptAuthority`는 기존 Ed25519 근거 형식을 재사용한다. receipt 전체 fingerprint와 모든 대상 inventory가 근거에 결합되고, key registry가 각 대상 scope와 verifier version을 허용해야 한다. 키 폐기·회전과 대상 revision을 재조회한다. 단순 해시 일치나 AI의 '성공' 답변은 근거 인증이 아니다.
+
+`RehearsalAdmissionService`는 현재 source assessment, 각 target inventory, 요청 폐기 상태, actor 권한과 독립 근거 인증을 확인한다. 외부 callback 이후 변경·만료가 생기면 거부한다. 결과가 allow여도 운영 적용 권한은 없다. 실행 직전 공통 승인/실행기가 다시 유효성을 확인해야 한다.
+
+`HarborRehearsalPort`는 submit/inspect의 팀 연결 계약이다. 실제 Harbor 환경 생성·도구 실행·자격증명·리소스 한도 강제는 Harbor 담당이 구현한다. 불확실한 submit은 같은 durable operation/key로 조회하며 새 key로 자동 재요청하지 않는다.
+
+## 직렬화와 API 경계
+
+`modernization_codec`는 등록된 v1 kind만 디코드한다. 알 수 없는 key/type/version, bool을 int로 바꾸는 형식 혼동, naive timestamp, 유효하지 않은 enum을 거부한다. pickle이나 입력된 Python module/type 이름을 실행하지 않는다. 해시·서명은 이 문서의 정규화 규칙을 사용하며, 디코드 성공은 권한 부여나 issuer 인증을 뜻하지 않는다.
