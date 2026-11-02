@@ -572,3 +572,75 @@ def test_assessment_input_key_revocation_is_live_in_postgres(database, scope):
         authority("operator", scope, value)
     assert registry.resolve(signer.issuer_id, signer.key_id).revoked
     assert signed.get_envelope(scope.application_id, record.evidence_id) == envelope
+
+
+def test_kev_match_uses_signed_collection_and_scoped_pg_without_publishing_exposure(
+    database, scope, now
+):
+    import psycopg
+    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+    from exploitation_support import intelligence_bundle
+    from sova_security.adapters.ed25519_evidence import (
+        Ed25519EvidenceSigner, Ed25519EvidenceVerifier,
+    )
+    from sova_security.adapters.postgres_modernization import PostgresSecurityArtifacts
+    from sova_security.adapters.postgres_signed_evidence import PostgresSignedEvidence
+    from sova_security.adapters.postgres_verifier_registry import PostgresVerifierRegistry
+    from sova_security.application.exploitation_intelligence import ExploitationIntelligenceService
+    from sova_security.application.signed_evidence import SignedEvidenceAuthority
+    from sova_security.domain.signed_evidence import VerifierTrust
+    from sova_security.domain.verifier_registry import VerifierTrustChange
+
+    now = datetime.now(UTC)
+    scope = replace(scope, resource_id="kev-" + uuid4().hex)
+    inputs, catalog, record, _ = intelligence_bundle(scope, now)
+    signer = Ed25519EvidenceSigner(
+        Ed25519PrivateKey.generate(), issuer_id="kev-" + uuid4().hex,
+        key_id="ephemeral-test-key",
+    )
+    trust = VerifierTrust(
+        signer.issuer_id, signer.key_id, signer.public_key_hex, (scope,),
+        (record.verifier_version,), now - timedelta(seconds=1),
+        now + timedelta(hours=2),
+    )
+    change = VerifierTrustChange(
+        scope.tenant_id, scope.application_id, 1, trust, "requester", "approver",
+        "controlled-kev-collector-registration", now, now + timedelta(minutes=5),
+    )
+    dsn, role, password = database
+
+    def connect():
+        return psycopg.connect(dsn, user=role, password=password)
+
+    artifacts = PostgresSecurityArtifacts(connect, tenant_id=scope.tenant_id)
+    registry = PostgresVerifierRegistry(
+        connect, tenant_id=scope.tenant_id, application_id=scope.application_id,
+    )
+    registry.publish(change)
+    signed = SignedEvidenceAuthority(
+        PostgresSignedEvidence(connect, tenant_id=scope.tenant_id),
+        Ed25519EvidenceVerifier(registry.resolve), clock=lambda: now,
+    )
+    signed.ingest(signer.sign(record, issued_at=now))
+    service = ExploitationIntelligenceService(
+        current_inputs=lambda _: inputs, catalog_provider=lambda _: (catalog, record),
+        current_revisions=lambda _: record.revisions,
+        minimum_catalog_version=lambda _: "2026.10.30",
+        # Input authentication is covered independently by the live input authority tests.
+        authenticate_input=lambda *_: True, authenticate_catalog=signed.authenticate,
+        authorize=lambda *_: None, artifacts=artifacts, clock=lambda: now,
+    )
+    matched, candidate = service.propose("operator", scope=scope)
+    assert artifacts.get(scope, matched.fingerprint).value == matched
+    assert candidate.known_exploited == ("CVE-2099-0001",)
+    assert inputs[2].known_exploited == ()
+    with pytest.raises(RecordNotFound):
+        artifacts.get(scope, candidate.fingerprint)
+    foreign = PostgresSecurityArtifacts(connect, tenant_id="other-tenant")
+    with pytest.raises(RecordNotFound):
+        foreign.get(replace(scope, tenant_id="other-tenant"), matched.fingerprint)
+    registry.publish(replace(change, revision=2, trust=replace(trust, revoked=True)))
+    with pytest.raises(ContractError):
+        service.propose("operator", scope=scope)
+    # Historical match remains audit data; revocation does not turn it into current authority.
+    assert artifacts.get(scope, matched.fingerprint).value == matched

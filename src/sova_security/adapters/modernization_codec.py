@@ -21,6 +21,7 @@ from sova_security.domain import continuous_security as cs
 from sova_security.domain import opa_policy as op
 from sova_security.domain import configuration_scan as config
 from sova_security.domain import team_controls as team
+from sova_security.domain import exploitation_intelligence as intel
 
 KINDS = MappingProxyType(
     {
@@ -40,6 +41,8 @@ KINDS = MappingProxyType(
         "patch-reassessment.v1": pr.PatchReassessment,
         "runtime-security-baseline.v1": cs.RuntimeSecurityBaseline,
         "continuous-security-review.v1": cs.ContinuousSecurityReview,
+        "known-exploited-catalog.v1": intel.KnownExploitedCatalog,
+        "known-exploited-match.v1": intel.KnownExploitedMatch,
         "team-control-registration.v1": team.TeamControlRegistration,
         "imported-team-control-run.v1": team.ImportedControlRun,
         "configuration-scan-registration.v1": config.ConfigurationScanRegistration,

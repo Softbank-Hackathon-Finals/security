@@ -10,6 +10,7 @@ requires-python = ">=3.11"
 readme = "README.md"
 
 [project.optional-dependencies]
+intelligence = ["jsonschema>=4.26,<5", "rfc3339-validator>=0.1.4,<0.2"]
 team = ["jsonschema>=4.26,<5", "rfc3339-validator>=0.1.4,<0.2"]
 postgres = ["psycopg[binary]>=3.2,<4"]
 signing = ["cryptography>=46,<51"]

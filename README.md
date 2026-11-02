@@ -12,6 +12,7 @@ Team Bravo 플랫폼에 설치하는 Python 보안 패키지다. 보호 수준 �
 - 보안 snapshot/event, 제한된 무상태 대응 계획과 완료 영수증
 - Prowler OCSF의 서명된 수집 결과와 구성 점검 근거 연결
 - Trivy·CycloneDX 보고서 연결, 위험 평가·패치 리허설·실행 후 재평가
+- CISA KEV의 서명된 양성 일치와 검토 후보 생성
 - Harbor 요청·독립 서명 검증, 기존 승인·실행기에 연결할 패치 guard
 - 지속 재평가와 변경 감지에 따른 보안 보류
 - 고정 OPA 실행기·Rego 정책과 기존 실행 전 검증의 교집합
@@ -32,7 +33,7 @@ python -m pytest -q
 ruff check src tests
 ```
 
-PostgreSQL 어댑터는 `postgres`, 서명은 `signing`, AWS 시험·사용은 `aws`, 팀 JSON Schema 연결은 `team` extra를 설치한다. AWS 클라이언트와 자격증명은 호출자가 제공한다. import나 설치만으로 자원을 생성하거나 SQL을 실행하지 않는다.
+PostgreSQL 어댑터는 `postgres`, 서명은 `signing`, AWS 시험·사용은 `aws`, 팀 JSON Schema 연결은 `team`, CISA KEV 연결은 `intelligence` extra를 설치한다. AWS 클라이언트와 자격증명은 호출자가 제공한다. import나 설치만으로 자원을 생성하거나 SQL을 실행하지 않는다.
 
 Sova에서 로컬 개발 연결:
 
@@ -49,7 +50,7 @@ cd /path/to/sova
 
 주요 모듈은 `domain`, `application`, `ports`, `adapters`다. `ProtectionParityGuard`와 `GovernanceGuard`에는 신뢰된 정책·현재 revision·근거 인증·보류 조회·시계를 제공한다. 패키지가 브라우저 입력을 신뢰된 사용자·조직 권한으로 승격하지 않는다.
 
-[평가 입력 서명 연결](docs/assessment-input-signatures.md), [팀 통제 결과 연결](docs/team-control-integration.md), [Prowler 보고서 계약](docs/prowler-integration.md), [OPA 통합 계약](docs/opa-policy.md)과 [Harbor 담당 경계](docs/harbor-contract.md)를 제공한다.
+[악용 취약점 목록 연결](docs/exploitation-intelligence.md), [평가 입력 서명 연결](docs/assessment-input-signatures.md), [팀 통제 결과 연결](docs/team-control-integration.md), [Prowler 보고서 계약](docs/prowler-integration.md), [OPA 통합 계약](docs/opa-policy.md)과 [Harbor 담당 경계](docs/harbor-contract.md)를 제공한다.
 
 [지속 보안 개선 계약](docs/security-modernization.md)은 자산·위험·Harbor·패치 승인 연결과 검증 한계를 설명한다. 실제 Harbor 실행기, 이미지 교체 adapter, 기업 인증과 고객 환경 운영 자격은 포함하지 않는다.
 

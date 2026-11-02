@@ -1,0 +1,9 @@
+{
+  "source_repository": "cisagov/kev-data",
+  "source_commit": "7ccba8e1223ccec82d12c7736bf3fae11e5bee86",
+  "source_path": "known_exploited_vulnerabilities_schema.json",
+  "source_sha256": "0d5865c98694c5bfba2c78a26caf814f406b3fce8bfb81bef79e99c7f288b0e7",
+  "modified": false,
+  "license": "CC0-1.0",
+  "license_url": "https://github.com/cisagov/kev-data/blob/7ccba8e1223ccec82d12c7736bf3fae11e5bee86/LICENSE"
+}
