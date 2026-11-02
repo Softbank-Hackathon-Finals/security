@@ -323,8 +323,10 @@ def test_configuration_report_storage_preserves_scope_and_revocation(
     ).encode()
     snapshot = prowler_configuration(report, registration=registration, now=now)
     dsn, role, password = database
+
     def connect():
         return psycopg.connect(dsn, user=role, password=password)
+
     artifacts = PostgresSecurityArtifacts(connect, tenant_id=scope.tenant_id)
     for value in (registration, snapshot):
         artifacts.register(scope, value, actor_id="registered-collector")
@@ -345,3 +347,136 @@ def test_configuration_report_storage_preserves_scope_and_revocation(
     )
     with pytest.raises(RepositoryConflict):
         artifacts.get(scope, snapshot.fingerprint)
+
+
+def test_signed_prowler_collection_uses_existing_evidence_and_pg_repositories(
+    database, scope, now
+):
+    import hashlib
+    import json
+    import psycopg
+    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+    from prowler_support import configuration_registration, event
+    from sova_security.adapters.ed25519_evidence import (
+        Ed25519EvidenceSigner,
+        Ed25519EvidenceVerifier,
+    )
+    from sova_security.adapters.postgres_signed_evidence import PostgresSignedEvidence
+    from sova_security.adapters.postgres_modernization import PostgresSecurityArtifacts
+    from sova_security.application.signed_evidence import SignedEvidenceAuthority
+    from sova_security.application.configuration_scan import (
+        ConfigurationAssessmentService,
+        COLLECTOR,
+    )
+    from sova_security.contracts.evidence import EvidenceRecord, VerificationResult
+    from sova_security.domain.signed_evidence import VerifierTrust
+
+    scope = replace(scope, resource_id="signed-config-" + uuid4().hex)
+    registration = configuration_registration(scope, now)
+    raw = json.dumps(
+        [event(registration, now, check=c) for c in registration.expected_checks]
+    ).encode()
+    record = EvidenceRecord(
+        uuid4().hex,
+        "prowler-collection:" + registration.fingerprint,
+        scope,
+        registration.revisions,
+        COLLECTOR,
+        now,
+        now + timedelta(minutes=1),
+        VerificationResult.PASS,
+        "synthetic-raw-report",
+        hashlib.sha256(raw).hexdigest(),
+    )
+    signer = Ed25519EvidenceSigner(
+        Ed25519PrivateKey.generate(),
+        issuer_id="independent-collector",
+        key_id="ephemeral-test-key",
+    )
+    trust = VerifierTrust(
+        signer.issuer_id,
+        signer.key_id,
+        signer.public_key_hex,
+        (scope,),
+        (COLLECTOR,),
+        now - timedelta(seconds=1),
+        now + timedelta(minutes=5),
+    )
+    state = {"trust": trust, "raw": raw}
+    dsn, role, password = database
+
+    def connect():
+        return psycopg.connect(dsn, user=role, password=password)
+
+    artifacts = PostgresSecurityArtifacts(connect, tenant_id=scope.tenant_id)
+    artifacts.register(scope, registration, actor_id="policy-owner")
+    signed = SignedEvidenceAuthority(
+        PostgresSignedEvidence(connect, tenant_id=scope.tenant_id),
+        Ed25519EvidenceVerifier(lambda *_: state["trust"]),
+        clock=lambda: now,
+    )
+    signed.ingest(signer.sign(record, issued_at=now))
+    service = ConfigurationAssessmentService(
+        registration_provider=lambda _: (
+            artifacts.get(scope, registration.fingerprint).value
+        ),
+        report_provider=lambda _: (state["raw"], record),
+        authenticate_registration=lambda r: (
+            artifacts.get(scope, r.fingerprint).value == r
+        ),
+        authenticate_report=signed.authenticate,
+        authorize=lambda *_: None,
+        artifacts=artifacts,
+        clock=lambda: now,
+    )
+    result = service.collect("operator", scope=scope)
+    assert result.all_selected_checks_pass
+    assert artifacts.get(scope, result.fingerprint).value == result
+    state["raw"] = raw + b" "
+    with pytest.raises(ContractError, match="does not bind"):
+        service.collect("operator", scope=scope)
+    state["raw"] = raw
+    state["trust"] = replace(trust, revoked=True)
+    with pytest.raises(ContractError):
+        service.collect("operator", scope=scope)
+
+
+def test_team_control_contract_stores_without_copying_commands_or_claiming_runtime(
+    database, scope, now
+):
+    from team_controls_support import team_control_bundle
+    from sova_security.adapters.team_control_results import import_control_run
+    from sova_security.adapters.postgres_modernization import PostgresSecurityArtifacts
+    from sova_security.adapters.modernization_codec import encode
+    from sova_security.contracts.repositories import RepositoryConflict
+    import json
+    import psycopg
+
+    body, profile, observed = team_control_bundle()
+    profile = replace(
+        profile,
+        scope=replace(profile.scope, resource_id="team-controls-" + uuid4().hex),
+    )
+    imported = import_control_run(
+        json.dumps(body).encode(), registration=profile, now=observed
+    )
+    dsn, role, password = database
+
+    def connect():
+        return psycopg.connect(dsn, user=role, password=password)
+
+    repository = PostgresSecurityArtifacts(connect, tenant_id=profile.scope.tenant_id)
+    for value in (profile, imported):
+        repository.register(profile.scope, value, actor_id="team-collector")
+        assert repository.get(profile.scope, value.fingerprint).value == value
+    assert "curl -s" not in encode(imported)
+    assert "excerpt" not in encode(imported)
+    repository.revoke(
+        profile.scope,
+        imported.fingerprint,
+        expected_revision=1,
+        actor_id="security-owner",
+        reason="probe-version-revoked",
+    )
+    with pytest.raises(RepositoryConflict):
+        repository.get(profile.scope, imported.fingerprint)

@@ -1,0 +1,9 @@
+{
+  "source_repository": "Softbank-Hackathon-Finals/platform",
+  "source_commit": "fc5a25e46904f55908da8bdee7122e4ad1574c5f",
+  "source_path": "docs/controls/control-result.schema.json",
+  "vendored_file": "team-control-result-v1.json",
+  "source_sha256": "7c9728028af9c9d8bc45f5e8a8ba2b3ba0e38c96b7373b7338b49c8f37adfeb9",
+  "modified": false,
+  "attribution": "Team Bravo T5 control-result contract; schema authoring remains in platform"
+}

@@ -20,6 +20,7 @@ from sova_security.domain import patch_reassessment as pr
 from sova_security.domain import continuous_security as cs
 from sova_security.domain import opa_policy as op
 from sova_security.domain import configuration_scan as config
+from sova_security.domain import team_controls as team
 
 KINDS = MappingProxyType(
     {
@@ -39,6 +40,8 @@ KINDS = MappingProxyType(
         "patch-reassessment.v1": pr.PatchReassessment,
         "runtime-security-baseline.v1": cs.RuntimeSecurityBaseline,
         "continuous-security-review.v1": cs.ContinuousSecurityReview,
+        "team-control-registration.v1": team.TeamControlRegistration,
+        "imported-team-control-run.v1": team.ImportedControlRun,
         "configuration-scan-registration.v1": config.ConfigurationScanRegistration,
         "configuration-scan-snapshot.v1": config.ConfigurationScanSnapshot,
         "opa-policy.v1": op.OPAPolicy,
