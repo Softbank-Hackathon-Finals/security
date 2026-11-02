@@ -25,6 +25,10 @@ CREATE TABLE IF NOT EXISTS sova_control.security_artifact_events_v1 (
       REFERENCES sova_control.security_artifacts_v1,
     CHECK ((revision=1 AND event_kind='registered') OR (revision=2 AND event_kind='revoked'))
 );
+CREATE UNIQUE INDEX IF NOT EXISTS security_rehearsal_request_id_v1
+ ON sova_control.security_artifacts_v1
+ (tenant_id,application_id,(envelope #>> '{value,request_id}'))
+ WHERE artifact_kind='rehearsal-request.v1';
 ALTER TABLE sova_control.security_artifacts_v1 ENABLE ROW LEVEL SECURITY;
 ALTER TABLE sova_control.security_artifacts_v1 FORCE ROW LEVEL SECURITY;
 ALTER TABLE sova_control.security_artifact_events_v1 ENABLE ROW LEVEL SECURITY;

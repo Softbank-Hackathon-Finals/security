@@ -4,7 +4,6 @@ Authorization and issuer authentication precede this repository. A row is not
 an approval. Runtime role is non-owner, NOBYPASSRLS, SELECT/INSERT only.
 """
 
-from dataclasses import dataclass
 import json
 
 from psycopg.types.json import Jsonb
@@ -22,14 +21,7 @@ from sova_security.domain.remediation import (
     RehearsalReceipt,
     RehearsalDecision,
 )
-
-
-@dataclass(frozen=True, slots=True)
-class StoredSecurityArtifact:
-    scope: ResourceScope
-    value: object
-    revision: int
-    revoked: bool
+from sova_security.ports.modernization import StoredSecurityArtifact
 
 
 class PostgresSecurityArtifacts:
@@ -99,6 +91,17 @@ class PostgresSecurityArtifacts:
         body = json.loads(encode(value))
         fingerprint = value.fingerprint
         with self.transactions.transaction() as conn:
+            if isinstance(value, RehearsalRequest):
+                # Stable request IDs cannot be rebound to another content digest.
+                self._lock(conn, scope, "request-id:" + value.request_id)
+                row = conn.execute(
+                    """SELECT artifact_digest FROM sova_control.security_artifacts_v1
+                    WHERE tenant_id=%s AND application_id=%s AND artifact_kind='rehearsal-request.v1'
+                    AND envelope #>> '{value,request_id}'=%s""",
+                    (self.tenant_id, scope.application_id, value.request_id),
+                ).fetchone()
+                if row is not None and row[0] != fingerprint:
+                    raise RepositoryConflict("Rehearsal request ID cannot be rebound")
             self._lock(conn, scope, fingerprint)
             self._validate_scope(conn, scope, value)
             try:
@@ -133,6 +136,30 @@ class PostgresSecurityArtifacts:
                 (self.tenant_id, scope.application_id, fingerprint, actor_id),
             )
             return StoredSecurityArtifact(scope, value, 1, False)
+
+    def request(self, scope, request_id):
+        self._scope(scope)
+        identifier(request_id)
+        with self.transactions.transaction() as conn:
+            row = conn.execute(
+                """SELECT artifact_digest FROM sova_control.security_artifacts_v1
+                WHERE tenant_id=%s AND application_id=%s AND environment_id=%s AND resource_id=%s
+                AND artifact_kind='rehearsal-request.v1'
+                AND envelope #>> '{value,request_id}'=%s""",
+                (
+                    self.tenant_id,
+                    scope.application_id,
+                    scope.environment_id,
+                    scope.resource_id,
+                    request_id,
+                ),
+            ).fetchone()
+            if row is None:
+                raise RecordNotFound("Registered rehearsal request not found")
+            stored = self._get(conn, scope, row[0])
+            if stored.revoked:
+                raise RepositoryConflict("Rehearsal request revoked")
+            return stored.value
 
     def get(self, scope, fingerprint, *, require_active=True):
         self._scope(scope)

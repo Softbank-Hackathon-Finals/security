@@ -1,7 +1,7 @@
 """Package-only PostgreSQL: no Sova schema or lifecycle implementation."""
 
 from dataclasses import replace
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 import os
 import secrets
 from uuid import uuid4
@@ -113,13 +113,22 @@ def test_modernization_artifacts_are_immutable_scoped_and_revocable(
     from sova_security.contracts.repositories import RepositoryConflict
 
     dsn, role, password = database
+
     def connect():
         return psycopg.connect(dsn, user=role, password=password)
+
     repo = PostgresSecurityArtifacts(connect, tenant_id=scope.tenant_id)
     _, _, request, receipt = rehearsal_bundle(scope, now)
     request = replace(request, request_id=uuid4().hex)
     receipt = replace(receipt, request_digest=request.fingerprint)
     saved = repo.register(scope, request, actor_id="registered-operator")
+    assert repo.request(scope, request.request_id) == request
+    with pytest.raises(RepositoryConflict, match="cannot be rebound"):
+        repo.register(
+            scope,
+            replace(request, valid_until=request.valid_until - timedelta(seconds=1)),
+            actor_id="operator",
+        )
     assert repo.register(scope, request, actor_id="registered-operator") == saved
     assert (
         repo.register(scope, receipt, actor_id="registered-verifier").value == receipt
@@ -140,6 +149,8 @@ def test_modernization_artifacts_are_immutable_scoped_and_revocable(
     assert repo.get(scope, request.fingerprint, require_active=False).revision == 2
     with pytest.raises(RepositoryConflict):
         repo.get(scope, request.fingerprint)
+    with pytest.raises(RepositoryConflict):
+        repo.request(scope, request.request_id)
     with pytest.raises(RepositoryConflict):
         repo.register(scope, request, actor_id="operator")
     with pytest.raises(RepositoryConflict):
