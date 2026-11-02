@@ -19,6 +19,7 @@ from sova_security.domain import patch_execution as p
 from sova_security.domain import patch_reassessment as pr
 from sova_security.domain import continuous_security as cs
 from sova_security.domain import opa_policy as op
+from sova_security.domain import configuration_scan as config
 
 KINDS = MappingProxyType(
     {
@@ -38,6 +39,8 @@ KINDS = MappingProxyType(
         "patch-reassessment.v1": pr.PatchReassessment,
         "runtime-security-baseline.v1": cs.RuntimeSecurityBaseline,
         "continuous-security-review.v1": cs.ContinuousSecurityReview,
+        "configuration-scan-registration.v1": config.ConfigurationScanRegistration,
+        "configuration-scan-snapshot.v1": config.ConfigurationScanSnapshot,
         "opa-policy.v1": op.OPAPolicy,
         "opa-decision.v1": op.OPADecision,
     }

@@ -304,3 +304,44 @@ def test_continuous_drift_persists_deduplicated_hold_and_immutable_review(
         )
         == active
     )
+
+
+def test_configuration_report_storage_preserves_scope_and_revocation(
+    database, scope, now
+):
+    from sova_security.contracts.repositories import RepositoryConflict
+    import json
+    import psycopg
+    from prowler_support import configuration_registration, event
+    from sova_security.adapters.prowler_reports import prowler_configuration
+    from sova_security.adapters.postgres_modernization import PostgresSecurityArtifacts
+
+    scope = replace(scope, resource_id="configuration-" + uuid4().hex)
+    registration = configuration_registration(scope, now)
+    report = json.dumps(
+        [event(registration, now, check=c) for c in registration.expected_checks]
+    ).encode()
+    snapshot = prowler_configuration(report, registration=registration, now=now)
+    dsn, role, password = database
+    def connect():
+        return psycopg.connect(dsn, user=role, password=password)
+    artifacts = PostgresSecurityArtifacts(connect, tenant_id=scope.tenant_id)
+    for value in (registration, snapshot):
+        artifacts.register(scope, value, actor_id="registered-collector")
+        assert artifacts.get(scope, value.fingerprint).value == value
+    with pytest.raises(ContractError, match="scope mismatch"):
+        artifacts.register(
+            replace(scope, resource_id="foreign"), snapshot, actor_id="collector"
+        )
+    foreign = PostgresSecurityArtifacts(connect, tenant_id="tenant-b")
+    with pytest.raises(RecordNotFound):
+        foreign.get(replace(scope, tenant_id="tenant-b"), snapshot.fingerprint)
+    artifacts.revoke(
+        scope,
+        snapshot.fingerprint,
+        expected_revision=1,
+        actor_id="security-owner",
+        reason="collector-revoked",
+    )
+    with pytest.raises(RepositoryConflict):
+        artifacts.get(scope, snapshot.fingerprint)
