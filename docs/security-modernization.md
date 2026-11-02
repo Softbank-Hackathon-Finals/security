@@ -62,3 +62,21 @@ Sova의 `PatchPlanExecutionService`는 이 guard를 기존 `StoredPlanExecutor`�
 `PostgresSecurityArtifacts`와 `postgres_modernization_v1.sql`은 정규화된 산출물을 내용 digest로 저장하고 등록·폐기 이벤트를 추가한다. 이미 저장한 내용을 덮어쓰거나 폐기한 digest를 재등록하지 않는다. 요청에 연결된 receipt/decision은 등록된 부모 요청을 통해 scope를 확인한다. 폐기는 revision 1→2 CAS이며 동일 산출물을 두 검토자가 동시에 폐기하면 하나만 성공한다.
 
 마이그레이션 적용은 관리자 책임이다. runtime에는 SELECT/INSERT만 부여하고, FORCE RLS와 비소유자·NOBYPASSRLS 역할을 사용한다. DB 행의 존재는 issuer 인증이나 사람 승인을 의미하지 않는다. 호출자가 임의 tenant 설정을 할 수 있는 공유 DB 자격증명 탈취까지 격리했다고 주장하지 않는다. 실행 시에는 산출물과 부모 요청의 활성 상태를 함께 재조회해야 한다. 운영 배포 전에 역할별 권한·보존·용량·백업 정책을 별도 검증한다.
+
+같은 application 안에서 `request_id`를 다른 내용 digest로 재사용하지 못하도록 DB unique index와 등록 잠금을 둔다. 폐기된 요청 ID도 재활성화하지 않는다. 내용 digest만 다르게 만들어 기존 요청의 identity를 가로채는 것을 허용하지 않는다.
+
+## 호스트 서비스 API와 실행 후 재평가
+
+`SecurityModernizationService`는 인증된 호스트가 사용할 assess/inspect/review_rehearsal/prepare_patch 인터페이스다. HTTP 서버나 기업 로그인 구현을 포함하지 않는다. tenant·scope·actor는 호스트 인증 결과에서 전달하고 body의 자가 선언을 신뢰하지 않는다. 검토 입력은 등록된 request/receipt digest이며 임의 client PASS 보고서를 authority로 등록하지 않는다. 계획 생성은 기존 lifecycle 저장소에 미승인 plan을 저장한 뒤 security binding을 등록한다. 두 저장소 사이 실패가 생기면 inert plan이 남을 수 있지만, binding이 없으면 실행 guard가 차단한다. 호스트는 미완료 접수 재개와 정리를 운영해야 한다.
+
+`reassess_patch`는 수정 전 평가의 digest·inventory·scanner 입력과 수정 후 실제 inventory·scan·노출 근거를 비교한다. 선택한 advisory가 남거나, 새로운 advisory가 들어오거나, 기존 항목 심각도가 상승하거나, 침해·범위 미확인이 있으면 차단한다. 첫 프로필에서는 이런 회귀의 자동 예외를 지원하지 않는다. 목적지의 policy digest는 신뢰된 실행 registry에서 고정해야 하며 출발지 policy와 무조건 같다고 가정하지 않는다. 재스캔 통과와 기능/보호 시험 통과는 별도 의무다.
+
+`PatchRuntimeAuthority`는 실행 후 관측 전체 digest, 정확한 plan/command와 scope를 Ed25519 근거에 연결하고 발급자·key registry·폐기 상태를 검증한다. signed PASS만으로 실제 시험 도구 구현이 생기는 것은 아니다. verifier의 collector와 scanner 실행, 기준 테스트 묶음은 별도 자격 시험을 통과해야 한다.
+
+패치 승인은 공통 plan 작성자뿐 아니라 원래 수정안 작성자·리허설 verifier와도 분리한다. 다른 actor가 plan을 다시 포장해 원 작성자가 승인하는 우회를 막는다. 문자열 identity의 실제 귀속과 역할 권한은 호스트 인증 서비스가 확인해야 한다.
+
+## 도구 재사용과 검증 범위
+
+검사기·암호화·샌드박스 자체를 다시 구현하지 않는다. Trivy의 CycloneDX/JSON 출력을 사용하고 Ed25519는 `cryptography`를 사용한다. Harbor는 팀 실행 계약으로 연결한다. Prowler·OPA·Kyverno·Cosign·Falco는 도입 후보이며 이 문서의 코드만으로 설치·운영됐다고 표시하지 않는다.
+
+실제 공식 Trivy 0.76.1 바이너리로 기존 로컬 시험 이미지에서 SBOM과 vulnerability report를 생성해 정규화 경로를 확인했다. 이 검증은 이미지의 source provenance·실제 배포 권한을 인증한 시험이 아니므로 `partial`로 유지했다. 저장소에는 작은 비식별 형식 projection만 fixture로 두고 전체 보고서·도구·DB·개발기록은 로컬에 둔다. package 목록과 버전이 inventory와 일치하지 않거나 report의 도구 버전이 등록 invocation과 다르면 완전한 검사로 취급하지 않는다.
