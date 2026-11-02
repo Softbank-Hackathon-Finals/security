@@ -27,3 +27,8 @@ SecurityResponseGuard와 계획 모델은 포함하지만 실제 실행 runner�
 ## 시험 수준
 
 패키지 독립 unit/contract 시험, 패키지 단독 PostgreSQL 접근 제한 시험, Sova 전체 회귀를 각각 기록한다. CI의 일반 단위시험에서는 실제 PostgreSQL 시험이 명시적으로 건너뛰어질 수 있다. 별도 격리 클러스터를 연결한 시험 없이 운영 자격을 주장하지 않는다. AWS unit 시험은 SDK Stubber를 사용한다.
+# 인증 callback 반환 계약
+
+권한 검사는 `True` 또는 거부 시 예외를 발생시키는 `None` 반환 방식을 지원한다. `False`·정수·문자열·임의 truthy 객체는 거부한다. 정책·근거 인증 callback은 이에 더해 입력과 정확히 같은 타입·내용의 검증된 dataclass를 반환할 수 있다. 서명 verifier가 인증한 `EvidenceRecord`를 반환하는 기존 연결은 유지한다. 반환값을 지정하지 않은 테스트 Mock도 승인이 아니므로 `return_value=None`을 명시해야 한다.
+
+이 규칙은 HTTP 입력의 승인 표시가 아니라 신뢰된 호스트 callback의 계약이다. host가 잘못된 무조건 승인 함수를 주입하는 것을 패키지 자체가 방지하는 인증 서비스는 아니다.

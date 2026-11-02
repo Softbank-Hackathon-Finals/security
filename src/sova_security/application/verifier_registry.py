@@ -1,5 +1,7 @@
 """Administrative authorization is separate from issuer signature verification."""
 
+from sova_security.application.boundary import require_accept, require_authentication
+
 from sova_security.contracts.commands import ContractError
 
 
@@ -18,11 +20,16 @@ class VerifierRegistryAdministration:
             change.application_id,
         ) != (self.repository.tenant_id, self.repository.application_id):
             raise ContractError("Verifier administration actor/scope mismatch")
-        self.authorize(
-            actor, change.tenant_id, change.application_id, "verifier-trust:request"
+        require_accept(
+            self.authorize,
+            actor,
+            change.tenant_id,
+            change.application_id,
+            "verifier-trust:request",
         )
-        self.authenticate_approval(change)
-        self.authorize(
+        require_authentication(self.authenticate_approval, change)
+        require_accept(
+            self.authorize,
             change.approved_by,
             change.tenant_id,
             change.application_id,

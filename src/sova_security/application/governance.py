@@ -1,5 +1,7 @@
 """Independent security gate and privileged release. No implicit risk exceptions."""
 
+from sova_security.application.boundary import require_accept, require_authentication
+
 from datetime import UTC, datetime
 
 from sova_security.contracts.commands import ContractError
@@ -29,7 +31,7 @@ class GovernanceGuard:
         if self.holds.tenant_id != plan.tenant_id:
             raise ContractError("Governance tenant mismatch")
         policy = self.policy_provider(plan)
-        self.authenticate_policy(policy)
+        require_authentication(self.authenticate_policy, policy)
         if (policy.tenant_id, policy.application_id) != (
             plan.tenant_id,
             plan.application_id,
@@ -45,7 +47,7 @@ class GovernanceGuard:
         if type(evidence) is not tuple:
             raise ContractError("Immutable security evidence required")
         for record in evidence:
-            self.authenticate_evidence(record)
+            require_authentication(self.authenticate_evidence, record)
         holds = self.holds.active_holds(plan.application_id)
         if type(holds) is not tuple:
             raise ContractError("Immutable hold snapshot required")
@@ -55,6 +57,19 @@ class GovernanceGuard:
                 stored.hold.scope.application_id,
             ) != (plan.tenant_id, plan.application_id):
                 raise ContractError("Invalid scoped security hold snapshot")
+        # Policy/evidence/hold lookups are external boundaries. An earlier
+        # authenticated snapshot is not a lasting authorization lease.
+        require_authentication(self.authenticate_policy, policy)
+        for record in evidence:
+            require_authentication(self.authenticate_evidence, record)
+        if (
+            self.policy_provider(plan) != policy
+            or self.evidence_provider(plan) != evidence
+            or self.holds.active_holds(plan.application_id) != holds
+        ):
+            raise ContractError(
+                "Security authority changed during governance assessment"
+            )
         checked_at = self.clock()
         if checked_at < now:
             raise ContractError("Governance clock moved backwards")
@@ -91,7 +106,7 @@ class SecurityHoldService:
     def open(self, actor, hold):
         if actor != hold.raised_by or hold.scope.tenant_id != self.repository.tenant_id:
             raise ContractError("Security hold actor/scope mismatch")
-        self.authorize(actor, hold.scope, "security:hold")
+        require_accept(self.authorize, actor, hold.scope, "security:hold")
         if hold.raised_at > self.clock():
             raise ContractError("Future hold timestamp")
         return self.repository.open_hold(hold)
@@ -107,10 +122,12 @@ class SecurityHoldService:
             or request.revisions != self.current_revisions(scope)
         ):
             raise ContractError("Hold release requester/scope/revisions mismatch")
-        self.authorize(actor, scope, "security:release-request")
-        self.authenticate_release(request)
-        self.authorize(request.approved_by, scope, "security:release-approve")
-        self.authenticate_evidence(evidence)
+        require_accept(self.authorize, actor, scope, "security:release-request")
+        require_authentication(self.authenticate_release, request)
+        require_accept(
+            self.authorize, request.approved_by, scope, "security:release-approve"
+        )
+        require_authentication(self.authenticate_evidence, evidence)
         now = self.clock()
         request.require_valid(stored.hold, stored.revision, now)
         if (

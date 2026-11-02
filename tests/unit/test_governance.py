@@ -124,6 +124,51 @@ def guard_fixture(scope, now):
     return guard, repo, policy, plan, approval, evidence, hold
 
 
+@pytest.mark.parametrize("boundary", ["authenticate_policy", "authenticate_evidence"])
+def test_false_authentication_cannot_grant_security_execution(scope, now, boundary):
+    guard, _, _, plan, *_ = guard_fixture(scope, now)
+    setattr(guard, boundary, lambda _: False)
+    with pytest.raises(ContractError):
+        guard(plan, now)
+
+
+def test_governance_rechecks_policy_and_signer_after_external_lookups(scope, now):
+    guard, _, policy, plan, *_ = guard_fixture(scope, now)
+    state = {"policy": policy, "calls": 0}
+    guard.policy_provider = lambda _: state["policy"]
+
+    def authenticate(_):
+        state["policy"] = replace(policy, revision=2)
+
+    guard.authenticate_evidence = authenticate
+    with pytest.raises(ContractError, match="changed"):
+        guard(plan, now)
+    guard, _, _, plan, *_ = guard_fixture(scope, now)
+
+    def revoke_on_recheck(_):
+        state["calls"] += 1
+        return state["calls"] < 2
+
+    guard.authenticate_evidence = revoke_on_recheck
+    with pytest.raises(ContractError, match="authentication"):
+        guard(plan, now)
+
+
+@pytest.mark.parametrize(
+    "boundary", ["authorize", "authenticate_release", "authenticate_evidence"]
+)
+def test_false_release_authority_cannot_clear_incident(scope, now, boundary):
+    _, plan, _, _, hold = bundle(scope, now)
+    repo = MemoryHolds(scope.tenant_id, now)
+    repo.open_hold(hold)
+    service = release_service(repo, plan.revisions, now)
+    setattr(service, boundary, lambda *_: False)
+    request, evidence = release_bundle(hold, plan.revisions, now)
+    with pytest.raises(ContractError):
+        service.release(request.requested_by, scope.application_id, request, evidence)
+    assert repo.active_holds(scope.application_id)
+
+
 def test_hold_is_app_wide_not_cleared_by_evidence_or_plan_approval(scope, now):
     guard, repo, _, plan, _, _, hold = guard_fixture(scope, now)
     assert guard.assess(plan, now)["accepted"]

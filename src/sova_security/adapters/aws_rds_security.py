@@ -4,6 +4,8 @@ These checks establish configuration facts only. Successful backup restore,
 actual network reachability, TLS enforcement and IAM denial need separate probes.
 """
 
+from sova_security.contracts.authority import require_accept
+
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 import hashlib
@@ -267,12 +269,12 @@ class RdsSecurityCollector:
         reg = self.registration
         started_at = utc(self.clock())
         reg.require_current(started_at)
-        self.authorize(actor, reg, "security:rds-metadata-read")
+        require_accept(self.authorize, actor, reg, "security:rds-metadata-read")
         end = self.monotonic() + 12
         clients = self.clients(reg)
 
         def call(service, method, **parameters):
-            self.authorize(actor, reg, "security:rds-metadata-read")
+            require_accept(self.authorize, actor, reg, "security:rds-metadata-read")
             reg.require_current(self.clock())
             if self.monotonic() >= end:
                 raise ContractError("RDS read deadline exceeded")
@@ -360,7 +362,7 @@ class RdsSecurityCollector:
             ).hexdigest(),
         }
         checks = configuration_checks(facts, reg)
-        self.authorize(actor, reg, "security:rds-metadata-read")
+        require_accept(self.authorize, actor, reg, "security:rds-metadata-read")
         if self.monotonic() >= end:
             raise ContractError("RDS read deadline exceeded")
         observed = utc(self.clock())

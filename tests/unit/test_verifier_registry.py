@@ -31,6 +31,28 @@ def trust_change(scope, now):
     )
 
 
+@pytest.mark.parametrize("boundary", ["authorize", "authenticate_approval"])
+def test_false_administrative_authority_never_publishes_key(scope, now, boundary):
+    from types import SimpleNamespace
+
+    calls = []
+    repo = SimpleNamespace(
+        tenant_id=scope.tenant_id,
+        application_id=scope.application_id,
+        publish=calls.append,
+    )
+    service = VerifierRegistryAdministration(
+        repo,
+        authorize=lambda *_: None,
+        authenticate_approval=lambda _: None,
+        clock=lambda: now,
+    )
+    setattr(service, boundary, lambda *_: False)
+    with pytest.raises(ContractError):
+        service.publish("requester", trust_change(scope, now))
+    assert calls == []
+
+
 def test_exact_codec_and_independent_app_scoped_approval(scope, now):
     change = trust_change(scope, now)
     assert decode_trust_change(change.document) == change

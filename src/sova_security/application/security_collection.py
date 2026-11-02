@@ -1,5 +1,7 @@
 """Collect scoped posture, persist immutable evidence, raise deduplicated holds."""
 
+from sova_security.application.boundary import require_accept
+
 from datetime import UTC, datetime
 from sova_security.adapters.security_codec import snapshot_from_collection
 from sova_security.contracts.commands import ContractError, canonical_json
@@ -37,7 +39,7 @@ class SecurityCollector:
             or self.holds.tenant_id != snapshot.graph.tenant_id
         ):
             raise ContractError("Security collector tenant mismatch")
-        self.authorize(self.actor_id, snapshot.graph, "security:record")
+        require_accept(self.authorize, self.actor_id, snapshot.graph, "security:record")
         self.observations.save_snapshot(snapshot)
         nodes = {r.scope: r.node_id for r in snapshot.graph.resources}
 
@@ -69,7 +71,9 @@ class SecurityCollector:
                 or finding.result != VerificationResult.FAIL
             ):
                 continue
-            self.authorize(self.actor_id, finding.scope, "security:hold")
+            require_accept(
+                self.authorize, self.actor_id, finding.scope, "security:hold"
+            )
             stored, created = self.holds.open_incident(
                 finding.scope, "posture:" + finding.control_id, self.actor_id
             )

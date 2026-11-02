@@ -138,6 +138,27 @@ def make_guard(scope, now):
     return guard, policy, evidence, plan, revisions, holds
 
 
+@pytest.mark.parametrize("boundary", ["authenticate_policy", "authenticate_evidence"])
+def test_false_authentication_never_qualifies_parity(scope, now, boundary):
+    guard, _, _, plan, *_ = make_guard(scope, now)
+    setattr(guard, boundary, lambda _: False)
+    with pytest.raises(ContractError):
+        guard(plan, now)
+
+
+def test_audit_persistence_cannot_hide_a_late_verifier_revocation(scope, now):
+    guard, _, _, plan, *_ = make_guard(scope, now)
+    state = {"trusted": True}
+    guard.authenticate_evidence = lambda _: state["trusted"]
+
+    def record(*_):
+        state["trusted"] = False
+
+    guard.record_assessment = record
+    with pytest.raises(ContractError, match="authentication"):
+        guard(plan, now)
+
+
 def test_gate_checks_drift_policy_revision_and_independent_hold(scope, now):
     guard, policy, evidence, plan, revisions, holds = make_guard(scope, now)
     assert guard(plan, now) > now

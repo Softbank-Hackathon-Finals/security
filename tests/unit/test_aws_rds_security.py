@@ -243,6 +243,21 @@ def test_unauthorized_collector_never_constructs_sdk_clients(rds_case, now):
     assert not constructed
 
 
+def test_false_authorization_never_constructs_sdk_clients(rds_case, now):
+    reg, *_ = rds_case
+    constructed = []
+    collector = RdsSecurityCollector(
+        reg,
+        clients=lambda _: constructed.append(True),
+        authorize=lambda *_: False,
+        clock=lambda: now,
+        monotonic=lambda: 0,
+    )
+    with pytest.raises(ContractError):
+        collector.collect(actor="attacker")
+    assert not constructed
+
+
 def test_configuration_evidence_must_match_exact_policy_target(rds_case, now):
     snapshot = run_case(rds_case, now)
     reg = snapshot.registration

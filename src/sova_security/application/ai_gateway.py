@@ -5,6 +5,8 @@ gateway, OPA, a DLP service, or a provider-location certification. Receipts omit
 prompt, response, credentials and content hashes of potentially sensitive text.
 """
 
+from sova_security.application.boundary import require_accept, require_authentication
+
 from sova_security.domain.ai_residency import assess_ai_route
 from sova_security.contracts.commands import ContractError, identifier, utc
 
@@ -52,7 +54,7 @@ class AIGateway:
             capability,
         ):
             identifier(value)
-        self.authorize(actor, scope, "ai:invoke")
+        require_accept(self.authorize, actor, scope, "ai:invoke")
         if type(payload) is not str:
             raise ContractError("Text AI input required")
         try:
@@ -64,8 +66,8 @@ class AIGateway:
         data_class = self.classify(scope, purpose, payload)
         policy = self.policy_provider(scope, data_class)
         endpoint = self.endpoint_provider(scope, endpoint_id)
-        self.authenticate_policy(policy)
-        self.authenticate_endpoint(endpoint)
+        require_authentication(self.authenticate_policy, policy)
+        require_authentication(self.authenticate_endpoint, endpoint)
         if (
             endpoint.endpoint_id != endpoint_id
             or policy.fingerprint != expected_policy_digest
@@ -89,11 +91,11 @@ class AIGateway:
             raise ContractError("AI route denied: " + ",".join(decision["reasons"]))
         # Re-read current authority state immediately before dispatch. These
         # callbacks must check revocation, not merely return a cached boolean.
-        self.authorize(actor, scope, "ai:invoke")
+        require_accept(self.authorize, actor, scope, "ai:invoke")
         current_policy = self.policy_provider(scope, data_class)
         current_endpoint = self.endpoint_provider(scope, endpoint_id)
-        self.authenticate_policy(current_policy)
-        self.authenticate_endpoint(current_endpoint)
+        require_authentication(self.authenticate_policy, current_policy)
+        require_authentication(self.authenticate_endpoint, current_endpoint)
         if current_policy != policy or current_endpoint != endpoint:
             raise ContractError("AI admission changed during authorization")
         dispatch_at = utc(self.clock())

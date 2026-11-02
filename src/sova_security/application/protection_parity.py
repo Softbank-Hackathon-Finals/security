@@ -4,6 +4,8 @@ Every callback is a server-side authority. The HTTP caller cannot select a
 policy, assert adapter support, or authenticate its own evidence.
 """
 
+from sova_security.application.boundary import require_authentication
+
 from datetime import datetime
 
 from sova_security.contracts.commands import ContractError, utc
@@ -49,7 +51,7 @@ class ProtectionParityGuard:
         policy = self.policy_provider(plan)
         if not isinstance(policy, ProtectionPolicy):
             raise ContractError("Registered protection policy required")
-        self.authenticate_policy(policy)
+        require_authentication(self.authenticate_policy, policy)
         profile = self.profile_provider(plan)
         from sova_security.domain.protection_profiles import ProtectionProfile
 
@@ -86,7 +88,7 @@ class ProtectionParityGuard:
         if type(evidence) is not tuple:
             raise ContractError("Immutable authenticated protection evidence required")
         for record in evidence:
-            self.authenticate_evidence(record)
+            require_authentication(self.authenticate_evidence, record)
         # Remote issuer/metadata lookups may overlap a policy update or drift.
         # Re-read the authorities; an earlier successful lookup is not a lease.
         if (
@@ -94,7 +96,7 @@ class ProtectionParityGuard:
             or self.profile_provider(plan) != profile
         ):
             raise ContractError("Protection policy changed during verification")
-        self.authenticate_policy(policy)
+        require_authentication(self.authenticate_policy, policy)
         for req in policy.requirements:
             if req.required:
                 for endpoint in (req.source, req.target):
@@ -120,6 +122,9 @@ class ProtectionParityGuard:
         report["accepted"] = report["accepted"] and not active
         if self.record_assessment is not None:
             self.record_assessment(plan, policy, evidence, report)
+        require_authentication(self.authenticate_policy, policy)
+        for record in evidence:
+            require_authentication(self.authenticate_evidence, record)
         if (
             self.policy_provider(plan) != policy
             or self.profile_provider(plan) != profile

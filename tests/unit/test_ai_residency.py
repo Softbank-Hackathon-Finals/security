@@ -62,14 +62,24 @@ def gateway(ai, scope, now, **changes):
         policy_provider=Mock(return_value=policy),
         endpoint_provider=Mock(return_value=endpoint),
         classify=Mock(return_value=DataClass.CONFIDENTIAL),
-        authorize=Mock(),
-        authenticate_policy=Mock(),
-        authenticate_endpoint=Mock(),
+        authorize=Mock(return_value=None),
+        authenticate_policy=Mock(return_value=None),
+        authenticate_endpoint=Mock(return_value=None),
         invoke=Mock(return_value="요약 결과"),
         clock=lambda: now,
     )
     args.update(changes)
     return AIGateway(**args)
+
+
+@pytest.mark.parametrize(
+    "boundary", ["authorize", "authenticate_policy", "authenticate_endpoint"]
+)
+def test_explicit_authentication_denial_never_reaches_model(ai, scope, now, boundary):
+    service = gateway(ai, scope, now, **{boundary: Mock(return_value=False)})
+    with pytest.raises(ContractError):
+        invoke(service, ai, scope)
+    service.invoke.assert_not_called()
 
 
 def invoke(service, ai, scope, **changes):
