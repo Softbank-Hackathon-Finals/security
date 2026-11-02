@@ -347,35 +347,6 @@ def test_fixed_sdk_factory_disables_endpoint_overrides_proxies_and_retries(rds_c
         assert kwargs["config"].retries["total_max_attempts"] == 1
 
 
-def test_rds_cli_checks_private_registration_before_constructing_sdk_session(
-    rds_case, tmp_path, monkeypatch, capsys
-):
-    from sova.interfaces.cli import main
-    import json
-
-    reg = rds_case[0]
-    from datetime import datetime, UTC
-
-    now = datetime.now(UTC)
-    reg = replace(
-        reg,
-        issued_at=now - timedelta(seconds=1),
-        valid_until=now + timedelta(minutes=5),
-    )
-    path = tmp_path / "registration.json"
-    path.write_text(json.dumps(reg.document))
-    path.chmod(0o644)
-    constructed = []
-    monkeypatch.setattr(boto3, "Session", lambda **kw: constructed.append(kw))
-    assert main(["discover-rds-security", "--registration", str(path)]) == 2
-    assert constructed == [] and "canary" not in capsys.readouterr().err
-    path.chmod(0o600)
-    data = {**reg.document, "endpoint_url": "http://metadata.invalid"}
-    path.write_text(json.dumps(data))
-    assert main(["discover-rds-security", "--registration", str(path)]) == 2
-    assert constructed == []
-
-
 def test_aws_api_failure_never_returns_partial_pass_or_echoes_service_error(
     rds_case, now
 ):

@@ -3,6 +3,7 @@
 from dataclasses import replace
 from datetime import UTC, datetime
 import os
+import secrets
 from uuid import uuid4
 
 import pytest
@@ -24,6 +25,7 @@ def database():
     from psycopg import sql
 
     role = "security_test_" + uuid4().hex
+    password = secrets.token_urlsafe(32)
     with psycopg.connect(dsn, autocommit=True) as admin:
         assert admin.execute(
             "SELECT current_setting('cluster_name'),current_database()"
@@ -33,8 +35,8 @@ def database():
             admin.execute(migration_sql(name))
         admin.execute(
             sql.SQL(
-                "CREATE ROLE {} LOGIN NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE NOINHERIT"
-            ).format(sql.Identifier(role))
+                "CREATE ROLE {} LOGIN NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE NOINHERIT PASSWORD {}"
+            ).format(sql.Identifier(role), sql.Literal(password))
         )
         admin.execute(
             sql.SQL("GRANT USAGE ON SCHEMA sova_control TO {}").format(
@@ -47,7 +49,7 @@ def database():
             ).format(sql.Identifier(role))
         )
     try:
-        yield dsn, role
+        yield dsn, role, password
     finally:
         with psycopg.connect(dsn, autocommit=True) as admin:
             admin.execute(sql.SQL("DROP OWNED BY {}").format(sql.Identifier(role)))
@@ -58,10 +60,10 @@ def test_runtime_tenant_visibility_and_append_only_rights(database, scope):
     import psycopg
     from bravo_security.adapters.postgres_governance import PostgresSecurityHolds
 
-    dsn, role = database
+    dsn, role, password = database
 
     def connect():
-        return psycopg.connect(dsn, user=role)
+        return psycopg.connect(dsn, user=role, password=password)
 
     first = PostgresSecurityHolds(connect, tenant_id=scope.tenant_id)
     hold = SecurityHold(
@@ -84,7 +86,7 @@ def test_privileged_connection_cannot_be_runtime(database, scope):
     import psycopg
     from bravo_security.adapters.postgres_session import ScopedPostgresSession
 
-    dsn, _ = database
+    dsn, _, _ = database
     session = ScopedPostgresSession(
         lambda: psycopg.connect(dsn), tenant_id=scope.tenant_id
     )

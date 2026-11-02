@@ -12,7 +12,8 @@ from bravo_security.migrations import MIGRATIONS, migration_sql
 
 def test_source_imports_do_not_depend_on_sova_or_demo():
     root = Path(bravo_security.__file__).parent
-    for path in root.rglob("*.py"):
+    paths = [*root.rglob("*.py"), *Path(__file__).resolve().parents[1].rglob("*.py")]
+    for path in paths:
         for node in ast.walk(ast.parse(path.read_text())):
             names = (
                 [node.module]
