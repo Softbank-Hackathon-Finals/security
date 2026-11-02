@@ -39,7 +39,7 @@ def test_all_public_modules_import_without_a_host_runtime():
 
 
 def test_migrations_are_explicit_security_owned_resources():
-    assert len(MIGRATIONS) == 6
+    assert len(MIGRATIONS) == 7
     for name in MIGRATIONS:
         text = migration_sql(name)
         assert "sova_control" in text

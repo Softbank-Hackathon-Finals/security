@@ -10,6 +10,7 @@ MIGRATIONS = (
     "postgres_security_observations_v1.sql",
     "postgres_signed_evidence_v1.sql",
     "postgres_verifier_registry_v1.sql",
+    "postgres_modernization_v1.sql",
 )
 
 

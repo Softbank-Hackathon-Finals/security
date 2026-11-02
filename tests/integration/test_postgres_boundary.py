@@ -102,3 +102,111 @@ def test_public_tables_never_need_host_operations_schema(database):
         assert conn.execute(
             "SELECT to_regclass('sova_control.operations')"
         ).fetchone() == (None,)
+
+
+def test_modernization_artifacts_are_immutable_scoped_and_revocable(
+    database, scope, now
+):
+    import psycopg
+    from modernization_support import rehearsal_bundle
+    from sova_security.adapters.postgres_modernization import PostgresSecurityArtifacts
+    from sova_security.contracts.repositories import RepositoryConflict
+
+    dsn, role, password = database
+    def connect():
+        return psycopg.connect(dsn, user=role, password=password)
+    repo = PostgresSecurityArtifacts(connect, tenant_id=scope.tenant_id)
+    _, _, request, receipt = rehearsal_bundle(scope, now)
+    request = replace(request, request_id=uuid4().hex)
+    receipt = replace(receipt, request_digest=request.fingerprint)
+    saved = repo.register(scope, request, actor_id="registered-operator")
+    assert repo.register(scope, request, actor_id="registered-operator") == saved
+    assert (
+        repo.register(scope, receipt, actor_id="registered-verifier").value == receipt
+    )
+    assert repo.get(scope, request.fingerprint).value == request
+    other = PostgresSecurityArtifacts(connect, tenant_id="tenant-b")
+    with pytest.raises(RecordNotFound):
+        other.get(replace(scope, tenant_id="tenant-b"), request.fingerprint)
+    with pytest.raises(ContractError, match="scope mismatch"):
+        repo.register(replace(scope, resource_id="other"), request, actor_id="operator")
+    assert repo.revoke(
+        scope,
+        request.fingerprint,
+        expected_revision=1,
+        actor_id="reviewer",
+        reason="invalidated",
+    ).revoked
+    assert repo.get(scope, request.fingerprint, require_active=False).revision == 2
+    with pytest.raises(RepositoryConflict):
+        repo.get(scope, request.fingerprint)
+    with pytest.raises(RepositoryConflict):
+        repo.register(scope, request, actor_id="operator")
+    with pytest.raises(RepositoryConflict):
+        repo.revoke(
+            scope,
+            request.fingerprint,
+            expected_revision=1,
+            actor_id="reviewer",
+            reason="again",
+        )
+    with connect() as conn:
+        with pytest.raises(psycopg.errors.InsufficientPrivilege):
+            conn.execute(
+                "UPDATE sova_control.security_artifacts_v1 SET registered_by='attacker'"
+            )
+
+
+def test_orphan_receipt_cannot_be_registered_under_an_arbitrary_scope(
+    database, scope, now
+):
+    import psycopg
+    from modernization_support import rehearsal_bundle
+    from sova_security.adapters.postgres_modernization import PostgresSecurityArtifacts
+
+    dsn, role, password = database
+    repo = PostgresSecurityArtifacts(
+        lambda: psycopg.connect(dsn, user=role, password=password),
+        tenant_id=scope.tenant_id,
+    )
+    _, _, _, receipt = rehearsal_bundle(scope, now)
+    with pytest.raises(RecordNotFound):
+        repo.register(
+            scope, replace(receipt, request_digest="0" * 64), actor_id="verifier"
+        )
+
+
+def test_artifact_revocation_cas_serializes_concurrent_reviewers(database, scope, now):
+    from concurrent.futures import ThreadPoolExecutor
+    import psycopg
+    from modernization_support import rehearsal_bundle
+    from sova_security.adapters.postgres_modernization import PostgresSecurityArtifacts
+    from sova_security.contracts.repositories import RepositoryConflict
+
+    dsn, role, password = database
+    repo = PostgresSecurityArtifacts(
+        lambda: psycopg.connect(dsn, user=role, password=password),
+        tenant_id=scope.tenant_id,
+    )
+    _, _, request, _ = rehearsal_bundle(scope, now)
+    request = replace(request, request_id=uuid4().hex)
+    repo.register(scope, request, actor_id="operator")
+
+    def revoke(actor):
+        try:
+            repo.revoke(
+                scope,
+                request.fingerprint,
+                expected_revision=1,
+                actor_id=actor,
+                reason="review",
+            )
+            return "revoked"
+        except RepositoryConflict:
+            return "conflict"
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        assert sorted(pool.map(revoke, ("reviewer-a", "reviewer-b"))) == [
+            "conflict",
+            "revoked",
+        ]
