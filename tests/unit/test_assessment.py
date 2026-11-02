@@ -17,8 +17,26 @@ from sova_security.adapters.vulnerability_reports import (
     cyclone_inventory,
     trivy_scan,
     bounded_report,
+    trivy_package_version,
 )
 from sova_security.application.assessment import AssessmentService
+
+
+@pytest.mark.parametrize(
+    "epoch,release,want",
+    [(0, "", "1.2.3"), (0, "alpha", "1.2.3-alpha"), (2, "1+b9", "2:1.2.3-1+b9")],
+)
+def test_trivy_full_package_version_matches_official_format(epoch, release, want):
+    assert (
+        trivy_package_version({"Version": "1.2.3", "Release": release, "Epoch": epoch})
+        == want
+    )
+
+
+@pytest.mark.parametrize("epoch", [True, "2", -1, None])
+def test_trivy_epoch_cannot_be_type_coerced(epoch):
+    with pytest.raises(ContractError):
+        trivy_package_version({"Version": "1.2.3", "Epoch": epoch})
 
 
 def test_risk_binds_inputs_without_granting_execution(scope, now):

@@ -37,6 +37,9 @@ def test_official_trivy_0761_cyclonedx_and_python_purl_shape(scope, now):
         observed_at=now,
         valid_until=now + timedelta(minutes=1),
     )
-    assert len(scan.findings) == 1 and scan.coverage == Coverage.PARTIAL
-    assert scan.findings[0].component_id == inventory.components[0].component_id
-    assert scan.findings[0].installed_version == inventory.components[0].version
+    assert len(scan.findings) == 3 and scan.coverage == Coverage.PARTIAL
+    components = {c.component_id: c for c in inventory.components}
+    assert len(components) == 3  # OS distribution metadata is not a package.
+    for finding in scan.findings:
+        assert finding.installed_version == components[finding.component_id].version
+    assert "1:2.41-5" in {c.version for c in components.values()}

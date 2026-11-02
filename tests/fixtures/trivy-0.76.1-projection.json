@@ -10,6 +10,26 @@
         "name": "pip",
         "version": "25.0.1",
         "purl": "pkg:pypi/pip@25.0.1"
+      },
+      {
+        "type": "operating-system",
+        "bom-ref": "30eab9a7-bf15-4dff-9613-4450492a3b0b",
+        "name": "debian",
+        "version": "13.6"
+      },
+      {
+        "type": "library",
+        "bom-ref": "pkg:deb/debian/bash@5.2.37-2%2Bb9?arch=arm64&distro=debian-13.6",
+        "name": "bash",
+        "version": "5.2.37-2+b9",
+        "purl": "pkg:deb/debian/bash@5.2.37-2%2Bb9?arch=arm64&distro=debian-13.6"
+      },
+      {
+        "type": "library",
+        "bom-ref": "pkg:deb/debian/bsdutils@2.41-5?arch=arm64&distro=debian-13.6&epoch=1",
+        "name": "bsdutils",
+        "version": "1:2.41-5",
+        "purl": "pkg:deb/debian/bsdutils@2.41-5?arch=arm64&distro=debian-13.6&epoch=1"
       }
     ]
   },
@@ -26,26 +46,66 @@
     },
     "Results": [
       {
+        "Target": "qualification-debian-packages",
+        "Class": "os-pkgs",
+        "Type": "debian",
+        "Packages": [
+          {
+            "Name": "bash",
+            "Version": "5.2.37",
+            "Release": "2+b9",
+            "Identifier": {
+              "PURL": "pkg:deb/debian/bash@5.2.37-2%2Bb9?arch=arm64&distro=debian-13.6",
+              "UID": "260a696ce1b67795"
+            }
+          },
+          {
+            "Name": "bsdutils",
+            "Version": "2.41",
+            "Release": "5",
+            "Epoch": 1,
+            "Identifier": {
+              "PURL": "pkg:deb/debian/bsdutils@2.41-5?arch=arm64&distro=debian-13.6&epoch=1",
+              "UID": "94e268d496da180"
+            }
+          }
+        ],
+        "Vulnerabilities": [
+          {
+            "VulnerabilityID": "TEMP-0841856-B18BAF",
+            "PkgName": "bash",
+            "InstalledVersion": "5.2.37-2+b9",
+            "Severity": "LOW",
+            "PkgIdentifier": {
+              "PURL": "pkg:deb/debian/bash@5.2.37-2%2Bb9?arch=arm64&distro=debian-13.6",
+              "UID": "260a696ce1b67795"
+            }
+          },
+          {
+            "VulnerabilityID": "CVE-2026-53612",
+            "PkgName": "bsdutils",
+            "InstalledVersion": "1:2.41-5",
+            "Severity": "HIGH",
+            "FixedVersion": "2.41.5-0+deb13u1",
+            "PkgIdentifier": {
+              "PURL": "pkg:deb/debian/bsdutils@2.41-5?arch=arm64&distro=debian-13.6&epoch=1",
+              "UID": "94e268d496da180"
+            }
+          }
+        ]
+      },
+      {
         "Target": "qualification-python-packages",
         "Class": "lang-pkgs",
         "Type": "python-pkg",
         "Packages": [
           {
             "Name": "pip",
+            "Version": "25.0.1",
             "Identifier": {
               "PURL": "pkg:pypi/pip@25.0.1",
               "UID": "7d864d9a4bf3bfe8"
-            },
-            "Version": "25.0.1",
-            "Licenses": [
-              "MIT"
-            ],
-            "Layer": {
-              "Digest": "sha256:c0680a512a880359f326a631472b3286ca7d2fbee3fe1299f0c17557bde96652",
-              "DiffID": "sha256:0778dda6f39e1204b0585aa87377671ca10801bf7bd54b0e71f1c63f807d5829"
-            },
-            "FilePath": "usr/local/lib/python3.12/site-packages/pip-25.0.1.dist-info/METADATA",
-            "AnalyzedBy": "python-pkg"
+            }
           }
         ],
         "Vulnerabilities": [
