@@ -221,3 +221,86 @@ def test_artifact_revocation_cas_serializes_concurrent_reviewers(database, scope
             "conflict",
             "revoked",
         ]
+
+
+def test_continuous_drift_persists_deduplicated_hold_and_immutable_review(
+    database, scope, now
+):
+    import psycopg
+    from modernization_support import rehearsal_bundle
+    from sova_security.adapters.postgres_modernization import PostgresSecurityArtifacts
+    from sova_security.adapters.postgres_governance import PostgresSecurityHolds
+    from sova_security.application.assessment import AssessmentService
+    from sova_security.application.continuous_security import ContinuousSecurityMonitor
+    from sova_security.domain.continuous_security import RuntimeSecurityBaseline
+    from sova_security.domain.remediation import TestedArtifact as Artifact
+
+    scope = replace(scope, resource_id="monitor-" + uuid4().hex)
+    inputs, accepted, _, _ = rehearsal_bundle(scope, now)
+    baseline = RuntimeSecurityBaseline(
+        scope,
+        "e" * 64,
+        Artifact(
+            scope,
+            inputs[0].image_digest,
+            inputs[0].source_digest,
+            inputs[0].configuration_digest,
+            "f" * 64,
+        ),
+        inputs[0].resource_revision,
+        accepted,
+        now + timedelta(seconds=1),
+        now + timedelta(hours=1),
+    )
+    dsn, role, password = database
+
+    def connect():
+        return psycopg.connect(dsn, user=role, password=password)
+
+    artifacts = PostgresSecurityArtifacts(connect, tenant_id=scope.tenant_id)
+    holds = PostgresSecurityHolds(connect, tenant_id=scope.tenant_id)
+    artifacts.register(scope, baseline, actor_id="deployment-registry")
+    changed = replace(inputs[0], image_digest="0" * 64)
+    state = {
+        "inputs": (
+            changed,
+            replace(
+                inputs[1],
+                inventory_digest=changed.fingerprint,
+                image_digest=changed.image_digest,
+            ),
+            replace(inputs[2], inventory_digest=changed.fingerprint),
+            inputs[3],
+        )
+    }
+    service = ContinuousSecurityMonitor(
+        assessment_service=AssessmentService(
+            authorize=lambda *_: None,
+            authenticate_input=lambda *_: None,
+            current_inputs=lambda _: state["inputs"],
+            clock=lambda: now + timedelta(seconds=4),
+        ),
+        current_inputs=lambda _: state["inputs"],
+        baseline_provider=lambda _: artifacts.get(scope, baseline.fingerprint).value,
+        authenticate_baseline=lambda _: None,
+        artifacts=artifacts,
+        holds=holds,
+        authorize=lambda *_: None,
+        clock=lambda: now + timedelta(seconds=4),
+    )
+    first = service.run_once("monitor", scope=scope)
+    assert first.triggers == ("artifact-drift",)
+    assert artifacts.get(scope, first.fingerprint).value == first
+    service.run_once("monitor", scope=scope)
+    active = tuple(
+        v for v in holds.active_holds(scope.application_id) if v.hold.scope == scope
+    )
+    assert len(active) == 1
+    state["inputs"] = inputs
+    assert service.run_once("monitor", scope=scope).triggers == ()
+    assert (
+        tuple(
+            v for v in holds.active_holds(scope.application_id) if v.hold.scope == scope
+        )
+        == active
+    )

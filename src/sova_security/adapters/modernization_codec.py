@@ -17,6 +17,7 @@ from sova_security.domain import assessment as a
 from sova_security.domain import remediation as r
 from sova_security.domain import patch_execution as p
 from sova_security.domain import patch_reassessment as pr
+from sova_security.domain import continuous_security as cs
 
 KINDS = MappingProxyType(
     {
@@ -34,6 +35,8 @@ KINDS = MappingProxyType(
         "patch-execution-binding.v1": p.PatchExecutionBinding,
         "patch-runtime-observation.v1": p.PatchRuntimeObservation,
         "patch-reassessment.v1": pr.PatchReassessment,
+        "runtime-security-baseline.v1": cs.RuntimeSecurityBaseline,
+        "continuous-security-review.v1": cs.ContinuousSecurityReview,
     }
 )
 
