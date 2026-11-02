@@ -11,7 +11,7 @@ main push의 Python 3.11 작업은 시험·정적 검사 후 wheel을 빌드하�
 - `dependencies.json`: 시험 환경에서 실제 설치된 패키지명·버전
 - `SHA256SUMS`: wheel과 dependencies.json의 해시
 
-산출물 이름은 `sova-security-wheel-<전체 commit SHA>`이며 보존 기간은 30일이다. 설치 전에 **전체 워크플로의 두 Python 작업이 모두 성공했는지** 확인한다. 3.11 산출물이 존재한다는 사실만으로 아직 실행 중이거나 실패한 3.14 작업이 통과한 것은 아니다.
+산출물 이름은 `sova-security-wheel-<전체 commit SHA>`이며 보존 기간은 30일이다. 설치 전에 **전체 워크플로의 두 Python 작업과 secrets 작업이 모두 성공했는지** 확인한다. 3.11 산출물이 존재한다는 사실만으로 아직 실행 중이거나 실패한 3.14 작업이 통과한 것은 아니다.
 
 ```sh
 gh run view RUN_ID --repo Softbank-Hackathon-Finals/security
@@ -59,3 +59,5 @@ CI는 SHA로 고정한 공식 setup-uv v9.0.0과 uv 0.13.6을 사용한다. `uv.
 의도한 의존 변경은 uv 0.13.6에서 `uv lock --upgrade-package PACKAGE`로 갱신하고 전체 diff·공개 취약점·두 Python CI를 검토한다. pyproject의 extra·빌드 요구 변경도 함께 반영한다. 잠금 파일을 수작업으로 고치거나 실패한 lock 검사를 `--frozen`으로 우회하지 않는다. 해시 고정은 출처가 승인된 패키지의 악성 동작까지 방지하지 않는다.
 
 공식 근거: [uv universal lockfile](https://docs.astral.sh/uv/concepts/projects/layout/#the-lockfile), [GitHub Actions 통합](https://docs.astral.sh/uv/guides/integration/github/).
+
+`secrets` 작업은 고정 Gitleaks 8.30.1로 전체 Git 이력을 검사한다. 출력은 마스킹하며 보고서를 소비 artifact에 포함하지 않는다. checkout 자격증명을 Git 설정에 남기지 않는다. 탐지 없음이 키 부재나 유출 부재 전체를 보증하지 않으며, 탐지 시에는 해당 자격증명을 먼저 철회하고 이력·운영 영향을 검토한다. 승인 없는 검사 예외나 실패 무시는 추가하지 않는다.
