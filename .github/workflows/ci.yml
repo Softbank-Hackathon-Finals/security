@@ -1,0 +1,38 @@
+name: security-package
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      matrix:
+        python: ['3.11', '3.14']
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: bravo_test_admin
+          POSTGRES_PASSWORD: ci-test-only
+          POSTGRES_DB: bravo_security_test
+          POSTGRES_INITDB_ARGS: '-c cluster_name=bravo-security-test'
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd 'pg_isready -U bravo_test_admin -d bravo_security_test'
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      BRAVO_SECURITY_TEST_POSTGRES_DSN: 'postgresql://bravo_test_admin:ci-test-only@localhost:5432/bravo_security_test'
+      AWS_EC2_METADATA_DISABLED: 'true'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: ${{ matrix.python }}
+      - run: python -m pip install 'setuptools>=77' -e '.[dev]'
+      - run: ruff check src tests
+      - run: python -m pytest -q
+      - run: python -m pip wheel . --no-deps --no-build-isolation --no-index -w dist
