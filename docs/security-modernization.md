@@ -24,6 +24,8 @@
 - [Trivy report 구조](https://github.com/aquasecurity/trivy/blob/main/pkg/types/report.go)
 - [Trivy vulnerability 구조](https://github.com/aquasecurity/trivy/blob/main/pkg/types/vulnerability.go)
 - [CycloneDX 1.6 JSON 규격](https://cyclonedx.org/docs/1.6/json/)
+- [Trivy 0.76.1 package 버전 formatter](https://github.com/aquasecurity/trivy/blob/v0.76.1/pkg/scan/utils/utils.go)
+- [같은 formatter의 공식 시험](https://github.com/aquasecurity/trivy/blob/v0.76.1/pkg/scan/utils/utils_test.go)
 
 외부 도구가 실제로 실행됐다는 증거와 adapter parser 시험은 구분한다. 합성 시험의 SOVA-TEST advisory는 실제 취약점 번호가 아니다.
 
@@ -80,3 +82,13 @@ Sova의 `PatchPlanExecutionService`는 이 guard를 기존 `StoredPlanExecutor`�
 검사기·암호화·샌드박스 자체를 다시 구현하지 않는다. Trivy의 CycloneDX/JSON 출력을 사용하고 Ed25519는 `cryptography`를 사용한다. Harbor는 팀 실행 계약으로 연결한다. Prowler·OPA·Kyverno·Cosign·Falco는 도입 후보이며 이 문서의 코드만으로 설치·운영됐다고 표시하지 않는다.
 
 실제 공식 Trivy 0.76.1 바이너리로 기존 로컬 시험 이미지에서 SBOM과 vulnerability report를 생성해 정규화 경로를 확인했다. 이 검증은 이미지의 source provenance·실제 배포 권한을 인증한 시험이 아니므로 `partial`로 유지했다. 저장소에는 작은 비식별 형식 projection만 fixture로 두고 전체 보고서·도구·DB·개발기록은 로컬에 둔다. package 목록과 버전이 inventory와 일치하지 않거나 report의 도구 버전이 등록 invocation과 다르면 완전한 검사로 취급하지 않는다.
+
+OS 패키지의 버전은 Trivy의 `Epoch`·`Version`·`Release`를 공식 formatter와 같은 규칙으로 조합한다. CycloneDX의 `operating-system` 항목은 배포판 메타데이터로 취급하고 패키지 비교 목록에서는 제외한다. 실제 설치된 OS 패키지인 `library` 항목은 계속 비교한다. 전체 원본 SBOM digest는 보존한다. 이 package projection을 OS 기능·호스트 의존성 조사 전체로 표현하지 않는다.
+
+## 지속 점검과 기존 보류 연결
+
+`RuntimeSecurityBaseline`은 호스트가 인증한 배포 영수증·정확한 artifact·자원 revision·당시 수용한 평가와 별도의 점검 등록 기한을 가진다. 과거 평가를 현재 근거로 연장하거나 실행 permit으로 사용하지 않는다. baseline 등록 자체의 정당성과 실제 배포 사실은 호스트가 인증해야 한다.
+
+`ContinuousSecurityMonitor.run_once`는 현재 인증된 입력을 다시 평가하고 이미지/소스/설정·자원 revision 변경, 새로운/변경된 위험, 미확인 현재 상태를 검토한다. 트리거는 기존 `open_incident` 경로의 앱 보류에 연결한다. 보류 이유는 고정된 유형을 사용해 같은 문제가 반복 관측될 때 무한히 보류를 늘리지 않는다. 보류를 먼저 기록하므로 이후 감사 산출물 저장 실패가 보류를 취소하지 않는다. 저장 실패는 성공으로 숨기지 않으며 재접수 시 기존 보류를 조회한다.
+
+정상 표본이나 새 baseline이 나타나도 기존 보류를 자동 해제하지 않는다. 자동 패치·격리·이전·키 회전도 수행하지 않는다. 실제로 지속 실행하는 스케줄러·리스·관측 source와 기준선 승인 서비스는 호스트가 연결한다. 모니터링 실패·만료를 건강 상태로 표시해서는 안 된다. 이 프로필은 알 수 있는 위험과 승인 상태의 변화를 확인하며 일반적인 침입 탐지나 모든 위험 부재를 보증하지 않는다.
