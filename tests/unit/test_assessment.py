@@ -167,6 +167,10 @@ def test_partial_scans_never_claim_complete_assessment(scope, now, case):
     [
         b'{"x":1,"x":2}',
         b'{"x":NaN}',
+        b'{"ignored":1e9999}',
+        b'{"ignored":-1e9999}',
+        b'{"ignored":"\\ud800"}',
+        b'{"\\udfff":1}',
         b"[]",
         b"\xff",
         b"{}" * (1024 * 1024 + 1),
