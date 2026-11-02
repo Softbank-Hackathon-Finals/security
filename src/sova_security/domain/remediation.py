@@ -157,6 +157,16 @@ class RemediationProposal(Document):
             raise ContractError(
                 "Unique finding IDs and filesystem-safe patch paths required"
             )
+        changed_paths = {c.path.casefold() for c in self.changes}
+        if any(
+            str(parent).casefold() in changed_paths
+            for change in self.changes
+            for parent in PurePosixPath(change.path).parents
+            if str(parent) != "."
+        ):
+            raise ContractError(
+                "Patch file paths cannot alias another changed file's directory"
+            )
         object.__setattr__(self, "findings", tuple(sorted(self.findings)))
         object.__setattr__(
             self, "changes", tuple(sorted(self.changes, key=lambda c: c.path))

@@ -159,8 +159,24 @@ class RehearsalAdmissionService:
             require_accept(
                 self.authorize, actor, target_scope, "security:verify-rehearsal-target"
             )
+            require_accept(self.authenticate_input, actor, target_scope, inventory)
             if self.target_inventory(target_scope) != inventory:
                 raise ContractError("Target changed before final rehearsal return")
+        # Stable bytes do not imply stable trust: a collector/signing authority
+        # can be revoked while the independent receipt is being verified.
+        for value in (*inputs, request, bound):
+            require_accept(self.authenticate_input, actor, scope, value)
+        require_accept(self.authorize, actor, scope, "security:verify-rehearsal")
+        if (
+            self.current_inputs(scope) != inputs
+            or self.current_request(scope, request.request_id) != request
+            or self.current_assessment(scope, request.proposal.assessment_digest)
+            != bound
+            or any(self.target_inventory(s) != value for s, value in targets.items())
+        ):
+            raise ContractError(
+                "Authenticated snapshots changed before final rehearsal return"
+            )
         from dataclasses import replace
 
         decision = replace(

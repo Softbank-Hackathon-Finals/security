@@ -300,3 +300,41 @@ def test_target_revision_is_checked_even_when_source_authority_is_unchanged(scop
     state["target"] = replace(state["inputs"][0], resource_revision="drifted")
     with pytest.raises(ContractError, match="target inventory changed"):
         service.verify("actor", request=request, receipt=receipt)
+
+
+@pytest.mark.parametrize("subject", ["inventory", "scan", "request", "assessment"])
+def test_unchanged_bytes_do_not_hide_revoked_input_authority(scope, now, subject):
+    revoked = {"digest": None}
+
+    def revoke(state):
+        revoked["digest"] = {
+            "inventory": state["inputs"][0].fingerprint,
+            "scan": state["inputs"][1].fingerprint,
+            "request": state["request"].fingerprint,
+            "assessment": state["assessment"].fingerprint,
+        }[subject]
+
+    service, _, request, receipt = admission(scope, now, mutate=revoke)
+    service.authenticate_input = lambda actor, scope, value: (
+        value.fingerprint != revoked["digest"]
+    )
+    with pytest.raises(ContractError, match="did not accept"):
+        service.verify("actor", request=request, receipt=receipt)
+
+
+@pytest.mark.parametrize(
+    "parent,child",
+    [("src/app.py", "src/app.py/hidden.py"), ("src/App", "src/app/nested.py")],
+)
+def test_regular_file_manifest_cannot_alias_another_files_parent(
+    scope, now, parent, child
+):
+    _, _, request, _ = rehearsal_bundle(scope, now)
+    with pytest.raises(ContractError, match="directory"):
+        replace(
+            request.proposal,
+            changes=(
+                FileChange(parent, "a" * 64, "b" * 64),
+                FileChange(child, "c" * 64, "d" * 64),
+            ),
+        )
