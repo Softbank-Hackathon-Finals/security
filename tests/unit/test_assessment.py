@@ -309,3 +309,41 @@ def test_assessment_service_cannot_return_another_authorized_resource(scope, now
         service.assess(
             "actor", scope=scope, expected_inputs=tuple(x.fingerprint for x in inputs)
         )
+
+
+@pytest.mark.parametrize("value", [[], {}, ["1.7"], {"value": "1.7"}, None, True])
+def test_malformed_sbom_version_never_escapes_the_report_boundary(scope, now, value):
+    _, _, _, _, sbom, _ = modern_bundle(scope, now)
+    sbom["specVersion"] = value
+    with pytest.raises(ContractError):
+        cyclone_inventory(
+            json.dumps(sbom).encode(),
+            scope=scope,
+            resource_revision="v1",
+            source_digest="a" * 64,
+            image_digest="b" * 64,
+            configuration_digest="c" * 64,
+            collector_id="test-collector",
+            coverage=Coverage.COMPLETE,
+            observed_at=now,
+            valid_until=now + timedelta(minutes=1),
+        )
+
+
+@pytest.mark.parametrize(
+    "value", [[], {}, ["os-pkgs"], {"value": "os-pkgs"}, None, True]
+)
+def test_malformed_trivy_class_is_rejected_without_an_unhandled_type_error(
+    scope, now, value
+):
+    inventory, _, _, _, _, report = modern_bundle(scope, now)
+    report["Results"][0]["Class"] = value
+    with pytest.raises(ContractError):
+        trivy_scan(
+            json.dumps(report).encode(),
+            inventory=inventory,
+            profile=scanner_profile(),
+            coverage=Coverage.COMPLETE,
+            observed_at=now,
+            valid_until=now + timedelta(minutes=1),
+        )
