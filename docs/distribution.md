@@ -4,11 +4,12 @@
 
 ## CI 산출물
 
-main push의 Python 3.11 작업은 시험·정적 검사 후 wheel을 빌드하고 다음 세 파일을 업로드한다. PR에서는 소비용 산출물을 게시하지 않는다. Python 3.14 작업도 별도로 같은 코드의 호환성을 시험한다.
+main push의 Python 3.11 작업은 시험·정적 검사 후 wheel을 빌드하고 다음 네 파일을 업로드한다. PR에서는 소비용 산출물을 게시하지 않는다. Python 3.14 작업도 별도로 같은 코드의 호환성을 시험한다.
 
 - `sova_security-<version>-py3-none-any.whl`
 - `manifest.json`: 저장소·전체 commit SHA·workflow·run·버전·wheel 해시
-- `SHA256SUMS`
+- `dependencies.json`: 시험 환경에서 실제 설치된 패키지명·버전
+- `SHA256SUMS`: wheel과 dependencies.json의 해시
 
 산출물 이름은 `sova-security-wheel-<전체 commit SHA>`이며 보존 기간은 30일이다. 설치 전에 **전체 워크플로의 두 Python 작업이 모두 성공했는지** 확인한다. 3.11 산출물이 존재한다는 사실만으로 아직 실행 중이거나 실패한 3.14 작업이 통과한 것은 아니다.
 
@@ -47,3 +48,14 @@ python -m pip wheel . --no-deps --no-build-isolation -w ./dist
 체크섬은 전송 중 변경을 확인한다. manifest 단독으로 발행자의 진위를 증명하지 않는다. 신뢰 경계는 선택한 저장소·검토한 commit·성공한 GitHub Actions 실행 및 그 실행에 묶인 산출물이다. 이 경로를 Sigstore 서명, SLSA 인증 또는 장기 지원용 정식 릴리스라고 부르지 않는다. 장기 배포에는 별도 패키지 저장소·발행 정책·보존 및 서명 검증을 연결해야 한다.
 
 보안 입력·리허설의 Ed25519 서명은 운영 근거 인증이며, 이 wheel의 공급망 서명과는 다른 책임이다. 어느 한쪽으로 다른 쪽 검증을 대신하지 않는다.
+
+
+## 잠긴 CI 의존성
+
+CI는 SHA로 고정한 공식 setup-uv v9.0.0과 uv 0.13.6을 사용한다. `uv.lock`은 Python·운영체제별 조건을 포함한 정확한 배포 버전과 해시를 기록한다. `uv sync --locked --extra dev --no-install-project --no-build`로 잠금 변경을 거부하고, 외부 의존성은 wheel만 설치한다. 이후 현재 저장소만 네트워크 없이 설치·빌드한다. CI는 Python 3.11·3.14를 각각 명시한다.
+
+개발 extra의 pip 26.2.2와 setuptools도 이 잠금에 포함한다. manifest는 `uv.lock`의 SHA-256과 실제 설치 목록의 해시를 묶는다. 기본 사용자 설치의 dependency 범위와 CI 환경 잠금은 서로 다른 계약이다. 소비 서비스는 자신의 Python·OS·extra에 맞는 잠금을 따로 관리한다.
+
+의도한 의존 변경은 uv 0.13.6에서 `uv lock --upgrade-package PACKAGE`로 갱신하고 전체 diff·공개 취약점·두 Python CI를 검토한다. pyproject의 extra·빌드 요구 변경도 함께 반영한다. 잠금 파일을 수작업으로 고치거나 실패한 lock 검사를 `--frozen`으로 우회하지 않는다. 해시 고정은 출처가 승인된 패키지의 악성 동작까지 방지하지 않는다.
+
+공식 근거: [uv universal lockfile](https://docs.astral.sh/uv/concepts/projects/layout/#the-lockfile), [GitHub Actions 통합](https://docs.astral.sh/uv/guides/integration/github/).

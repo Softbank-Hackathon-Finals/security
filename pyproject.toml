@@ -15,7 +15,7 @@ team = ["jsonschema>=4.26,<5", "rfc3339-validator>=0.1.4,<0.2"]
 postgres = ["psycopg[binary]>=3.2,<4"]
 signing = ["cryptography>=46,<51"]
 aws = ["boto3>=1.35,<2"]
-dev = ["jsonschema>=4.26,<5", "rfc3339-validator>=0.1.4,<0.2", "pytest>=8,<10", "ruff>=0.14,<0.18", "psycopg[binary]>=3.2,<4", "cryptography>=46,<51", "boto3>=1.35,<2"]
+dev = ["pip==26.2.2", "setuptools>=77", "jsonschema>=4.26,<5", "rfc3339-validator>=0.1.4,<0.2", "pytest>=8,<10", "ruff>=0.14,<0.18", "psycopg[binary]>=3.2,<4", "cryptography>=46,<51", "boto3>=1.35,<2"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
