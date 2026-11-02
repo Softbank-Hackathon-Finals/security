@@ -70,7 +70,16 @@ class PatchExecutionBinding(Document):
 
 
 def compile_patch(
-    request, receipt, decision, *, inventories, adapters, plan_id, created_by, now
+    request,
+    receipt,
+    decision,
+    *,
+    inventories,
+    adapters,
+    plan_id,
+    created_by,
+    now,
+    execution_scope=None,
 ):
     """Inputs and adapter IDs must come from authenticated host registries.
 
@@ -102,6 +111,14 @@ def compile_patch(
         raise ContractError("Registered typed target inventories required")
     registered = {i.scope: i for i in inventories}
     targets = {t.scope: t for t in request.targets}
+    if execution_scope is None:
+        if len(targets) != 1:
+            raise ContractError(
+                "Cross-environment rehearsal requires one explicit execution scope per plan"
+            )
+        execution_scope = next(iter(targets))
+    if not isinstance(execution_scope, ResourceScope) or execution_scope not in targets:
+        raise ContractError("Execution scope was not independently rehearsed")
     if len(registered) != len(inventories) or set(registered) != set(targets):
         raise ContractError("Exact target inventory coverage required")
     if type(adapters) is not dict or set(adapters) != set(targets):
@@ -127,25 +144,25 @@ def compile_patch(
     steps, obligations = [], []
     for index, target in enumerate(request.targets):
         artifact = artifacts[target.scope]
-        step_id = f"patch-{index + 1}"
-        steps.append(
-            PlanStep(
-                step_id,
-                target.scope,
-                adapters[target.scope],
-                ACTION,
-                canonical_json(
-                    {
-                        "request_digest": request.fingerprint,
-                        "receipt_digest": receipt.fingerprint,
-                        "proposal_digest": proposal.fingerprint,
-                        "artifact": artifact.document,
-                    }
-                ),
-                registered[target.scope].resource_revision,
-                () if not steps else (steps[-1].step_id,),
+        if target.scope == execution_scope:
+            steps.append(
+                PlanStep(
+                    "patch-1",
+                    target.scope,
+                    adapters[target.scope],
+                    ACTION,
+                    canonical_json(
+                        {
+                            "request_digest": request.fingerprint,
+                            "receipt_digest": receipt.fingerprint,
+                            "proposal_digest": proposal.fingerprint,
+                            "artifact": artifact.document,
+                        }
+                    ),
+                    registered[target.scope].resource_revision,
+                    (),
+                )
             )
-        )
         obligations.append(
             VerificationObligation(
                 "patch-rehearsal-" + str(index + 1),

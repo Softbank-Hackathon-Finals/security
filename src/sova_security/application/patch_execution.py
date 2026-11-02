@@ -64,6 +64,7 @@ class PatchExecutionGuard:
             plan_id=plan.plan_id,
             created_by=plan.created_by,
             now=started,
+            execution_scope=plan.steps[0].scope,
         )
         # Binding time is registration time, not each guard invocation.
         if (

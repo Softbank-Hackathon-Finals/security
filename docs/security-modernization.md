@@ -51,7 +51,7 @@
 
 `compile_patch`는 현재 등록된 대상 inventory와 검증된 산출물을 기존 `LifecyclePlan`으로 변환한다. 새 승인 엔진이나 효과 실행기를 만들지 않는다. 대상별 adapter는 호스트 레지스트리에서 받으며 source/image/configuration/provenance digest가 고정된 `apply-verified-patch` 단계만 만든다. 이 plan은 **미승인 상태**다. 호스트의 저장된 승인, 소유권·epoch·효과 CAS와 기존 필수 게이트를 모두 통과해야 한다.
 
-`PatchExecutionGuard`는 매 실행 직전에 등록 요청·receipt·독립 검증·대상 inventory·권한·활성 보안 보류를 확인하고 plan 전체를 다시 구성해 비교한다. 일반 패치 승인은 사고 보류를 해제하지 않는다. 교차 환경 패치는 양쪽 별도 리허설과 inventory가 필요하며, 단계별 완료가 있어도 전체 성공은 마지막 필수 검증 전까지 선언하지 않는다.
+`PatchExecutionGuard`는 매 실행 직전에 등록 요청·receipt·독립 검증·대상 inventory·권한·활성 보안 보류를 확인하고 plan 전체를 다시 구성해 비교한다. 일반 패치 승인은 사고 보류를 해제하지 않는다. 교차 환경 패치는 양쪽 별도 리허설과 inventory가 필요하다. 첫 실행 프로필은 plan 하나당 명시한 환경 하나만 변경한다. 양쪽 리허설 통과를 양쪽 배포 완료로 표현하지 않는다. 한 환경을 변경한 뒤 다른 환경에도 적용하려면 새 현재 상태를 조사하고 계획·승인을 다시 받아야 한다. 변경 전 inventory를 유지한 채 두 환경을 연속 적용하지 않는다.
 
 `patch_rehearsal_records`가 만드는 것은 독립 verifier가 서명할 정규화된 근거이며, 생성만으로 신뢰되지 않는다. 호스트는 서명/발급자 인증을 생략해서는 안 된다. `require_postflight`는 실행 후 관측이 승인된 image/source/configuration/provenance, 정확한 effect command와 맞고 기능·수정 효과·보호 시험이 모두 PASS인지 확인한다. 과거 APPLIED 이력은 현재 건강 상태의 근거가 아니다. 적용 후 결과가 불명확하면 같은 효과를 재실행하거나 자동 롤백하지 않고 보류·읽기 전용 조회·별도 복구 승인을 사용한다.
 

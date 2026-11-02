@@ -15,6 +15,7 @@ from sova_security.domain.patch_execution import (
     require_postflight,
 )
 from sova_security.domain.remediation import evaluate_rehearsal
+from sova_security.domain.remediation import Applicability, RehearsalTarget, TargetRole
 
 
 def bundle(scope, now):
@@ -43,6 +44,61 @@ def test_compilation_uses_existing_unapproved_lifecycle_plan(scope, now):
     assert binding.plan_digest == plan.fingerprint
     assert request.proposal.fingerprint in plan.steps[0].parameters_json
     assert decode(encode(binding).encode()) == binding
+
+
+def test_cross_environment_rehearsal_does_not_imply_multi_environment_apply(scope, now):
+    request, receipt, _, inventories, adapters, _, _ = bundle(scope, now)
+    destination = replace(scope, environment_id="rke2", resource_id="destination-app")
+    inventory = replace(
+        inventories[0], scope=destination, resource_revision="target-v1"
+    )
+    proposal = replace(request.proposal, applicability=Applicability.BOTH)
+    both = replace(
+        request,
+        proposal=proposal,
+        targets=(
+            *request.targets,
+            RehearsalTarget(
+                destination,
+                TargetRole.TARGET,
+                inventory.fingerprint,
+                inventory.image_digest,
+            ),
+        ),
+        requirements=(
+            *request.requirements,
+            *(replace(r, scope=destination) for r in request.requirements),
+        ),
+    )
+    receipt = replace(
+        receipt,
+        request_digest=both.fingerprint,
+        proposal_digest=proposal.fingerprint,
+        artifacts=(
+            *receipt.artifacts,
+            replace(receipt.artifacts[0], scope=destination),
+        ),
+        proofs=(
+            *receipt.proofs,
+            *(replace(p, scope=destination) for p in receipt.proofs),
+        ),
+    )
+    decision = evaluate_rehearsal(both, receipt, now=now + timedelta(seconds=4))
+    kwargs = dict(
+        inventories=(*inventories, inventory),
+        adapters={**adapters, destination: "rke2-adapter"},
+        plan_id="target-patch",
+        created_by="operator",
+        now=now + timedelta(seconds=4),
+    )
+    with pytest.raises(ContractError, match="one explicit execution scope"):
+        compile_patch(both, receipt, decision, **kwargs)
+    plan, binding = compile_patch(
+        both, receipt, decision, execution_scope=destination, **kwargs
+    )
+    assert len(plan.steps) == 1 and plan.steps[0].scope == destination
+    assert {o.scope for o in plan.obligations} == {scope, destination}
+    assert len(binding.artifacts) == 2  # Compatibility evidence remains bound.
 
 
 @pytest.mark.parametrize(
