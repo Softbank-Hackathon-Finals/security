@@ -792,3 +792,76 @@ def test_monitor_rechecks_live_input_key_after_audit_write_and_preserves_hold(
         service.run_once("monitor", scope=scope)
     assert state["revoked"]
     assert any(v.hold.scope == scope for v in holds.active_holds(scope.application_id))
+
+
+@pytest.mark.parametrize("revoke_during_revalidation", [False, True])
+def test_signed_hold_release_approval_and_separate_revalidation_in_real_pg(
+    database, scope, revoke_during_revalidation
+):
+    import psycopg
+    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+    from governance_support import bundle, release_bundle
+    from sova_security.adapters.hold_release_evidence import HoldReleaseAuthority, hold_release_record
+    from sova_security.adapters.ed25519_evidence import Ed25519EvidenceSigner, Ed25519EvidenceVerifier
+    from sova_security.adapters.postgres_governance import PostgresSecurityHolds
+    from sova_security.adapters.postgres_signed_evidence import PostgresSignedEvidence
+    from sova_security.adapters.postgres_verifier_registry import PostgresVerifierRegistry
+    from sova_security.application.governance import SecurityHoldService
+    from sova_security.application.signed_evidence import SignedEvidenceAuthority
+    from sova_security.domain.signed_evidence import VerifierTrust
+    from sova_security.domain.verifier_registry import VerifierTrustChange
+
+    now = datetime.now(UTC)
+    scope = replace(scope, resource_id="release-" + uuid4().hex)
+    _, plan, _, _, hold = bundle(scope, now)
+    hold = replace(hold, hold_id="incident-" + uuid4().hex)
+    request, evidence = release_bundle(hold, plan.revisions, now)
+    evidence = replace(evidence, evidence_id="revalidation-" + uuid4().hex)
+    request = replace(request, approved_by="approver-" + uuid4().hex, evidence_id=evidence.evidence_id)
+    approval_record = hold_release_record(request, evidence_id="approval-" + uuid4().hex)
+    dsn, role, password = database
+
+    def connect():
+        return psycopg.connect(dsn, user=role, password=password)
+
+    registry = PostgresVerifierRegistry(connect, tenant_id=scope.tenant_id, application_id=scope.application_id)
+    signed = PostgresSignedEvidence(connect, tenant_id=scope.tenant_id)
+    changes = []
+    for issuer, record in ((request.approved_by, approval_record), ("verifier-" + uuid4().hex, evidence)):
+        signer = Ed25519EvidenceSigner(Ed25519PrivateKey.generate(), issuer_id=issuer, key_id="test-only-key")
+        trust = VerifierTrust(issuer, signer.key_id, signer.public_key_hex, (scope,), (record.verifier_version,), now-timedelta(seconds=1), now+timedelta(minutes=10))
+        change = VerifierTrustChange(scope.tenant_id, scope.application_id, 1, trust, "registrar", "key-approver", "test-release-key", now, now+timedelta(minutes=2))
+        registry.publish(change)
+        changes.append(change)
+        signed.save_envelope(signer.sign(record, issued_at=now))
+    approval = HoldReleaseAuthority(
+        envelope_provider=lambda _: signed.get_envelope(scope.application_id, approval_record.evidence_id),
+        current_revisions=lambda _: plan.revisions, resolve_trust=registry.resolve,
+        authorize=lambda *_: None, clock=lambda: datetime.now(UTC),
+    )
+    verified = SignedEvidenceAuthority(signed, Ed25519EvidenceVerifier(registry.resolve), clock=lambda: datetime.now(UTC))
+    state = {"revoked": False}
+
+    def authenticate_revalidation(record):
+        result = verified.authenticate(record)
+        if revoke_during_revalidation and not state["revoked"]:
+            change = changes[0]
+            registry.publish(replace(change, revision=2, trust=replace(change.trust, revoked=True)))
+            state["revoked"] = True
+        return result
+
+    holds = PostgresSecurityHolds(connect, tenant_id=scope.tenant_id)
+    service = SecurityHoldService(
+        holds, authorize=lambda *_: None, authenticate_release=approval,
+        authenticate_evidence=authenticate_revalidation, current_revisions=lambda _: plan.revisions,
+        clock=lambda: datetime.now(UTC),
+    )
+    service.open(hold.raised_by, hold)
+    if revoke_during_revalidation:
+        with pytest.raises(ContractError, match="revoked"):
+            service.release(request.requested_by, scope.application_id, request, evidence)
+        assert holds.get_hold(scope.application_id, hold.hold_id).active
+    else:
+        result = service.release(request.requested_by, scope.application_id, request, evidence)
+        assert not result.active
+        assert holds.get_hold(scope.application_id, hold.hold_id) == result

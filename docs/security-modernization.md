@@ -79,7 +79,7 @@ Sova의 `PatchPlanExecutionService`는 이 guard를 기존 `StoredPlanExecutor`�
 
 ## 도구 재사용과 검증 범위
 
-검사기·암호화·샌드박스 자체를 다시 구현하지 않는다. Trivy의 CycloneDX/JSON 출력을 사용하고 Ed25519는 `cryptography`를 사용한다. Harbor는 팀 실행 계약으로 연결한다. Prowler·OPA·Kyverno·Cosign·Falco는 도입 후보이며 이 문서의 코드만으로 설치·운영됐다고 표시하지 않는다.
+검사기·암호화·샌드박스 자체를 다시 구현하지 않는다. Trivy의 CycloneDX/JSON 출력을 사용하고 Ed25519는 `cryptography`를 사용한다. Harbor는 팀 실행 계약으로 연결한다. Prowler OCSF의 서명된 수집 결과와 고정 OPA 실행기를 연결한다. 실제 OPA 판정은 별도 엔진 시험으로 확인했고, Prowler의 실제 AWS 전 계정 스캔은 아직 별도 자격 대상이다. Kyverno·Cosign·Falco는 도입 후보이며 설치·운영됐다고 표시하지 않는다.
 
 실제 공식 Trivy 0.76.1 바이너리로 기존 로컬 시험 이미지에서 SBOM과 vulnerability report를 생성해 정규화 경로를 확인했다. 이 검증은 이미지의 source provenance·실제 배포 권한을 인증한 시험이 아니므로 `partial`로 유지했다. 저장소에는 작은 비식별 형식 projection만 fixture로 두고 전체 보고서·도구·DB·개발기록은 로컬에 둔다. package 목록과 버전이 inventory와 일치하지 않거나 report의 도구 버전이 등록 invocation과 다르면 완전한 검사로 취급하지 않는다.
 
