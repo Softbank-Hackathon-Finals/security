@@ -167,6 +167,8 @@ def rehearsal_bundle(scope, now):
             (fix_test_id(proposal.findings[0]), R.FAIL),
             ("functional", R.PASS),
             ("compatibility", None),
+            ("data-safety", R.PASS),
+            ("protection", R.PASS),
         )
     )
     request = RehearsalRequest(

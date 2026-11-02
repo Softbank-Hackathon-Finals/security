@@ -319,15 +319,20 @@ class RehearsalRequest(Document):
             tests = {r.test_id: r for r in self.requirements if r.scope == target.scope}
             security_tests = {fix_test_id(f) for f in self.proposal.findings}
             if (
-                not (security_tests | {"functional", "compatibility"}).issubset(tests)
+                not (
+                    security_tests
+                    | {"functional", "compatibility", "data-safety", "protection"}
+                ).issubset(tests)
                 or any(
                     tests[name].baseline_expected != VerificationResult.FAIL
                     for name in security_tests
                 )
                 or tests["functional"].baseline_expected != VerificationResult.PASS
+                or tests["data-safety"].baseline_expected != VerificationResult.PASS
+                or tests["protection"].baseline_expected != VerificationResult.PASS
             ):
                 raise ContractError(
-                    "Security before/after and functional/compatibility obligations required"
+                    "Security, functional/compatibility, data-safety and protection obligations required"
                 )
         object.__setattr__(
             self, "targets", tuple(sorted(self.targets, key=lambda t: str(t.role)))
