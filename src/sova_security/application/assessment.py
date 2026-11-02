@@ -1,5 +1,7 @@
 """Assessment admission; host supplies trusted current snapshots and identity."""
 
+from dataclasses import replace
+
 from sova_security.contracts.commands import ContractError, utc, digest
 from sova_security.application.boundary import require_accept
 from sova_security.domain.assessment import (
@@ -8,7 +10,30 @@ from sova_security.domain.assessment import (
     VulnerabilityScan,
     ExposureObservation,
     RiskPolicy,
+    Assessment,
 )
+
+
+def revalidate_assessment(service, actor, result):
+    """Reauthenticate a persisted observation without extending its timestamp."""
+    if not isinstance(result, Assessment):
+        raise ContractError("Typed assessment required for revalidation")
+    refreshed = service.assess(
+        actor,
+        scope=result.scope,
+        expected_inputs=(
+            result.inventory_digest,
+            result.scan_digest,
+            result.exposure_digest,
+            result.policy_digest,
+        ),
+    )
+    if (
+        not isinstance(refreshed, Assessment)
+        or refreshed.assessed_at < result.assessed_at
+        or replace(refreshed, assessed_at=result.assessed_at) != result
+    ):
+        raise ContractError("Assessment authority changed before return")
 
 
 class AssessmentService:

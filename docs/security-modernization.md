@@ -69,7 +69,7 @@ Sova의 `PatchPlanExecutionService`는 이 guard를 기존 `StoredPlanExecutor`�
 
 ## 호스트 서비스 API와 실행 후 재평가
 
-`SecurityModernizationService`는 인증된 호스트가 사용할 assess/inspect/review_rehearsal/prepare_patch 인터페이스다. HTTP 서버나 기업 로그인 구현을 포함하지 않는다. tenant·scope·actor는 호스트 인증 결과에서 전달하고 body의 자가 선언을 신뢰하지 않는다. 검토 입력은 등록된 request/receipt digest이며 임의 client PASS 보고서를 authority로 등록하지 않는다. 계획 생성은 기존 lifecycle 저장소에 미승인 plan을 저장한 뒤 security binding을 등록한다. 두 저장소 사이 실패가 생기면 inert plan이 남을 수 있지만, binding이 없으면 실행 guard가 차단한다. 호스트는 미완료 접수 재개와 정리를 운영해야 한다.
+`SecurityModernizationService`는 인증된 호스트가 사용할 assess/inspect/review_rehearsal/prepare_patch 인터페이스다. HTTP 서버나 기업 로그인 구현을 포함하지 않는다. tenant·scope·actor는 호스트 인증 결과에서 전달하고 body의 자가 선언을 신뢰하지 않는다. 검토 입력은 등록된 request/receipt digest이며 임의 client PASS 보고서를 authority로 등록하지 않는다. 계획 생성은 기존 lifecycle 저장소에 미승인 plan을 저장한 뒤 security binding을 등록한다. 두 저장소 사이 실패가 생기면 inert plan이 남을 수 있지만, binding이 없으면 실행 guard가 차단한다. 저장 중 입력 키·요청·receipt·대상 snapshot·어댑터 등록이 바뀌면 현재 검토·준비 성공을 반환하지 않도록 재인증한다. 이미 저장된 미승인 plan이나 과거 감사 행은 현재 신뢰나 실행 권한이 아니다. 호스트는 미완료 접수 재개와 정리를 운영해야 한다.
 
 `reassess_patch`는 수정 전 평가의 digest·inventory·scanner 입력과 수정 후 실제 inventory·scan·노출 근거를 비교한다. 선택한 advisory가 남거나, 새로운 advisory가 들어오거나, 기존 항목 심각도가 상승하거나, 침해·범위 미확인이 있으면 차단한다. 첫 프로필에서는 이런 회귀의 자동 예외를 지원하지 않는다. 목적지의 policy digest는 신뢰된 실행 registry에서 고정해야 하며 출발지 policy와 무조건 같다고 가정하지 않는다. 재스캔 통과와 기능/보호 시험 통과는 별도 의무다.
 

@@ -6,6 +6,7 @@ host resolves identity/scope, current inventories, signer trust and adapter IDs.
 
 from sova_security.application.boundary import require_accept
 from sova_security.application.artifact_registration import register_artifact
+from sova_security.application.assessment import revalidate_assessment
 from sova_security.contracts.commands import ContractError, utc
 from sova_security.domain.assessment import Assessment
 from sova_security.domain.remediation import RehearsalRequest, RehearsalReceipt
@@ -73,6 +74,7 @@ class SecurityModernizationService:
             raise ContractError("Assessment expired before persistence")
         register_artifact(self.artifacts, scope, result, actor_id=actor)
         self._authorize(actor, scope, "security:assess")
+        revalidate_assessment(self.assessment, actor, result)
         if utc(self.clock()) >= result.valid_until:
             raise ContractError("Assessment expired during persistence")
         # Persistence never grants execution, even for a complete assessment.
@@ -100,6 +102,11 @@ class SecurityModernizationService:
             or utc(self.clock()) >= decision.valid_until
         ):
             raise ContractError("Rehearsal changed during persistence")
+        if (
+            self.rehearsal.verify(actor, request=request.value, receipt=receipt.value)
+            != decision
+        ):
+            raise ContractError("Rehearsal authority changed during persistence")
         return decision
 
     def prepare_patch(
@@ -114,6 +121,9 @@ class SecurityModernizationService:
             self.rehearsal.target_inventory(t.scope) for t in request.targets
         )
         adapters = self.registered_adapters(request)
+        if type(adapters) is not dict:
+            raise ContractError("Registered adapter mapping required")
+        adapters = dict(adapters)
         plan, binding = compile_patch(
             request,
             receipt,
@@ -140,6 +150,20 @@ class SecurityModernizationService:
         self._authorize(actor, scope, "security:prepare-patch")
         register_artifact(self.artifacts, scope, binding, actor_id=actor)
         self._authorize(actor, scope, "security:prepare-patch")
+        for target in request.targets:
+            self._authorize(actor, target.scope, "security:prepare-patch")
+        if (
+            self._load(actor, scope, request_digest, kind=RehearsalRequest).value
+            != request
+            or self._load(actor, scope, receipt_digest, kind=RehearsalReceipt).value
+            != receipt
+            or self.registered_adapters(request) != adapters
+            or tuple(self.rehearsal.target_inventory(t.scope) for t in request.targets)
+            != inventories
+        ):
+            raise ContractError("Patch authority changed during registration")
+        if self.rehearsal.verify(actor, request=request, receipt=receipt) != decision:
+            raise ContractError("Patch authority changed during registration")
         if utc(self.clock()) >= binding.valid_until:
             raise ContractError("Patch registration expired during persistence")
         return plan, binding

@@ -1,7 +1,6 @@
 """One authorized monitoring tick; scheduling and leases remain host-owned."""
 
-from dataclasses import replace
-
+from sova_security.application.assessment import revalidate_assessment
 from sova_security.application.boundary import require_accept, require_authentication
 from sova_security.contracts.commands import ContractError, utc
 from sova_security.domain.continuous_security import (
@@ -57,13 +56,7 @@ class ContinuousSecurityMonitor:
         def reauthenticate_assessment():
             # Equal bytes do not imply a still-trusted input signer. Reuse the
             # existing admission service rather than a hash-only late check.
-            current = self.assessment_service.assess(
-                actor,
-                scope=scope,
-                expected_inputs=tuple(value.fingerprint for value in inputs),
-            )
-            if replace(current, assessed_at=result.assessed_at) != result:
-                raise ContractError("Monitoring assessment authority changed")
+            revalidate_assessment(self.assessment_service, actor, result)
 
         review = review_runtime_security(baseline, inputs[0], result, now=self.clock())
         require_accept(self.authorize, actor, scope, "security:monitor")

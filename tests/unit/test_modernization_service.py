@@ -21,6 +21,9 @@ def modernization(scope, now):
         "plans": [],
         "allowed": True,
         "at": now + timedelta(seconds=4),
+        "input_trusted": True,
+        "receipt_trusted": True,
+        "after_store": lambda: None,
     }
 
     def authorize(*_):
@@ -38,6 +41,7 @@ def modernization(scope, now):
         def register(self, current_scope, value, *, actor_id):
             saved = StoredSecurityArtifact(current_scope, value, 1, False)
             state["artifacts"][value.fingerprint] = saved
+            state["after_store"]()
             return saved
 
     repo = Repository()
@@ -45,8 +49,8 @@ def modernization(scope, now):
     repo.register(scope, receipt, actor_id="verifier")
     rehearsal = RehearsalAdmissionService(
         authorize=authorize,
-        authenticate_input=lambda *_: None,
-        authenticate_receipt=lambda *_: None,
+        authenticate_input=lambda *_: state["input_trusted"],
+        authenticate_receipt=lambda *_: state["receipt_trusted"],
         current_inputs=lambda _: inputs,
         current_request=lambda *_: request,
         current_assessment=lambda *_: assessment,
@@ -57,7 +61,7 @@ def modernization(scope, now):
         artifacts=repo,
         assessment=AssessmentService(
             authorize=authorize,
-            authenticate_input=lambda *_: None,
+            authenticate_input=lambda *_: state["input_trusted"],
             current_inputs=lambda _: inputs,
             clock=lambda: state["at"],
         ),
@@ -232,3 +236,77 @@ def test_malformed_durable_receipt_cannot_claim_saved_assessment(
             scope=scope,
             expected_inputs=tuple(v.fingerprint for v in inputs),
         )
+
+
+@pytest.mark.parametrize(
+    "operation,kind",
+    [
+        ("assess", "input"),
+        ("review", "input"),
+        ("review", "receipt"),
+        ("prepare", "input"),
+        ("prepare", "receipt"),
+    ],
+)
+def test_late_key_revocation_after_store_cannot_return_a_current_result(
+    modernization, scope, operation, kind
+):
+    service, state, request, receipt, inputs = modernization
+    state["after_store"] = lambda: state.update({kind + "_trusted": False})
+    with pytest.raises(ContractError):
+        if operation == "assess":
+            service.assess(
+                "operator",
+                scope=scope,
+                expected_inputs=tuple(v.fingerprint for v in inputs),
+            )
+        elif operation == "review":
+            service.review_rehearsal(
+                "operator",
+                scope=scope,
+                request_digest=request.fingerprint,
+                receipt_digest=receipt.fingerprint,
+            )
+        else:
+            service.prepare_patch(
+                "operator",
+                scope=scope,
+                request_digest=request.fingerprint,
+                receipt_digest=receipt.fingerprint,
+                plan_id="late-revoke",
+                execution_scope=scope,
+            )
+    # Any already persisted plan remains unapproved; no execution is dispatched.
+    assert all(not hasattr(p, "approved_by") for p in state["plans"])
+
+
+def test_assessment_reauthentication_does_not_extend_original_time_or_validity(
+    modernization, scope
+):
+    service, state, _, _, inputs = modernization
+    original = state["at"]
+    state["after_store"] = lambda: state.update(at=original + timedelta(seconds=1))
+    result = service.assess(
+        "operator", scope=scope, expected_inputs=tuple(v.fingerprint for v in inputs)
+    )
+    assert result.assessed_at == original
+    assert result.valid_until == min(v.valid_until for v in inputs)
+
+
+def test_adapter_registration_change_during_plan_storage_is_not_returned_as_ready(
+    modernization, scope
+):
+    service, state, request, receipt, _ = modernization
+    adapters = {scope: "registered-oci-adapter"}
+    service.registered_adapters = lambda _: adapters
+    state["after_store"] = lambda: adapters.update({scope: "different-adapter"})
+    with pytest.raises(ContractError, match="authority changed"):
+        service.prepare_patch(
+            "operator",
+            scope=scope,
+            request_digest=request.fingerprint,
+            receipt_digest=receipt.fingerprint,
+            plan_id="adapter-changed",
+            execution_scope=scope,
+        )
+    assert len(state["plans"]) == 1
