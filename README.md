@@ -41,7 +41,7 @@ cd /path/to/sova
 .local-notes/venv/bin/python -m pip install -e '../team-bravo/security[postgres,signing,aws]'
 ```
 
-릴리스 소비 환경은 검증한 wheel과 해시를 고정한다. 현재 0.6.0은 최초 추출 이후 보안 개선 계약을 추가한 버전이며 PyPI 배포를 뜻하지 않는다.
+릴리스 소비 환경은 검증한 wheel과 해시를 고정한다. [CI 산출물 소비 방법](docs/distribution.md)을 따른다. 현재 0.6.0은 최초 추출 이후 보안 개선 계약을 추가한 버전이며 PyPI 배포를 뜻하지 않는다.
 
 ## 통합 계약
 

@@ -57,4 +57,47 @@ jobs:
           PY
       - run: ruff check src tests
       - run: python -m pytest -q
-      - run: python -m pip wheel . --no-deps --no-build-isolation --no-index -w dist
+      - run: python -m pip wheel . --no-deps --no-build-isolation --no-index -w "$RUNNER_TEMP/security-dist"
+      - name: Bind wheel manifest to this tested commit
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && matrix.python == '3.11'
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from importlib.metadata import version
+          import hashlib, json, os, zipfile
+          from email.parser import BytesParser
+          directory = Path(os.environ['RUNNER_TEMP']) / 'security-dist'
+          wheels = list(directory.glob('sova_security-*-py3-none-any.whl'))
+          assert len(wheels) == 1 and set(directory.iterdir()) == set(wheels)
+          wheel = wheels[0]
+          with zipfile.ZipFile(wheel) as archive:
+              metadata_paths = [p for p in archive.namelist() if p.endswith('.dist-info/METADATA')]
+              assert len(metadata_paths) == 1
+              metadata = BytesParser().parsebytes(archive.read(metadata_paths[0]))
+          assert metadata['Name'] == 'sova-security'
+          assert metadata['Version'] == version('sova-security')
+          digest = hashlib.sha256(wheel.read_bytes()).hexdigest()
+          manifest = {
+              'schema_version': 1,
+              'repository': os.environ['GITHUB_REPOSITORY'],
+              'commit_sha': os.environ['GITHUB_SHA'],
+              'workflow_ref': os.environ['GITHUB_WORKFLOW_REF'],
+              'run_id': os.environ['GITHUB_RUN_ID'],
+              'package_version': metadata['Version'],
+              'python_build_profile': '3.11',
+              'wheel': wheel.name,
+              'sha256': digest,
+          }
+          (directory / 'manifest.json').write_text(json.dumps(manifest, sort_keys=True, indent=2) + '\n')
+          (directory / 'SHA256SUMS').write_text(digest + '  ' + wheel.name + '\n')
+          print('Commit-bound wheel manifest prepared')
+          PY
+      - name: Upload tested main wheel
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && matrix.python == '3.11'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: sova-security-wheel-${{ github.sha }}
+          path: ${{ runner.temp }}/security-dist/
+          if-no-files-found: error
+          retention-days: 30
+          include-hidden-files: false
