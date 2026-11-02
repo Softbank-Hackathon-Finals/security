@@ -29,6 +29,36 @@ class PatchExecutionGuard:
         self.require_no_holds = require_no_holds
         self.clock = clock
 
+    def check_approval(self, plan, approval):
+        from sova_security.contracts.plans import PlanApproval
+        from sova_security.domain.remediation import RehearsalRequest
+
+        if not isinstance(approval, PlanApproval):
+            raise ContractError("Existing typed lifecycle approval required")
+        approval.require_valid(plan, self.clock())
+        binding = self.binding_for(plan)
+        if (
+            not isinstance(binding, PatchExecutionBinding)
+            or binding.plan_digest != plan.fingerprint
+        ):
+            raise ContractError("Registered patch approval binding required")
+        inputs = self.inputs_for(binding)
+        if (
+            type(inputs) is not tuple
+            or len(inputs) != 4
+            or not isinstance(inputs[0], RehearsalRequest)
+            or inputs[0].fingerprint != binding.request_digest
+        ):
+            raise ContractError("Registered proposal author identity required")
+        request = inputs[0]
+        if approval.approved_by in {
+            request.proposal.created_by,
+            request.verifier_issuer,
+        }:
+            raise ContractError(
+                "Patch author or independent verifier cannot approve its own result"
+            )
+
     def check(self, actor, plan):
         """Rebuild and compare the complete registered plan before each effect.
 
@@ -73,6 +103,7 @@ class PatchExecutionGuard:
             or binding.request_digest != fresh_binding.request_digest
             or binding.receipt_digest != fresh_binding.receipt_digest
             or binding.decision_digest != fresh_binding.decision_digest
+            or binding.proposal_digest != fresh_binding.proposal_digest
             or binding.artifacts != fresh_binding.artifacts
             or binding.valid_until != fresh_binding.valid_until
         ):

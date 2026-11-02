@@ -42,6 +42,7 @@ class PatchExecutionBinding(Document):
     request_digest: str
     receipt_digest: str
     decision_digest: str
+    proposal_digest: str
     artifacts: tuple[TestedArtifact, ...]
     created_at: datetime
     valid_until: datetime
@@ -54,6 +55,7 @@ class PatchExecutionBinding(Document):
             "request_digest",
             "receipt_digest",
             "decision_digest",
+            "proposal_digest",
         ):
             digest(getattr(self, field))
         bounded_tuple(self.artifacts, TestedArtifact, limit=2, nonempty=True)
@@ -189,6 +191,7 @@ def compile_patch(
         request.fingerprint,
         receipt.fingerprint,
         decision.fingerprint,
+        proposal.fingerprint,
         receipt.artifacts,
         now,
         deadline,
@@ -212,6 +215,7 @@ class PatchRuntimeObservation(Document):
     protection: VerificationResult
     observed_at: datetime
     valid_until: datetime
+    reassessment_digest: str
 
     def __post_init__(self):
         if not isinstance(self.scope, ResourceScope) or not isinstance(
@@ -220,7 +224,12 @@ class PatchRuntimeObservation(Document):
             raise ContractError("Typed runtime artifact and scope required")
         if self.scope != self.artifact.scope:
             raise ContractError("Runtime artifact scope mismatch")
-        for field in ("plan_digest", "command_digest", "evidence_digest"):
+        for field in (
+            "plan_digest",
+            "command_digest",
+            "evidence_digest",
+            "reassessment_digest",
+        ):
             digest(getattr(self, field))
         identifier(self.resource_revision)
         identifier(self.verifier_id)
@@ -235,18 +244,20 @@ class PatchRuntimeObservation(Document):
             raise ContractError("Positive runtime proof validity required")
 
 
-def require_postflight(binding, observation, *, command, not_before, now):
+def require_postflight(binding, observation, *, command, not_before, now, reassessment):
     """Host authenticates observation and journal before calling this function.
 
     A failure/unknown must create a hold/reconciliation outcome, never an implicit
     rollback: later writes or schema changes may make reversal destructive.
     """
     from sova_security.contracts.commands import EffectCommand
+    from sova_security.domain.patch_reassessment import PatchReassessment
 
     if (
         not isinstance(binding, PatchExecutionBinding)
         or not isinstance(observation, PatchRuntimeObservation)
         or not isinstance(command, EffectCommand)
+        or not isinstance(reassessment, PatchReassessment)
     ):
         raise ContractError(
             "Typed postflight binding, observation and command required"
@@ -272,6 +283,19 @@ def require_postflight(binding, observation, *, command, not_before, now):
         < min(binding.valid_until, observation.valid_until)
     ):
         raise ContractError("Postflight proof is stale, expired or predates execution")
+    if (
+        reassessment.fingerprint != observation.reassessment_digest
+        or reassessment.scope != command.scope
+        or reassessment.proposal_digest != binding.proposal_digest
+        or reassessment.artifact_digest != observation.artifact.fingerprint
+        or not reassessment.allowed
+        or not not_before
+        <= reassessment.observed_at
+        <= observation.observed_at
+        <= now
+        < reassessment.valid_until
+    ):
+        raise ContractError("Current approved patch rescan has not passed")
     if any(
         getattr(observation, k) != VerificationResult.PASS
         for k in ("functional", "security_fix", "protection")
@@ -279,4 +303,4 @@ def require_postflight(binding, observation, *, command, not_before, now):
         raise ContractError(
             "Postflight failed or remains unverified; hold for reconciliation"
         )
-    return min(binding.valid_until, observation.valid_until)
+    return min(binding.valid_until, observation.valid_until, reassessment.valid_until)

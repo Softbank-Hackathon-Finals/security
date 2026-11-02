@@ -16,6 +16,7 @@ from sova_security.adapters.vulnerability_reports import bounded_report
 from sova_security.domain import assessment as a
 from sova_security.domain import remediation as r
 from sova_security.domain import patch_execution as p
+from sova_security.domain import patch_reassessment as pr
 
 KINDS = MappingProxyType(
     {
@@ -32,6 +33,7 @@ KINDS = MappingProxyType(
         "rehearsal-decision.v1": r.RehearsalDecision,
         "patch-execution-binding.v1": p.PatchExecutionBinding,
         "patch-runtime-observation.v1": p.PatchRuntimeObservation,
+        "patch-reassessment.v1": pr.PatchReassessment,
     }
 )
 

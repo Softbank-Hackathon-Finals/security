@@ -8,6 +8,7 @@ from modernization_support import rehearsal_bundle
 from sova_security.adapters.modernization_codec import decode, encode
 from sova_security.application.patch_execution import PatchExecutionGuard
 from sova_security.contracts.commands import ContractError
+from sova_security.contracts.plans import PlanApproval
 from sova_security.contracts.evidence import VerificationResult as R
 from sova_security.domain.patch_execution import (
     compile_patch,
@@ -16,6 +17,7 @@ from sova_security.domain.patch_execution import (
 )
 from sova_security.domain.remediation import evaluate_rehearsal
 from sova_security.domain.remediation import Applicability, RehearsalTarget, TargetRole
+from sova_security.domain.patch_reassessment import PatchReassessment
 
 
 def bundle(scope, now):
@@ -176,6 +178,24 @@ def test_guard_binds_complete_plan_and_current_registration(scope, now):
         guard.check("actor", changed)
 
 
+def test_repackaging_by_another_actor_does_not_allow_proposer_self_approval(scope, now):
+    guard, state, plan, binding = guarded(scope, now)
+    plan = replace(plan, created_by="packager")
+    state["binding"] = replace(binding, plan_digest=plan.fingerprint)
+    for approver in ("operator", "independent-verifier"):
+        approval = PlanApproval(
+            plan.fingerprint, approver, plan.purpose, plan.valid_until
+        )
+        with pytest.raises(ContractError, match="cannot approve"):
+            guard.check_approval(plan, approval)
+    guard.check_approval(
+        plan,
+        PlanApproval(
+            plan.fingerprint, "separate-reviewer", plan.purpose, plan.valid_until
+        ),
+    )
+
+
 @pytest.mark.parametrize(
     "deny",
     [
@@ -210,6 +230,17 @@ def test_patch_does_not_bypass_authority_or_incident_holds(scope, now, deny):
 def observation_bundle(scope, now):
     *_, plan, binding = bundle(scope, now)
     command = plan.command("patch-1", operation_id="operation-1", epoch=1)
+    reassessment = PatchReassessment(
+        scope,
+        binding.proposal_digest,
+        binding.artifacts[0].fingerprint,
+        "a" * 64,
+        "b" * 64,
+        True,
+        (),
+        now + timedelta(seconds=9),
+        binding.valid_until,
+    )
     proof = PatchRuntimeObservation(
         scope,
         plan.fingerprint,
@@ -223,18 +254,20 @@ def observation_bundle(scope, now):
         R.PASS,
         now + timedelta(seconds=10),
         binding.valid_until,
+        reassessment.fingerprint,
     )
-    return binding, command, proof
+    return binding, command, proof, reassessment
 
 
 def test_postflight_requires_actual_approved_artifact_and_new_observation(scope, now):
-    binding, command, proof = observation_bundle(scope, now)
+    binding, command, proof, reassessment = observation_bundle(scope, now)
     assert require_postflight(
         binding,
         proof,
         command=command,
         not_before=now + timedelta(seconds=7),
         now=now + timedelta(seconds=11),
+        reassessment=reassessment,
     )
     assert decode(encode(proof).encode()) == proof
 
@@ -252,10 +285,13 @@ def test_postflight_requires_actual_approved_artifact_and_new_observation(scope,
         "failed-fix",
         "unknown-protection",
         "expired",
+        "rescan-missing",
+        "rescan-failed",
+        "rescan-predates-apply",
     ],
 )
 def test_postflight_never_promotes_apply_response_or_uncertain_proof(scope, now, case):
-    binding, command, proof = observation_bundle(scope, now)
+    binding, command, proof, reassessment = observation_bundle(scope, now)
     if case in {"image", "source", "configuration", "provenance"}:
         proof = replace(
             proof, artifact=replace(proof.artifact, **{case + "_digest": "0" * 64})
@@ -270,6 +306,16 @@ def test_postflight_never_promotes_apply_response_or_uncertain_proof(scope, now,
         proof = replace(proof, security_fix=R.FAIL)
     if case == "unknown-protection":
         proof = replace(proof, protection=R.UNKNOWN)
+    if case == "rescan-missing":
+        proof = replace(proof, reassessment_digest="0" * 64)
+    if case == "rescan-failed":
+        reassessment = replace(
+            reassessment, allowed=False, reasons=("selected-finding-still-present",)
+        )
+        proof = replace(proof, reassessment_digest=reassessment.fingerprint)
+    if case == "rescan-predates-apply":
+        reassessment = replace(reassessment, observed_at=now + timedelta(seconds=6))
+        proof = replace(proof, reassessment_digest=reassessment.fingerprint)
     at = binding.valid_until if case == "expired" else now + timedelta(seconds=11)
     with pytest.raises(ContractError):
         require_postflight(
@@ -278,4 +324,5 @@ def test_postflight_never_promotes_apply_response_or_uncertain_proof(scope, now,
             command=command,
             not_before=now + timedelta(seconds=7),
             now=at,
+            reassessment=reassessment,
         )
