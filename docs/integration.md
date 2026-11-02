@@ -12,7 +12,7 @@
 
 ## PostgreSQL
 
-호스트의 마이그레이션 관리자가 `sova_control` 스키마를 만든 뒤 `bravo_security.migrations.MIGRATIONS` 순서로 SQL을 읽어 적용한다. 패키지는 설치·import·저장소 생성 시 DDL을 실행하지 않는다. migration_sql은 정해진 리소스 이름만 허용한다.
+호스트의 마이그레이션 관리자가 `sova_control` 스키마를 만든 뒤 `sova_security.migrations.MIGRATIONS` 순서로 SQL을 읽어 적용한다. 패키지는 설치·import·저장소 생성 시 DDL을 실행하지 않는다. migration_sql은 정해진 리소스 이름만 허용한다.
 
 패키지가 소유하는 것은 보안 보류·관측·서명 근거·검증기 신뢰·보호 정책/평가 테이블이다. 공통 operations 상태 제약과 security_routes, operations를 참조하는 atomic completion 테이블은 호스트가 관리한다. SQL 2개를 패키지로 옮겨 플랫폼 전역 상태 모델을 암묵적으로 변경하지 않는다.
 

@@ -2,7 +2,7 @@ import sys
 from importlib.abc import MetaPathFinder
 from datetime import UTC, datetime
 import pytest
-from bravo_security.contracts.commands import ResourceScope
+from sova_security.contracts.commands import ResourceScope
 
 
 @pytest.fixture

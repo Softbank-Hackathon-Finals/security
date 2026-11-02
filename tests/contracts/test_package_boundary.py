@@ -5,13 +5,13 @@ import importlib
 from pathlib import Path
 
 import pytest
-import bravo_security
-from bravo_security.contracts.commands import ContractError
-from bravo_security.migrations import MIGRATIONS, migration_sql
+import sova_security
+from sova_security.contracts.commands import ContractError
+from sova_security.migrations import MIGRATIONS, migration_sql
 
 
 def test_source_imports_do_not_depend_on_sova_or_demo():
-    root = Path(bravo_security.__file__).parent
+    root = Path(sova_security.__file__).parent
     paths = [*root.rglob("*.py"), *Path(__file__).resolve().parents[1].rglob("*.py")]
     for path in paths:
         for node in ast.walk(ast.parse(path.read_text())):
@@ -29,10 +29,10 @@ def test_source_imports_do_not_depend_on_sova_or_demo():
 
 
 def test_all_public_modules_import_without_a_host_runtime():
-    root = Path(bravo_security.__file__).parent
+    root = Path(sova_security.__file__).parent
     for path in root.rglob("*.py"):
         suffix = path.relative_to(root).with_suffix("").parts
-        name = "bravo_security." + ".".join(
+        name = "sova_security." + ".".join(
             suffix[:-1] if suffix[-1] == "__init__" else suffix
         )
         importlib.import_module(name.rstrip("."))

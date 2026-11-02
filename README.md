@@ -1,4 +1,4 @@
-# Bravo Security
+# Sova Security
 
 Team Bravo 플랫폼에 설치하는 Python 보안 패키지다. 보호 수준 비교, 근거 검증, 보안 보류와 제한된 대응 계획을 제공한다. **보안 판정은 사용자 승인이나 운영 실행 권한을 부여하지 않는다.**
 
@@ -18,7 +18,7 @@ Sova의 실행 원장·승인 서비스·작업 큐·격리 실행 조정기·�
 Python 3.11 이상을 사용한다. 기본 설치에는 클라우드 SDK나 DB 연결이 필요 없다.
 
 ```sh
-python -m pip install /path/to/bravo_security-0.1.0-py3-none-any.whl
+python -m pip install /path/to/sova_security-0.1.0-py3-none-any.whl
 # 개발 시 이 저장소에서
 python -m pip install -e '.[dev]'
 python -m pytest -q
@@ -38,7 +38,7 @@ cd /path/to/sova
 
 ## 통합 계약
 
-`bravo_security.contracts`는 현재 추출 기준의 v1 경계 타입을 제공한다. 범위·revision·근거·불변 계획과 저장소 오류 타입만 공유하며, 실행 엔진이나 승인 권한은 포함하지 않는다. 팀 공통 계약이 이미 다르면 명시적 변환 어댑터로 연결해야 한다. 이름이 같은 dataclass를 다시 정의해 혼용하지 않는다.
+`sova_security.contracts`는 현재 추출 기준의 v1 경계 타입을 제공한다. 범위·revision·근거·불변 계획과 저장소 오류 타입만 공유하며, 실행 엔진이나 승인 권한은 포함하지 않는다. 팀 공통 계약이 이미 다르면 명시적 변환 어댑터로 연결해야 한다. 이름이 같은 dataclass를 다시 정의해 혼용하지 않는다.
 
 주요 모듈은 `domain`, `application`, `ports`, `adapters`다. `ProtectionParityGuard`와 `GovernanceGuard`에는 신뢰된 정책·현재 revision·근거 인증·보류 조회·시계를 제공한다. 패키지가 브라우저 입력을 신뢰된 사용자·조직 권한으로 승격하지 않는다.
 

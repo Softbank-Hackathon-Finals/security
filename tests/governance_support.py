@@ -3,15 +3,15 @@
 from dataclasses import replace
 from datetime import timedelta
 
-from bravo_security.contracts.commands import ContractError
-from bravo_security.contracts.evidence import (
+from sova_security.contracts.commands import ContractError
+from sova_security.contracts.evidence import (
     EvidenceRecord,
     Gate,
     RevisionSet,
     VerificationObligation,
     VerificationResult,
 )
-from bravo_security.domain.governance import (
+from sova_security.domain.governance import (
     ControlFamily,
     GovernancePolicy,
     SecurityControl,
@@ -19,13 +19,13 @@ from bravo_security.domain.governance import (
     HoldRelease,
     StoredHold,
 )
-from bravo_security.contracts.plans import (
+from sova_security.contracts.plans import (
     LifecyclePlan,
     PlanApproval,
     PlanPurpose,
     PlanStep,
 )
-from bravo_security.contracts.repositories import RecordNotFound, RepositoryConflict
+from sova_security.contracts.repositories import RecordNotFound, RepositoryConflict
 
 
 def bundle(scope, now):

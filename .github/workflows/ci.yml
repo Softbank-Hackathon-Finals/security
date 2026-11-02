@@ -18,14 +18,14 @@ jobs:
         env:
           POSTGRES_USER: bravo_test_admin
           POSTGRES_PASSWORD: ci-test-only
-          POSTGRES_DB: bravo_security_test
-          POSTGRES_INITDB_ARGS: '-c cluster_name=bravo-security-test'
+          POSTGRES_DB: sova_security_test
+          POSTGRES_INITDB_ARGS: '-c cluster_name=sova-security-test'
         ports: ['5432:5432']
         options: >-
-          --health-cmd "pg_isready -U bravo_test_admin -d bravo_security_test"
+          --health-cmd "pg_isready -U bravo_test_admin -d sova_security_test"
           --health-interval 5s --health-timeout 5s --health-retries 10
     env:
-      BRAVO_SECURITY_TEST_POSTGRES_DSN: 'postgresql://bravo_test_admin:ci-test-only@localhost:5432/bravo_security_test'
+      SOVA_SECURITY_TEST_POSTGRES_DSN: 'postgresql://bravo_test_admin:ci-test-only@localhost:5432/sova_security_test'
       AWS_EC2_METADATA_DISABLED: 'true'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7

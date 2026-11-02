@@ -4,14 +4,14 @@ from datetime import timedelta
 import pytest
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from governance_support import bundle
-from bravo_security.adapters.ed25519_evidence import (
+from sova_security.adapters.ed25519_evidence import (
     Ed25519EvidenceSigner,
     Ed25519EvidenceVerifier,
 )
-from bravo_security.adapters.signed_evidence_codec import decode_envelope
-from bravo_security.contracts.commands import ContractError
-from bravo_security.domain.signed_evidence import VerifierTrust
-from bravo_security.contracts.evidence import VerificationResult
+from sova_security.adapters.signed_evidence_codec import decode_envelope
+from sova_security.contracts.commands import ContractError
+from sova_security.domain.signed_evidence import VerifierTrust
+from sova_security.contracts.evidence import VerificationResult
 
 
 @pytest.fixture

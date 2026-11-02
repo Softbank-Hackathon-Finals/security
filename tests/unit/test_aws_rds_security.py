@@ -6,17 +6,17 @@ from datetime import timedelta
 import boto3
 from botocore.stub import Stubber
 import pytest
-from bravo_security.domain.aws_security import RdsReadRegistration
-from bravo_security.contracts.commands import ContractError, ResourceScope
-from bravo_security.adapters.aws_rds_security import RdsSecurityCollector, VERIFIER
-from bravo_security.domain.protection_parity import (
+from sova_security.domain.aws_security import RdsReadRegistration
+from sova_security.contracts.commands import ContractError, ResourceScope
+from sova_security.adapters.aws_rds_security import RdsSecurityCollector, VERIFIER
+from sova_security.domain.protection_parity import (
     ProtectionEndpoint,
     ProtectionRequirement,
     ProtectionPolicy,
     Availability,
 )
-from bravo_security.domain.governance import ControlFamily
-from bravo_security.adapters.aws_security_codec import decode_rds_registration
+from sova_security.domain.governance import ControlFamily
+from sova_security.adapters.aws_security_codec import decode_rds_registration
 
 
 @pytest.fixture
@@ -306,7 +306,7 @@ def test_registration_rejects_credentials_endpoint_override_and_cross_account_ar
 
 
 def test_snapshot_conclusion_cannot_disagree_with_facts(rds_case, now):
-    from bravo_security.contracts.commands import canonical_json
+    from sova_security.contracts.commands import canonical_json
 
     snapshot = run_case(rds_case, now)
     with pytest.raises(ContractError, match="conclusions differ"):
@@ -326,7 +326,7 @@ def test_snapshot_conclusion_cannot_disagree_with_facts(rds_case, now):
 
 
 def test_fixed_sdk_factory_disables_endpoint_overrides_proxies_and_retries(rds_case):
-    from bravo_security.adapters.aws_rds_security import fixed_clients
+    from sova_security.adapters.aws_rds_security import fixed_clients
 
     calls = []
 
@@ -372,7 +372,7 @@ def test_aws_api_failure_never_returns_partial_pass_or_echoes_service_error(
 def test_existing_production_db_can_be_registered_read_only_without_sova_tags(
     rds_case, now
 ):
-    from bravo_security.domain.aws_security import RdsManagementRelation
+    from sova_security.domain.aws_security import RdsManagementRelation
 
     reg, clients, stubs, db, _ = rds_case
     reg = replace(reg, management_relation=RdsManagementRelation.REGISTERED_READ_ONLY)

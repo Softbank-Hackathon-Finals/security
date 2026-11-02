@@ -1,11 +1,11 @@
 from dataclasses import replace
 from datetime import timedelta
 import pytest
-from bravo_security.contracts.commands import ContractError
-from bravo_security.domain.signed_evidence import VerifierTrust
-from bravo_security.domain.verifier_registry import VerifierTrustChange
-from bravo_security.adapters.verifier_registry_codec import decode_trust_change
-from bravo_security.application.verifier_registry import VerifierRegistryAdministration
+from sova_security.contracts.commands import ContractError
+from sova_security.domain.signed_evidence import VerifierTrust
+from sova_security.domain.verifier_registry import VerifierTrustChange
+from sova_security.adapters.verifier_registry_codec import decode_trust_change
+from sova_security.application.verifier_registry import VerifierRegistryAdministration
 
 
 def trust_change(scope, now):

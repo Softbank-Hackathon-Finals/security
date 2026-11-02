@@ -1,8 +1,8 @@
 from copy import deepcopy
 import pytest
 from protection_support import protection_bundle
-from bravo_security.adapters.protection_codec import decode_protection_policy
-from bravo_security.contracts.commands import ContractError
+from sova_security.adapters.protection_codec import decode_protection_policy
+from sova_security.contracts.commands import ContractError
 
 
 def test_policy_roundtrip_and_no_raw_provider_extension(scope, now):

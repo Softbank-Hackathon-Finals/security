@@ -4,11 +4,11 @@ import pytest
 
 from protection_support import protection_bundle, protection_profile
 from governance_support import MemoryHolds
-from bravo_security.contracts.commands import ContractError
-from bravo_security.contracts.evidence import VerificationResult
-from bravo_security.domain.governance import SecurityHold
-from bravo_security.domain.protection_parity import Availability, assess_protection
-from bravo_security.application.protection_parity import ProtectionParityGuard
+from sova_security.contracts.commands import ContractError
+from sova_security.contracts.evidence import VerificationResult
+from sova_security.domain.governance import SecurityHold
+from sova_security.domain.protection_parity import Availability, assess_protection
+from sova_security.application.protection_parity import ProtectionParityGuard
 
 
 def test_different_provider_implementations_compare_actual_objective(scope, now):

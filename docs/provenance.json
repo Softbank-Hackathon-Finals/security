@@ -4,207 +4,207 @@
   "extracted_modules": [
     {
       "source": "src/sova/security/adapters/aws_rds_security.py",
-      "destination": "src/bravo_security/adapters/aws_rds_security.py",
+      "destination": "src/sova_security/adapters/aws_rds_security.py",
       "source_sha256": "58355c9d00f6b48638129314bf13a0f9ee5c0b9fd11a144e4fd611cdbcd49765"
     },
     {
       "source": "src/sova/security/adapters/aws_security_codec.py",
-      "destination": "src/bravo_security/adapters/aws_security_codec.py",
+      "destination": "src/sova_security/adapters/aws_security_codec.py",
       "source_sha256": "de0180008021e294fca684eedfffa3bfe59ac5a0b838adf0e44d07a0d2b69340"
     },
     {
       "source": "src/sova/security/adapters/ed25519_evidence.py",
-      "destination": "src/bravo_security/adapters/ed25519_evidence.py",
+      "destination": "src/sova_security/adapters/ed25519_evidence.py",
       "source_sha256": "2e0397beb89a01a193488b0f910b5bae527b3577200294cade27b7845d9a7e7f"
     },
     {
       "source": "src/sova/security/adapters/kubernetes/posture.py",
-      "destination": "src/bravo_security/adapters/kubernetes/posture.py",
+      "destination": "src/sova_security/adapters/kubernetes/posture.py",
       "source_sha256": "92cc734f707061199554a01ad8362c430fb0985b9c21ff8d53cea0b17be26d00"
     },
     {
       "source": "src/sova/security/adapters/postgres_governance.py",
-      "destination": "src/bravo_security/adapters/postgres_governance.py",
+      "destination": "src/sova_security/adapters/postgres_governance.py",
       "source_sha256": "685146036c16298a5d6ce337b0ac1465e1ba8a4740a18afe59130d3b803eec93"
     },
     {
       "source": "src/sova/security/adapters/postgres_protection_parity.py",
-      "destination": "src/bravo_security/adapters/postgres_protection_parity.py",
+      "destination": "src/sova_security/adapters/postgres_protection_parity.py",
       "source_sha256": "81ae8846bf5ce23a298b75e8ebd2905bdf2d5128565f604dd3188d759ee77a69"
     },
     {
       "source": "src/sova/security/adapters/postgres_security_events.py",
-      "destination": "src/bravo_security/adapters/postgres_security_events.py",
+      "destination": "src/sova_security/adapters/postgres_security_events.py",
       "source_sha256": "5399c55fc78218e154d8ee6a4409d918cb960e6c5ab3b0cd037dbe1423ff1b15"
     },
     {
       "source": "src/sova/security/adapters/postgres_signed_evidence.py",
-      "destination": "src/bravo_security/adapters/postgres_signed_evidence.py",
+      "destination": "src/sova_security/adapters/postgres_signed_evidence.py",
       "source_sha256": "ac10b726f187c27a1306b9381db645e2564c4e8ac44782cb1bc2877c3a9ec5a0"
     },
     {
       "source": "src/sova/security/adapters/postgres_verifier_registry.py",
-      "destination": "src/bravo_security/adapters/postgres_verifier_registry.py",
+      "destination": "src/sova_security/adapters/postgres_verifier_registry.py",
       "source_sha256": "045c3019518c66fe42e3ed7fbd57301cbe30c049f8da8bf254f8f48c24f3330a"
     },
     {
       "source": "src/sova/security/adapters/protection_codec.py",
-      "destination": "src/bravo_security/adapters/protection_codec.py",
+      "destination": "src/sova_security/adapters/protection_codec.py",
       "source_sha256": "6d9ce7aa7fa6d6bd5a4c2968d3361472c386ada8acaeeb4f687c90f652fb6f8c"
     },
     {
       "source": "src/sova/security/adapters/response_completion_codec.py",
-      "destination": "src/bravo_security/adapters/response_completion_codec.py",
+      "destination": "src/sova_security/adapters/response_completion_codec.py",
       "source_sha256": "ca5fb1a3fff780655028ce7f820d6efc6e301399c580269f38dd0e41baa0a373"
     },
     {
       "source": "src/sova/security/adapters/security_codec.py",
-      "destination": "src/bravo_security/adapters/security_codec.py",
+      "destination": "src/sova_security/adapters/security_codec.py",
       "source_sha256": "19720930878f7067760e559b79298e48ff7c17cda2bc4274f9e0cd310c1383a2"
     },
     {
       "source": "src/sova/security/adapters/signed_evidence_codec.py",
-      "destination": "src/bravo_security/adapters/signed_evidence_codec.py",
+      "destination": "src/sova_security/adapters/signed_evidence_codec.py",
       "source_sha256": "823f6eb1a1cdd8675b8da0bf282d9906ae34b1305407a8dfe8740a5addc1c5e0"
     },
     {
       "source": "src/sova/security/adapters/verifier_registry_codec.py",
-      "destination": "src/bravo_security/adapters/verifier_registry_codec.py",
+      "destination": "src/sova_security/adapters/verifier_registry_codec.py",
       "source_sha256": "f5a87e7fe78ee3a23a7f909944eb27c828c26be0d84149b9cfb76b804384308a"
     },
     {
       "source": "src/sova/security/application/ai_gateway.py",
-      "destination": "src/bravo_security/application/ai_gateway.py",
+      "destination": "src/sova_security/application/ai_gateway.py",
       "source_sha256": "80ef322b73aa8f0e91982c484244bf05a346949ef95c241fb19ebd3c4a083217"
     },
     {
       "source": "src/sova/security/application/governance.py",
-      "destination": "src/bravo_security/application/governance.py",
+      "destination": "src/sova_security/application/governance.py",
       "source_sha256": "3afbcfe1bad5fa563e80d932b4d2f7fc70747eb20746859ea732123c9da0e212"
     },
     {
       "source": "src/sova/security/application/protection_parity.py",
-      "destination": "src/bravo_security/application/protection_parity.py",
+      "destination": "src/sova_security/application/protection_parity.py",
       "source_sha256": "59b12f506997de27a6649d400643d1c05a982712875525d6fdc544c3411a3ea2"
     },
     {
       "source": "src/sova/security/application/protection_projection.py",
-      "destination": "src/bravo_security/application/protection_projection.py",
+      "destination": "src/sova_security/application/protection_projection.py",
       "source_sha256": "ac4ac8c62aa30d4becafbfc590ab228771b981acc3d9aaabd5f6c1feb2a0bdab"
     },
     {
       "source": "src/sova/security/application/security_collection.py",
-      "destination": "src/bravo_security/application/security_collection.py",
+      "destination": "src/sova_security/application/security_collection.py",
       "source_sha256": "8e0cedf3f414e951a4f4614a2adc991582e8c3a50a2c1738a74bbae623f35a6e"
     },
     {
       "source": "src/sova/security/application/security_response.py",
-      "destination": "src/bravo_security/application/security_response.py",
+      "destination": "src/sova_security/application/security_response.py",
       "source_sha256": "403da1eebf08bd1b03de8ccfcead12d07b9f5477720284a16aaf8b051e4dd7cc"
     },
     {
       "source": "src/sova/security/application/signed_evidence.py",
-      "destination": "src/bravo_security/application/signed_evidence.py",
+      "destination": "src/sova_security/application/signed_evidence.py",
       "source_sha256": "e495e05b54935bbc41fca0dee9dd025eae34f88a93a5c70ca6a2fa0defffdcd5"
     },
     {
       "source": "src/sova/security/application/verifier_registry.py",
-      "destination": "src/bravo_security/application/verifier_registry.py",
+      "destination": "src/sova_security/application/verifier_registry.py",
       "source_sha256": "283327b6bee2622f813edefd9304148aa48838c46497d1222dd47f68921a7258"
     },
     {
       "source": "src/sova/security/domain/ai_residency.py",
-      "destination": "src/bravo_security/domain/ai_residency.py",
+      "destination": "src/sova_security/domain/ai_residency.py",
       "source_sha256": "e1c3d021da50939793905410ec07695ce869ffa653b39eca42bb55656d090909"
     },
     {
       "source": "src/sova/security/domain/aws_security.py",
-      "destination": "src/bravo_security/domain/aws_security.py",
+      "destination": "src/sova_security/domain/aws_security.py",
       "source_sha256": "a05cdc1969b52af7970a719eee3fd5cf240e3bc6ae5a5338550ae4fa4d444a8c"
     },
     {
       "source": "src/sova/security/domain/governance.py",
-      "destination": "src/bravo_security/domain/governance.py",
+      "destination": "src/sova_security/domain/governance.py",
       "source_sha256": "32c7835ada3850ec6b4b3efe8d2b74d67c0107bffdd191c0bef21a2eb6049be8"
     },
     {
       "source": "src/sova/security/domain/posture.py",
-      "destination": "src/bravo_security/domain/posture.py",
+      "destination": "src/sova_security/domain/posture.py",
       "source_sha256": "9d3ca824757c22b02cc37859a44f3340b4e424ac013dbe997790bd616c634a52"
     },
     {
       "source": "src/sova/security/domain/protection_parity.py",
-      "destination": "src/bravo_security/domain/protection_parity.py",
+      "destination": "src/sova_security/domain/protection_parity.py",
       "source_sha256": "56dc2f1f87ee82636ecb5bf18b2e65c0305a72768ed8b4e477b9905f88146be9"
     },
     {
       "source": "src/sova/security/domain/protection_profiles.py",
-      "destination": "src/bravo_security/domain/protection_profiles.py",
+      "destination": "src/sova_security/domain/protection_profiles.py",
       "source_sha256": "6d245bb84d15a329f0a1d9cb397719d912637a5d7924542c970dd5f9efa60a0b"
     },
     {
       "source": "src/sova/security/domain/response_completion.py",
-      "destination": "src/bravo_security/domain/response_completion.py",
+      "destination": "src/sova_security/domain/response_completion.py",
       "source_sha256": "a49ed4c6d4428c823c3618e4c6d2500e4851be6539b31c8b076d71a0a84f2d81"
     },
     {
       "source": "src/sova/security/domain/security_events.py",
-      "destination": "src/bravo_security/domain/security_events.py",
+      "destination": "src/sova_security/domain/security_events.py",
       "source_sha256": "10cf97d08dff9f67208bdd80caa39d3e340ea158e4e6a6a1efc03cceadd1f007"
     },
     {
       "source": "src/sova/security/domain/security_response.py",
-      "destination": "src/bravo_security/domain/security_response.py",
+      "destination": "src/sova_security/domain/security_response.py",
       "source_sha256": "5e2f067d2932a1ebc9d489700ac7973db3fcf9a29ce40e75c4da880b0ee1eab8"
     },
     {
       "source": "src/sova/security/domain/signed_evidence.py",
-      "destination": "src/bravo_security/domain/signed_evidence.py",
+      "destination": "src/sova_security/domain/signed_evidence.py",
       "source_sha256": "5cd29433df7e81ceb5dc1aa41dfadd324aa8a7f596d8861be9dc87c1743fc03e"
     },
     {
       "source": "src/sova/security/domain/verifier_registry.py",
-      "destination": "src/bravo_security/domain/verifier_registry.py",
+      "destination": "src/sova_security/domain/verifier_registry.py",
       "source_sha256": "db043db058c85ce9deeb7f5cdd4d25be4909172001b67f9881d347e34b9ca3e4"
     },
     {
       "source": "src/sova/security/ports/governance.py",
-      "destination": "src/bravo_security/ports/governance.py",
+      "destination": "src/sova_security/ports/governance.py",
       "source_sha256": "0c785f7bf4c659709270b5b75cf5f2f2dfa5de7964d46789b3bb7d7198f7981e"
     },
     {
       "source": "src/sova/security/ports/security_events.py",
-      "destination": "src/bravo_security/ports/security_events.py",
+      "destination": "src/sova_security/ports/security_events.py",
       "source_sha256": "fb599e2d46929179f91692f314653b43223c30a238e5aa6b40a4fb4cc5c2a351"
     },
     {
       "source": "src/sova/security/ports/signed_evidence.py",
-      "destination": "src/bravo_security/ports/signed_evidence.py",
+      "destination": "src/sova_security/ports/signed_evidence.py",
       "source_sha256": "e1df5351c19a9276e7fd680f260488fe9dd5203c7da28e3110ad878e369b461a"
     },
     {
       "source": "src/sova/domain/contracts.py",
-      "destination": "src/bravo_security/contracts/commands.py",
+      "destination": "src/sova_security/contracts/commands.py",
       "source_sha256": "aa6e99d4bdbd323e1ef810778994595bb1d54e9ae75e3cb9225b5873d881f953"
     },
     {
       "source": "src/sova/domain/evidence.py",
-      "destination": "src/bravo_security/contracts/evidence.py",
+      "destination": "src/sova_security/contracts/evidence.py",
       "source_sha256": "1c3cbbbc389559a5318be0966062b00d7938b40826af6eef539ad9a5dd7fa043"
     },
     {
       "source": "src/sova/domain/plans.py",
-      "destination": "src/bravo_security/contracts/plans.py",
+      "destination": "src/sova_security/contracts/plans.py",
       "source_sha256": "5175df9a6b164ef0f0c8baf9ca330e0fed03119fc0fa33c19b75de27022ae0c4"
     },
     {
       "source": "src/sova/domain/system_graph.py",
-      "destination": "src/bravo_security/contracts/graph.py",
+      "destination": "src/sova_security/contracts/graph.py",
       "source_sha256": "660ce8063a4a6afe216d29af102b1ed80b52115340dc3c8b761a972e47e93179"
     },
     {
       "source": "src/sova/ports/plans.py",
-      "destination": "src/bravo_security/contracts/repositories.py",
+      "destination": "src/sova_security/contracts/repositories.py",
       "source_sha256": "6532306679e6b7c1fa26726a46ed16fc7e3899b9639cc4474132756d4e8bc3c7"
     }
   ],

@@ -4,8 +4,8 @@ from unittest.mock import Mock
 
 import pytest
 
-from bravo_security.application.ai_gateway import AIGateway
-from bravo_security.domain.ai_residency import (
+from sova_security.application.ai_gateway import AIGateway
+from sova_security.domain.ai_residency import (
     AIEndpointFacts,
     AIResidencyPolicy,
     DataClass,
@@ -13,7 +13,7 @@ from bravo_security.domain.ai_residency import (
     LocationRule,
     assess_ai_route,
 )
-from bravo_security.contracts.commands import ContractError
+from sova_security.contracts.commands import ContractError
 
 
 @pytest.fixture

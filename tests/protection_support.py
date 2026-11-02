@@ -2,24 +2,24 @@
 
 from dataclasses import replace
 from datetime import timedelta
-from bravo_security.domain.protection_parity import (
+from sova_security.domain.protection_parity import (
     Availability,
     ProtectionEndpoint,
     ProtectionRequirement,
     ProtectionPolicy,
 )
-from bravo_security.domain.governance import ControlFamily
-from bravo_security.domain.protection_profiles import (
+from sova_security.domain.governance import ControlFamily
+from sova_security.domain.protection_profiles import (
     ProtectionProfile,
     ProtectionObjective,
 )
-from bravo_security.contracts.evidence import (
+from sova_security.contracts.evidence import (
     EvidenceRecord,
     Gate,
     VerificationResult,
     VerificationObligation,
 )
-from bravo_security.contracts.plans import (
+from sova_security.contracts.plans import (
     LifecyclePlan,
     PlanStep,
     PlanPurpose,

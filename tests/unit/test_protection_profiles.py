@@ -1,9 +1,9 @@
 from dataclasses import replace
 import pytest
 from protection_support import protection_bundle, protection_profile
-from bravo_security.contracts.commands import ContractError
-from bravo_security.domain.protection_profiles import production_protection_profile
-from bravo_security.adapters.protection_codec import decode_protection_policy
+from sova_security.contracts.commands import ContractError
+from sova_security.domain.protection_profiles import production_protection_profile
+from sova_security.adapters.protection_codec import decode_protection_policy
 
 
 def test_profile_is_bound_into_policy_and_cannot_be_removed_by_approval(scope, now):

@@ -3,14 +3,14 @@ from datetime import timedelta
 
 import pytest
 from governance_support import bundle, release_bundle, MemoryHolds
-from bravo_security.contracts.commands import ContractError
-from bravo_security.contracts.evidence import VerificationResult, Gate
-from bravo_security.domain.governance import (
+from sova_security.contracts.commands import ContractError
+from sova_security.contracts.evidence import VerificationResult, Gate
+from sova_security.domain.governance import (
     GovernancePolicy,
     SecurityControl,
     assess_governance,
 )
-from bravo_security.application.governance import GovernanceGuard, SecurityHoldService
+from sova_security.application.governance import GovernanceGuard, SecurityHoldService
 
 
 def test_pass_bound_to_scope_revision_and_trusted_control(scope, now):

@@ -7,13 +7,13 @@ from datetime import timedelta
 import pytest
 
 from protection_support import protection_bundle
-from bravo_security.adapters.response_completion_codec import decode_response_completion
-from bravo_security.contracts.commands import (
+from sova_security.adapters.response_completion_codec import decode_response_completion
+from sova_security.contracts.commands import (
     ContractError,
     EffectObservation,
     EffectStatus,
 )
-from bravo_security.domain.response_completion import ResponseCompletion
+from sova_security.domain.response_completion import ResponseCompletion
 
 
 @pytest.fixture
