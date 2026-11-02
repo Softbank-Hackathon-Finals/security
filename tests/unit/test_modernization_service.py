@@ -192,3 +192,43 @@ def test_revocation_while_verifying_receipt_stops_persistence(modernization, sco
             request_digest=request.fingerprint,
             receipt_digest=receipt.fingerprint,
         )
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    [("revision", True), ("revision", 1.0), ("revoked", 0), ("revoked", None)],
+)
+def test_malformed_storage_state_is_not_an_active_registration(
+    modernization, scope, field, value
+):
+    service, state, request, _, _ = modernization
+    state["artifacts"][request.fingerprint] = replace(
+        state["artifacts"][request.fingerprint], **{field: value}
+    )
+    with pytest.raises(ContractError, match="Active registered"):
+        service.inspect("operator", scope=scope, fingerprint=request.fingerprint)
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    [("revision", True), ("revision", 1.0), ("revoked", 0), ("revoked", None)],
+)
+def test_malformed_durable_receipt_cannot_claim_saved_assessment(
+    modernization, scope, field, value
+):
+    service, state, _, _, inputs = modernization
+    original = service.artifacts.register
+
+    def register(*args, **kwargs):
+        saved = original(*args, **kwargs)
+        saved = replace(saved, **{field: value})
+        state["artifacts"][saved.value.fingerprint] = saved
+        return saved
+
+    service.artifacts.register = register
+    with pytest.raises(ContractError, match="persistence"):
+        service.assess(
+            "operator",
+            scope=scope,
+            expected_inputs=tuple(v.fingerprint for v in inputs),
+        )

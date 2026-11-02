@@ -44,7 +44,9 @@ class SecurityModernizationService:
         if (
             not isinstance(stored, StoredSecurityArtifact)
             or stored.scope != scope
+            or type(stored.revoked) is not bool
             or stored.revoked
+            or type(stored.revision) is not int
             or stored.revision != 1
             or stored.value.fingerprint != fingerprint
             or (kind is not None and not isinstance(stored.value, kind))

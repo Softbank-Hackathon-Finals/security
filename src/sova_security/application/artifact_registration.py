@@ -10,7 +10,9 @@ def register_artifact(repository, scope, value, *, actor_id):
         not isinstance(stored, StoredSecurityArtifact)
         or stored.scope != scope
         or stored.value != value
+        or type(stored.revision) is not int
         or stored.revision != 1
+        or type(stored.revoked) is not bool
         or stored.revoked
         or repository.get(scope, value.fingerprint) != stored
     ):

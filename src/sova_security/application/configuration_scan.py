@@ -1,5 +1,6 @@
 """Authenticate registered collector output before configuration projection."""
 
+from sova_security.adapters.vulnerability_reports import MAX_BYTES
 from dataclasses import replace
 import hashlib
 
@@ -51,7 +52,11 @@ class ConfigurationAssessmentService:
                 "Raw report and independently signed collection receipt required"
             )
         raw, receipt = report
-        if type(raw) is not bytes or not isinstance(receipt, EvidenceRecord):
+        if (
+            type(raw) is not bytes
+            or not 0 < len(raw) <= MAX_BYTES - 32
+            or not isinstance(receipt, EvidenceRecord)
+        ):
             raise ContractError("Typed configuration collection input required")
         require_authentication(self.authenticate_report, receipt)
         if (
