@@ -7,7 +7,7 @@ merely because they decode successfully.
 
 from dataclasses import fields, is_dataclass
 from datetime import datetime
-from enum import Enum
+from enum import Enum, IntEnum
 from types import UnionType, MappingProxyType
 from typing import get_args, get_origin, get_type_hints, Union
 
@@ -18,6 +18,7 @@ from sova_security.domain import remediation as r
 from sova_security.domain import patch_execution as p
 from sova_security.domain import patch_reassessment as pr
 from sova_security.domain import continuous_security as cs
+from sova_security.domain import opa_policy as op
 
 KINDS = MappingProxyType(
     {
@@ -37,6 +38,8 @@ KINDS = MappingProxyType(
         "patch-reassessment.v1": pr.PatchReassessment,
         "runtime-security-baseline.v1": cs.RuntimeSecurityBaseline,
         "continuous-security-review.v1": cs.ContinuousSecurityReview,
+        "opa-policy.v1": op.OPAPolicy,
+        "opa-decision.v1": op.OPADecision,
     }
 )
 
@@ -80,6 +83,10 @@ def _decode(kind, value, depth=0):
             raise ContractError("Contract timestamp text required")
         return datetime.fromisoformat(value)
     if isinstance(kind, type) and issubclass(kind, Enum):
+        if issubclass(kind, IntEnum):
+            if type(value) is not int:
+                raise ContractError("Integer contract enumeration required")
+            return kind(value)
         if type(value) is not str:
             raise ContractError("Contract enumeration string required")
         return kind(value)
