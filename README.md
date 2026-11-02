@@ -27,7 +27,7 @@ Sova의 실행 원장·승인 서비스·작업 큐·격리 실행 조정기·�
 Python 3.11 이상을 사용한다. 기본 설치에는 클라우드 SDK나 DB 연결이 필요 없다.
 
 ```sh
-python -m pip install /path/to/sova_security-0.8.0-py3-none-any.whl
+python -m pip install /path/to/sova_security-0.8.1-py3-none-any.whl
 # 개발 시 이 저장소에서
 python -m pip install -e '.[dev]'
 python -m pytest -q
@@ -43,7 +43,7 @@ cd /path/to/sova
 .local-notes/venv/bin/python -m pip install -e '../team-bravo/security[postgres,signing,aws]'
 ```
 
-릴리스 소비 환경은 검증한 wheel과 해시를 고정한다. [CI 산출물 소비 방법](docs/distribution.md)을 따른다. 현재 0.8.0은 최초 추출 이후 보안 개선 계약을 추가한 버전이며 PyPI 배포를 뜻하지 않는다.
+릴리스 소비 환경은 검증한 wheel과 해시를 고정한다. [CI 산출물 소비 방법](docs/distribution.md)을 따른다. 현재 0.8.1은 최초 추출 이후 보안 개선 계약을 추가한 버전이며 PyPI 배포를 뜻하지 않는다.
 
 ## 통합 계약
 
