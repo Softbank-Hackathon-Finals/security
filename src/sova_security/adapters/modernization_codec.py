@@ -8,27 +8,32 @@ merely because they decode successfully.
 from dataclasses import fields, is_dataclass
 from datetime import datetime
 from enum import Enum
-from types import UnionType
+from types import UnionType, MappingProxyType
 from typing import get_args, get_origin, get_type_hints, Union
 
 from sova_security.contracts.commands import ContractError, canonical_json
 from sova_security.adapters.vulnerability_reports import bounded_report
 from sova_security.domain import assessment as a
 from sova_security.domain import remediation as r
+from sova_security.domain import patch_execution as p
 
-KINDS = {
-    "asset-inventory.v1": a.AssetInventory,
-    "scanner-profile.v1": a.ScannerProfile,
-    "vulnerability-scan.v1": a.VulnerabilityScan,
-    "exposure-observation.v1": a.ExposureObservation,
-    "risk-policy.v1": a.RiskPolicy,
-    "risk-assessment.v1": a.Assessment,
-    "remediation-proposal.v1": r.RemediationProposal,
-    "sandbox-profile.v1": r.SandboxProfile,
-    "rehearsal-request.v1": r.RehearsalRequest,
-    "rehearsal-receipt.v1": r.RehearsalReceipt,
-    "rehearsal-decision.v1": r.RehearsalDecision,
-}
+KINDS = MappingProxyType(
+    {
+        "asset-inventory.v1": a.AssetInventory,
+        "scanner-profile.v1": a.ScannerProfile,
+        "vulnerability-scan.v1": a.VulnerabilityScan,
+        "exposure-observation.v1": a.ExposureObservation,
+        "risk-policy.v1": a.RiskPolicy,
+        "risk-assessment.v1": a.Assessment,
+        "remediation-proposal.v1": r.RemediationProposal,
+        "sandbox-profile.v1": r.SandboxProfile,
+        "rehearsal-request.v1": r.RehearsalRequest,
+        "rehearsal-receipt.v1": r.RehearsalReceipt,
+        "rehearsal-decision.v1": r.RehearsalDecision,
+        "patch-execution-binding.v1": p.PatchExecutionBinding,
+        "patch-runtime-observation.v1": p.PatchRuntimeObservation,
+    }
+)
 
 
 def kind_of(value):

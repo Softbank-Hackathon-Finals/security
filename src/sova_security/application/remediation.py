@@ -46,6 +46,10 @@ def require_proposal_binding(proposal, inventory, assessment, *, now):
     if proposal.kind == ChangeKind.PATCH and (
         not assessment.complete
         or any(
+            d.response in {"contain-investigate", "preserve-rebuild-rotate"}
+            for d in assessment.decisions
+        )
+        or any(
             d.response != "propose-patch"
             for d in assessment.decisions
             if d.fingerprint in proposal.findings
