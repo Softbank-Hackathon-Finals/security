@@ -5,8 +5,13 @@ from sova_security.application.boundary import require_accept, require_authentic
 from datetime import UTC, datetime
 
 from sova_security.contracts.commands import ContractError
-from sova_security.contracts.evidence import VerificationResult
-from sova_security.domain.governance import assess_governance
+from sova_security.contracts.evidence import EvidenceRecord, VerificationResult
+from sova_security.domain.governance import (
+    assess_governance,
+    SecurityHold,
+    StoredHold,
+    HoldRelease,
+)
 
 
 class GovernanceGuard:
@@ -104,20 +109,36 @@ class SecurityHoldService:
         self.clock = clock
 
     def open(self, actor, hold):
+        if not isinstance(hold, SecurityHold):
+            raise ContractError("Typed security hold required")
         if actor != hold.raised_by or hold.scope.tenant_id != self.repository.tenant_id:
             raise ContractError("Security hold actor/scope mismatch")
         require_accept(self.authorize, actor, hold.scope, "security:hold")
         if hold.raised_at > self.clock():
             raise ContractError("Future hold timestamp")
-        return self.repository.open_hold(hold)
+        result = self.repository.open_hold(hold)
+        if (
+            not isinstance(result, StoredHold)
+            or result != StoredHold(hold, 1)
+            or self.repository.get_hold(hold.scope.application_id, hold.hold_id)
+            != result
+        ):
+            raise ContractError("Security hold persistence was not confirmed")
+        return result
 
     def release(self, actor, application_id, request, evidence):
+        if not isinstance(request, HoldRelease) or not isinstance(
+            evidence, EvidenceRecord
+        ):
+            raise ContractError("Typed security release and revalidation required")
         stored = self.repository.get_hold(application_id, request.hold_id)
-        if not stored.active:
+        if not isinstance(stored, StoredHold) or not stored.active:
             raise ContractError("Security hold already released")
         scope = stored.hold.scope
         if (
-            actor != request.requested_by
+            scope.tenant_id != self.repository.tenant_id
+            or scope.application_id != application_id
+            or actor != request.requested_by
             or request.scope != scope
             or request.revisions != self.current_revisions(scope)
         ):
@@ -148,4 +169,30 @@ class SecurityHoldService:
             raise ContractError(
                 "Hold release lacks current bound security revalidation"
             )
-        return self.repository.release_hold(application_id, request)
+        # A release removes containment. Recheck live identities and verifier
+        # trust after lookups, even if the signed request bytes are unchanged.
+        require_accept(self.authorize, actor, scope, "security:release-request")
+        require_accept(
+            self.authorize, request.approved_by, scope, "security:release-approve"
+        )
+        require_authentication(self.authenticate_release, request)
+        require_authentication(self.authenticate_evidence, evidence)
+        if (
+            self.current_revisions(scope) != request.revisions
+            or self.repository.get_hold(application_id, request.hold_id) != stored
+        ):
+            raise ContractError("Security release authority changed before commit")
+        final = self.clock()
+        request.require_valid(stored.hold, stored.revision, final)
+        if final < now or final >= evidence.valid_until:
+            raise ContractError("Security release evidence expired before commit")
+        result = self.repository.release_hold(application_id, request)
+        if (
+            not isinstance(result, StoredHold)
+            or result != StoredHold(stored.hold, stored.revision + 1, request)
+            or self.repository.get_hold(application_id, request.hold_id) != result
+        ):
+            # A write may already have happened. Report uncertainty; do not
+            # invent a replacement hold or retry a release behind the caller.
+            raise ContractError("Security release persistence was not confirmed")
+        return result

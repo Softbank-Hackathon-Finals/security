@@ -230,6 +230,8 @@ def test_release_requires_separate_security_authorities(scope, now):
         "security:hold",
         "security:release-request",
         "security:release-approve",
+        "security:release-request",
+        "security:release-approve",
     ]
 
 
@@ -339,3 +341,77 @@ def test_revision_change_during_release_cannot_reuse_old_approval(scope, now):
     with pytest.raises(ContractError):
         service.release(request.requested_by, scope.application_id, request, evidence)
     assert repo.active_holds(scope.application_id)
+
+
+@pytest.mark.parametrize(
+    "boundary", ["authorize", "authenticate_release", "authenticate_evidence"]
+)
+def test_revocation_after_first_check_does_not_clear_hold(scope, now, boundary):
+    _, plan, _, _, hold = bundle(scope, now)
+    repo = MemoryHolds(scope.tenant_id, now)
+    repo.open_hold(hold)
+    request, evidence = release_bundle(hold, plan.revisions, now)
+    service = release_service(repo, plan.revisions, now)
+    calls = []
+
+    def revoke_after_first(*args):
+        # Authorization checks both requester and approver on each pass.
+        key = args[-1] if boundary == "authorize" else "signature"
+        calls.append(key)
+        return calls.count(key) == 1
+
+    setattr(service, boundary, revoke_after_first)
+    with pytest.raises(ContractError):
+        service.release(request.requested_by, scope.application_id, request, evidence)
+    assert repo.active_holds(scope.application_id)
+
+
+def test_release_expiring_during_final_trust_lookup_remains_held(scope, now):
+    _, plan, _, _, hold = bundle(scope, now)
+    repo = MemoryHolds(scope.tenant_id, now)
+    repo.open_hold(hold)
+    request, evidence = release_bundle(hold, plan.revisions, now)
+    service = release_service(repo, plan.revisions, now)
+    time = [now]
+    calls = []
+
+    def slow_verification(_):
+        calls.append(None)
+        if len(calls) == 2:
+            time[0] = request.valid_until
+
+    service.authenticate_evidence = slow_verification
+    service.clock = lambda: time[0]
+    with pytest.raises(ContractError):
+        service.release(request.requested_by, scope.application_id, request, evidence)
+    assert repo.active_holds(scope.application_id)
+
+
+@pytest.mark.parametrize("operation", ["open", "release"])
+@pytest.mark.parametrize("failure", ["untyped-receipt", "missing-readback"])
+def test_hold_mutation_without_confirmed_persistence_never_reports_success(
+    scope, now, operation, failure
+):
+    _, plan, _, _, hold = bundle(scope, now)
+    repo = MemoryHolds(scope.tenant_id, now)
+    service = release_service(repo, plan.revisions, now)
+    request, evidence = release_bundle(hold, plan.revisions, now)
+    if operation == "release":
+        repo.open_hold(hold)
+    original = repo.open_hold if operation == "open" else repo.release_hold
+
+    def faulty(*args):
+        result = original(*args)
+        if failure == "untyped-receipt":
+            return True
+        repo.get_hold = lambda *_: None
+        return result
+
+    setattr(repo, "open_hold" if operation == "open" else "release_hold", faulty)
+    with pytest.raises(ContractError, match="persistence"):
+        if operation == "open":
+            service.open(hold.raised_by, hold)
+        else:
+            service.release(
+                request.requested_by, scope.application_id, request, evidence
+            )
