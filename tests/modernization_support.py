@@ -220,7 +220,7 @@ def rehearsal_bundle(scope, now):
         R.PASS,
         R.PASS,
         changes,
-        (TestedArtifact(scope, "8" * 64),),
+        (TestedArtifact(scope, "8" * 64, "f" * 64, "c" * 64, "1" * 64),),
         tuple(proofs),
         now + timedelta(seconds=3),
         until,

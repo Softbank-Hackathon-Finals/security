@@ -361,11 +361,20 @@ class RehearsalRequest(Document):
 class TestedArtifact(Document):
     scope: ResourceScope
     image_digest: str
+    source_digest: str
+    configuration_digest: str
+    provenance_digest: str
 
     def __post_init__(self):
         if not isinstance(self.scope, ResourceScope):
             raise ContractError("Typed tested artifact scope required")
-        digest(self.image_digest)
+        for name in (
+            "image_digest",
+            "source_digest",
+            "configuration_digest",
+            "provenance_digest",
+        ):
+            digest(getattr(self, name))
 
 
 @dataclass(frozen=True, slots=True)
@@ -554,6 +563,16 @@ def evaluate_rehearsal(request, receipt, *, now):
         reasons.append("unapproved-file-change")
     artifacts = {a.scope: a.image_digest for a in receipt.artifacts}
     targets = {t.scope: t for t in request.targets}
+    if any(
+        a.image_digest == targets[a.scope].base_image_digest
+        or (
+            a.scope == request.proposal.scope
+            and a.source_digest == request.proposal.base_source_digest
+        )
+        for a in receipt.artifacts
+        if a.scope in targets
+    ):
+        reasons.append("patch-artifact-did-not-change")
     if set(artifacts) != set(targets):
         reasons.append("artifact-target-coverage")
     proofs = {(p.scope, p.test_id, p.phase): p for p in receipt.proofs}

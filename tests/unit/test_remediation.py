@@ -173,7 +173,10 @@ def test_both_requires_destination_tests_and_detects_tls_style_regression(scope,
         receipt,
         request_digest=both.fingerprint,
         proposal_digest=proposal.fingerprint,
-        artifacts=(*receipt.artifacts, Artifact(target_scope, "0" * 64)),
+        artifacts=(
+            *receipt.artifacts,
+            Artifact(target_scope, "0" * 64, "f" * 64, "c" * 64, "1" * 64),
+        ),
         proofs=tuple(proofs),
     )
     assert evaluate_rehearsal(both, checked, now=now + timedelta(seconds=4)).allowed
