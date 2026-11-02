@@ -5,6 +5,7 @@ host resolves identity/scope, current inventories, signer trust and adapter IDs.
 """
 
 from sova_security.application.boundary import require_accept
+from sova_security.application.artifact_registration import register_artifact
 from sova_security.contracts.commands import ContractError, utc
 from sova_security.domain.assessment import Assessment
 from sova_security.domain.remediation import RehearsalRequest, RehearsalReceipt
@@ -68,7 +69,10 @@ class SecurityModernizationService:
         self._authorize(actor, scope, "security:assess")
         if utc(self.clock()) >= result.valid_until:
             raise ContractError("Assessment expired before persistence")
-        self.artifacts.register(scope, result, actor_id=actor)
+        register_artifact(self.artifacts, scope, result, actor_id=actor)
+        self._authorize(actor, scope, "security:assess")
+        if utc(self.clock()) >= result.valid_until:
+            raise ContractError("Assessment expired during persistence")
         # Persistence never grants execution, even for a complete assessment.
         return result
 
@@ -86,7 +90,14 @@ class SecurityModernizationService:
             or utc(self.clock()) >= decision.valid_until
         ):
             raise ContractError("Registered rehearsal changed during review")
-        self.artifacts.register(scope, decision, actor_id=actor)
+        register_artifact(self.artifacts, scope, decision, actor_id=actor)
+        self._authorize(actor, scope, "security:verify-rehearsal")
+        if (
+            self.artifacts.get(scope, request_digest) != request
+            or self.artifacts.get(scope, receipt_digest) != receipt
+            or utc(self.clock()) >= decision.valid_until
+        ):
+            raise ContractError("Rehearsal changed during persistence")
         return decision
 
     def prepare_patch(
@@ -125,5 +136,8 @@ class SecurityModernizationService:
         if utc(self.clock()) >= binding.valid_until:
             raise ContractError("Compiled patch expired before registration")
         self._authorize(actor, scope, "security:prepare-patch")
-        self.artifacts.register(scope, binding, actor_id=actor)
+        register_artifact(self.artifacts, scope, binding, actor_id=actor)
+        self._authorize(actor, scope, "security:prepare-patch")
+        if utc(self.clock()) >= binding.valid_until:
+            raise ContractError("Patch registration expired during persistence")
         return plan, binding

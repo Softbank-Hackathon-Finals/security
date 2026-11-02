@@ -160,6 +160,22 @@ def test_saved_plan_without_binding_is_inert_on_partial_persistence(
     )
 
 
+def test_false_persistence_receipt_cannot_report_a_registered_patch(
+    modernization, scope
+):
+    service, state, request, receipt, _ = modernization
+    service.artifacts.register = lambda *_a, **_k: False
+    with pytest.raises(ContractError, match="persistence"):
+        service.prepare_patch(
+            "operator",
+            scope=scope,
+            request_digest=request.fingerprint,
+            receipt_digest=receipt.fingerprint,
+            plan_id="patch-1",
+            execution_scope=scope,
+        )
+
+
 def test_revocation_while_verifying_receipt_stops_persistence(modernization, scope):
     service, state, request, receipt, _ = modernization
 
