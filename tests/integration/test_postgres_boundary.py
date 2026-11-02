@@ -480,3 +480,95 @@ def test_team_control_contract_stores_without_copying_commands_or_claiming_runti
     )
     with pytest.raises(RepositoryConflict):
         repository.get(profile.scope, imported.fingerprint)
+
+
+def test_assessment_input_key_revocation_is_live_in_postgres(database, scope):
+    import psycopg
+    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+    from modernization_support import rehearsal_bundle
+    from sova_security.adapters.assessment_evidence import (
+        AssessmentInputAuthority,
+        assessment_input_record,
+    )
+    from sova_security.adapters.ed25519_evidence import Ed25519EvidenceSigner
+    from sova_security.adapters.postgres_signed_evidence import PostgresSignedEvidence
+    from sova_security.adapters.postgres_verifier_registry import (
+        PostgresVerifierRegistry,
+    )
+    from sova_security.domain.signed_evidence import VerifierTrust
+    from sova_security.domain.verifier_registry import VerifierTrustChange
+    from sova_security.contracts.evidence import RevisionSet
+
+    now = datetime.now(UTC)
+    scope = replace(scope, resource_id="signed-input-" + uuid4().hex)
+    inputs, _, _, _ = rehearsal_bundle(scope, now)
+    value = inputs[0]
+    revisions = RevisionSet(
+        value.source_digest, value.configuration_digest, inputs[3].fingerprint, "e" * 64
+    )
+    record = assessment_input_record(
+        value, revisions=revisions, evidence_id="input-" + uuid4().hex
+    )
+    signer = Ed25519EvidenceSigner(
+        Ed25519PrivateKey.generate(),
+        issuer_id="collector-" + uuid4().hex,
+        key_id="test-only-key",
+    )
+    trust = VerifierTrust(
+        signer.issuer_id,
+        signer.key_id,
+        signer.public_key_hex,
+        (scope,),
+        (record.verifier_version,),
+        now - timedelta(seconds=1),
+        now + timedelta(minutes=20),
+    )
+    change = VerifierTrustChange(
+        scope.tenant_id,
+        scope.application_id,
+        1,
+        trust,
+        "requester",
+        "approver",
+        "controlled-test-registration",
+        now,
+        now + timedelta(minutes=5),
+    )
+    dsn, role, password = database
+
+    def connect():
+        return psycopg.connect(dsn, user=role, password=password)
+
+    registry = PostgresVerifierRegistry(
+        connect, tenant_id=scope.tenant_id, application_id=scope.application_id
+    )
+    registry.publish(change)
+    signed = PostgresSignedEvidence(connect, tenant_id=scope.tenant_id)
+    envelope = signer.sign(record, issued_at=now)
+    signed.save_envelope(envelope)
+    state = {"armed": False, "calls": 0}
+
+    def authorize(*_):
+        state["calls"] += 1
+        if state["armed"] and state["calls"] == 2:
+            registry.publish(
+                replace(change, revision=2, trust=replace(trust, revoked=True))
+            )
+        return True
+
+    authority = AssessmentInputAuthority(
+        envelope_provider=lambda *_: signed.get_envelope(
+            scope.application_id, record.evidence_id
+        ),
+        current_revisions=lambda _: revisions,
+        issuers_for=lambda *_: (signer.issuer_id,),
+        resolve_trust=registry.resolve,
+        authorize=authorize,
+        clock=lambda: datetime.now(UTC),
+    )
+    assert authority("operator", scope, value) is None
+    state.update(armed=True, calls=0)
+    with pytest.raises(ContractError, match="revoked"):
+        authority("operator", scope, value)
+    assert registry.resolve(signer.issuer_id, signer.key_id).revoked
+    assert signed.get_envelope(scope.application_id, record.evidence_id) == envelope
