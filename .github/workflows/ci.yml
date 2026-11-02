@@ -27,7 +27,6 @@ jobs:
     env:
       SOVA_SECURITY_TEST_POSTGRES_DSN: 'postgresql://bravo_test_admin:ci-test-only@localhost:5432/sova_security_test'
       AWS_EC2_METADATA_DISABLED: 'true'
-      SOVA_TEST_OPA_PATH: '${{ runner.temp }}/sova-opa'
       SOVA_TEST_OPA_SHA256: '791790254c598a942eb140959bcec9a47f844535a632fd01d11d870ba2a47047'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -36,6 +35,8 @@ jobs:
           python-version: ${{ matrix.python }}
       - run: python -m pip install 'setuptools>=77' -e '.[dev]'
       - name: Install pinned OPA for actual policy qualification
+        env:
+          SOVA_TEST_OPA_PATH: '${{ runner.temp }}/sova-opa'
         run: |
           python - <<'PY'
           from pathlib import Path
@@ -48,6 +49,8 @@ jobs:
           assert hashlib.sha256(binary).hexdigest() == os.environ['SOVA_TEST_OPA_SHA256']
           destination.write_bytes(binary)
           destination.chmod(0o700)
+          with open(os.environ['GITHUB_ENV'], 'a') as export:
+              export.write('SOVA_TEST_OPA_PATH=' + str(destination) + '\n')
           print('Pinned official OPA 1.22.0 verified')
           PY
       - run: ruff check src tests
