@@ -27,7 +27,7 @@ Sova의 실행 원장·승인 서비스·작업 큐·격리 실행 조정기·�
 Python 3.11 이상을 사용한다. 기본 설치에는 클라우드 SDK나 DB 연결이 필요 없다.
 
 ```sh
-python -m pip install /path/to/sova_security-0.8.2-py3-none-any.whl
+python -m pip install /path/to/sova_security-0.9.0-py3-none-any.whl
 # 개발 시 이 저장소에서
 python -m pip install -e '.[dev]'
 python -m pytest -q
@@ -43,7 +43,7 @@ cd /path/to/sova
 .local-notes/venv/bin/python -m pip install -e '../team-bravo/security[postgres,signing,aws]'
 ```
 
-릴리스 소비 환경은 검증한 wheel과 해시를 고정한다. [CI 산출물 소비 방법](docs/distribution.md)을 따른다. 현재 0.8.2은 최초 추출 이후 보안 개선 계약을 추가한 버전이며 PyPI 배포를 뜻하지 않는다.
+릴리스 소비 환경은 검증한 wheel과 해시를 고정한다. [CI 산출물 소비 방법](docs/distribution.md)을 따른다. 현재 0.9.0은 최초 추출 이후 보안 개선 계약을 추가한 버전이며 PyPI 배포를 뜻하지 않는다.
 
 ## 통합 계약
 
@@ -60,3 +60,5 @@ PostgreSQL은 현재 `sova_control` 스키마와 `sova.tenant_id` 컨텍스트�
 ## 검증과 출처
 
 기존 Sova의 검증된 코드와 테스트를 추출했다. [원본 커밋·파일 해시](docs/provenance.json)를 제공한다. 패키지 시험과 Sova 전체 통합 회귀는 구분하며, 테스트 더블을 실제 AWS·Kubernetes 검증으로 표현하지 않는다. 개발기록·인증정보·실행 상태는 게시하지 않는다.
+
+팀 T33 탐지 계약은 [탐지 연결 안내](docs/detection-integration.md)를 따른다. 정확한 자원 매핑·등록과 수집 출처 인증을 요구하며, 탐지 데이터가 변경·격리 권한을 직접 부여하지 않는다.

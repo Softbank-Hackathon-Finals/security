@@ -60,3 +60,44 @@ class PostgresSignedEvidence:
             ) != (self.tenant_id, application_id, evidence_id, row[0], row[1], row[2]):
                 raise ContractError("Stored signed evidence integrity/scope mismatch")
             return envelope
+
+    def find_envelope(self, scope, *, artifact_digest, verifier_version):
+        """Exact bounded lookup for a registered typed document's attestation.
+
+        This resolves an identity, never trust. Consumers still authenticate the
+        signature/current issuer. Ambiguous re-attestations require explicit IDs.
+        """
+        from sova_security.contracts.commands import ResourceScope, digest
+
+        if not isinstance(scope, ResourceScope) or scope.tenant_id != self.tenant_id:
+            raise ContractError("Signed lookup scope mismatch")
+        digest(artifact_digest)
+        identifier(verifier_version)
+        with self.lifecycle.transaction() as conn:
+            rows = conn.execute(
+                """SELECT evidence_id FROM sova_control.signed_security_evidence
+                WHERE tenant_id=%s AND application_id=%s
+                AND document #>> '{evidence,scope,environment_id}'=%s
+                AND document #>> '{evidence,scope,resource_id}'=%s
+                AND document #>> '{evidence,artifact_digest}'=%s
+                AND document #>> '{evidence,verifier_version}'=%s
+                LIMIT 2""",
+                (
+                    self.tenant_id,
+                    scope.application_id,
+                    scope.environment_id,
+                    scope.resource_id,
+                    artifact_digest,
+                    verifier_version,
+                ),
+            ).fetchall()
+        if len(rows) != 1:
+            raise ContractError("Exact unambiguous signed evidence identity required")
+        result = self.get_envelope(scope.application_id, rows[0][0])
+        if (
+            result.evidence.scope != scope
+            or result.evidence.artifact_digest != artifact_digest
+            or result.evidence.verifier_version != verifier_version
+        ):
+            raise ContractError("Signed evidence lookup integrity mismatch")
+        return result

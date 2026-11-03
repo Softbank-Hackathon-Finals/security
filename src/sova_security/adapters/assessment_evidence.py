@@ -23,6 +23,7 @@ from sova_security.domain.assessment import (
     Assessment,
 )
 from sova_security.domain.remediation import RehearsalRequest
+from sova_security.domain.detection import DetectionRegistration, DetectionObservation
 from sova_security.domain.signed_evidence import EvidenceEnvelope, VerifierTrust
 
 INPUT_CLOCKS = MappingProxyType(
@@ -33,6 +34,8 @@ INPUT_CLOCKS = MappingProxyType(
         RiskPolicy: "issued_at",
         Assessment: "assessed_at",
         RehearsalRequest: "created_at",
+        DetectionRegistration: "observed_at",
+        DetectionObservation: "observed_at",
     }
 )
 

@@ -14,6 +14,8 @@
 | `risk-policy.v1` | 조직 정책 발급 서비스 |
 | `risk-assessment.v1` | 결정적 평가 서비스 |
 | `rehearsal-request.v1` | 인증된 요청 접수 서비스 |
+| `detection-registration.v1` | 환경·자원 매핑 등록 서비스 |
+| `detection-observation.v1` | 등록된 출처의 탐지 수집 서비스 |
 
 서명 record의 verifier version은 `sova.security.assessment-input.<kind>`, 의무 ID는 `assessment-input:<kind>`다. 정책 발급 키와 일반 수집 키를 같은 권한으로 등록하지 않는다. 발급자의 `allowed_verifiers`와 `allowed_scopes` 양쪽을 제한한다. 이름만 다른 역할이 같은 무제한 키를 공유하면 역할 분리가 성립하지 않는다.
 
@@ -51,3 +53,5 @@
 실제 Ed25519 키를 사용하는 평가·리허설 연결, 역할·scope·revision 변경, 키 폐기, 부정 인가를 시험한다. 별도 임시 PostgreSQL에서는 원본 envelope가 그대로 남아 있는 상태에서 발급자 원장을 폐기하고, 이후 입력 인증이 거부되는지 확인한다.
 
 이는 기업 인증·운영 key broker·KMS/HSM·실제 수집기 배치가 완료됐다는 뜻이 아니다. private key는 에이전트나 이 계약에 넣지 않으며, 운영 발급 환경과 키 보호는 호스트가 구성해야 한다.
+
+`PostgresSignedEvidence.find_envelope`는 scope·문서 hash·verifier version이 정확히 일치하는 단일 envelope만 찾는다. 중복 발급으로 후보가 둘 이상이면 임의의 최신 값을 고르지 않고 거부한다. 키 회전 중 복수 발급이 필요한 호스트는 명시적 evidence ID 공급자를 사용한다. 조회 자체는 서명을 인증하지 않는다.

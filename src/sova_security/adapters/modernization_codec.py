@@ -22,9 +22,12 @@ from sova_security.domain import opa_policy as op
 from sova_security.domain import configuration_scan as config
 from sova_security.domain import team_controls as team
 from sova_security.domain import exploitation_intelligence as intel
+from sova_security.domain import detection as detection
 
 KINDS = MappingProxyType(
     {
+        "detection-registration.v1": detection.DetectionRegistration,
+        "detection-observation.v1": detection.DetectionObservation,
         "asset-inventory.v1": a.AssetInventory,
         "scanner-profile.v1": a.ScannerProfile,
         "vulnerability-scan.v1": a.VulnerabilityScan,
