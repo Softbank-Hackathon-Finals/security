@@ -144,6 +144,20 @@ jobs:
             --trivy "$RUNNER_TEMP/service-scanner/trivy" --image-id "$SOVA_TEST_REVIEW_IMAGE" --commit "$GITHUB_SHA" \
             --runtime-inventory "$RUNNER_TEMP/service-image-context/runtime-inventory.json" \
             --output "$RUNNER_TEMP/service-image-context/scan"
+          .venv/bin/python - <<'PY'
+          import json, os
+          from pathlib import Path
+          result = json.loads((Path(os.environ['RUNNER_TEMP']) / 'service-image-context/scan/decision.json').read_text())
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as summary:
+              summary.write('### Service image policy: **' + result['gate'] + '**\n\n')
+              summary.write('Collection completed. This result is not a release authorization.\n\n')
+              summary.write('| Severity | Package findings |\n|---|---:|\n')
+              for level in ('CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'UNKNOWN'):
+                  summary.write('| ' + level + ' | ' + str(result['severity_counts'][level]) + ' |\n')
+              summary.write('\nActual OS packages verified: ' + str(result['os_packages_verified']) + '.\n')
+              summary.write('Actual service Python packages verified: ' + str(result['runtime_python_packages_verified']) + '.\n')
+              summary.write('No image was published; registry digest and signed attestation are absent.\n')
+          PY
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:

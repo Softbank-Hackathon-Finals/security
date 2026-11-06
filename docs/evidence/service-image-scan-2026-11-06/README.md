@@ -44,3 +44,18 @@ read-only·no-new-privileges를 보완 통제로 유지하되 scanner severity�
 
 데이터 흐름은 `고정 source → 이미지 build → 실제 inventory → 원본 scan/DB → 진단 BLOCK`
 이다. 향후 registry 발행과 원본 verifier 등록 전에는 기존 `artifact-provenance` PASS로 투영하지 않는다.
+
+## installer 제거 후 재검사
+
+`after-installer-removal/`은 `f1edf095b279a2829b0e3d7a75de375e1f073105`의 별도 원본이다.
+[CI](https://github.com/Softbank-Hackathon-Finals/security/actions/runs/42219645504)와
+[artifact](https://github.com/Softbank-Hackathon-Finals/security/actions/runs/42219645504/artifacts/13503331203)의
+ZIP SHA-256은 `c91c65e58932ff9ac040c742d0dd7e9900414b6398f50030a7f8ec2e7c0677c7`이다.
+같은 DB 갱신을 사용했고 새 image/source/report digest로 수집했다.
+
+- 기본 pip/ensurepip와 global Python package/entrypoint 부재를 실제 컨테이너에서 확인했다.
+- MEDIUM 80→75, LOW 63→62로 pip 관련 6 finding이 없어졌다. HIGH 49 / CRITICAL 0은 그대로다.
+- 실제 image/T10 연결 **11 PASS, 37.04초**, PG18.4 경계 **42 PASS, 12.25초**.
+- 정책은 여전히 **BLOCK**이다. OS 87개 / 서비스 Python 10개가 있는 같은 기능 경로를 유지한다.
+- 이 원본은 v1 수집 정책이다. 이후 도입하는 실제 dpkg inventory와의 완전 일치 검사를 이 결과에
+  소급 적용했다고 주장하지 않는다.

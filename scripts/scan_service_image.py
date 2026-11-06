@@ -91,7 +91,19 @@ def assess(report, database, inventory, *, image_id, commit, started_at, finishe
         if type(pair) not in {list, tuple} or len(pair) != 2 or type(pair[1]) is not str or not pair[1]:
             raise ValueError("Typed installed Python package required")
         expected.add((normalized(pair[0]), pair[1]))
-    detected, counts, packages = set(), Counter(), Counter()
+    installed_os = inventory.get("os_packages")
+    if type(installed_os) is not list or not 1 <= len(installed_os) <= 4096:
+        raise ValueError("Verified runtime OS inventory required")
+    expected_os = set()
+    for item in installed_os:
+        if type(item) not in {list, tuple} or len(item) != 3 or any(type(x) is not str or not x for x in item):
+            raise ValueError("Typed installed OS package identity required")
+        if item[2] not in {"amd64", "all"}:
+            raise ValueError("Qualified OS package architecture required")
+        expected_os.add(tuple(item))
+    if len(expected_os) != len(installed_os) or inventory.get("package_installers_absent") is not True or inventory.get("global_python_packages") != []:
+        raise ValueError("Unique OS inventory and absent global installers required")
+    detected, detected_os, counts, packages = set(), set(), Counter(), Counter()
     findings = []
     for result in results:
         if type(result) is not dict or result.get("Class") not in {"os-pkgs", "lang-pkgs"} or result.get("ExperimentalModifiedFindings"):
@@ -107,6 +119,8 @@ def assess(report, database, inventory, *, image_id, commit, started_at, finishe
             name = normalized(entry.get("Name"))
             if category == ("lang-pkgs", "python-pkg"):
                 detected.add((name, entry["Version"]))
+            elif category == ("os-pkgs", "debian"):
+                detected_os.add((entry["Name"], entry["Version"], entry.get("Arch")))
         vulnerabilities = result.get("Vulnerabilities", [])
         if type(vulnerabilities) is not list:
             raise ValueError("Typed scanner findings required")
@@ -121,13 +135,14 @@ def assess(report, database, inventory, *, image_id, commit, started_at, finishe
             if level in {"HIGH", "CRITICAL", "UNKNOWN"}:
                 findings.append({key: finding.get(key) for key in
                                  ("VulnerabilityID", "PkgName", "InstalledVersion", "FixedVersion", "Severity", "Status")})
-    if not packages[("os-pkgs", "debian")] or not expected <= detected:
+    if not packages[("os-pkgs", "debian")] or expected != detected or expected_os != detected_os:
         raise ValueError("Operating system or installed service package coverage is missing")
     gate = "BLOCK" if counts["HIGH"] or counts["CRITICAL"] or os_info.get("EOSL") else "UNKNOWN" if counts["UNKNOWN"] else "PASS"
-    return dict(schema_version=1, policy="service-image-high-critical.v1", gate=gate,
+    return dict(schema_version=1, policy="service-image-high-critical.v2", gate=gate,
                 source_commit=commit, local_image_config_id=image_id, registry_digest=None,
                 scanner_version=TRIVY_VERSION, database_updated_at=updated.isoformat(), observed_at=finished_at.isoformat(),
                 severity_counts={key: counts[key] for key in sorted(LEVELS)}, os_package_count=packages[("os-pkgs", "debian")],
+                os_packages_verified=len(expected_os),
                 runtime_python_packages_verified=len(expected), blocking_or_unknown_findings=findings,
                 execution_authorized=False, release_authorized=False, signed_attestation=False)
 

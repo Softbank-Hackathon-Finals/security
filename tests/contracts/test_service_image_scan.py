@@ -18,11 +18,12 @@ IMAGE, COMMIT = "sha256:" + "a" * 64, "b" * 40
 def fixture(now):
     report = dict(SchemaVersion=2, ArtifactType="container_image", Trivy={"Version": "0.76.2"}, CreatedAt=now.isoformat(),
                   Metadata=dict(ImageID=IMAGE, OS=dict(Family="debian", Name="13", EOSL=False)),
-                  Results=[dict(Class="os-pkgs", Type="debian", Packages=[dict(Name="libc6", Version="2.41")]),
+                  Results=[dict(Class="os-pkgs", Type="debian", Packages=[dict(Name="libc6", Version="2.41", Arch="amd64")]),
                            dict(Class="lang-pkgs", Type="python-pkg", Packages=[dict(Name="sova_security", Version="0.11.0"),
                                                                                 dict(Name="uvicorn", Version="0.54.0")])])
     database = dict(Version=2, UpdatedAt=(now - timedelta(hours=1)).isoformat(), DownloadedAt=now.isoformat())
-    inventory = dict(commit_sha=COMMIT, dependencies=[["sova-security", "0.11.0"], ["uvicorn", "0.54.0"]])
+    inventory = dict(commit_sha=COMMIT, dependencies=[["sova-security", "0.11.0"], ["uvicorn", "0.54.0"]],
+                     os_packages=[["libc6", "2.41", "amd64"]], package_installers_absent=True, global_python_packages=[])
     return report, database, inventory
 
 
@@ -81,6 +82,29 @@ def test_end_of_life_os_blocks_even_without_reported_findings(now):
     values = fixture(now)
     values[0]["Metadata"]["OS"]["EOSL"] = True
     assert assess(values, now)["gate"] == "BLOCK"
+
+
+@pytest.mark.parametrize("fault", ["missing-inventory", "extra-installed-package", "wrong-version", "wrong-architecture",
+                                  "duplicate-inventory", "unknown-global-package", "unexpected-scanner-package"])
+def test_scan_must_cover_exact_actual_os_and_python_inventory(now, fault):
+    values = fixture(now)
+    report, _, inventory = values
+    if fault == "missing-inventory":
+        inventory.pop("os_packages")
+    elif fault == "extra-installed-package":
+        inventory["os_packages"].append(["unscanned-library", "1.0", "amd64"])
+    elif fault == "wrong-version":
+        report["Results"][0]["Packages"][0]["Version"] = "2.40"
+    elif fault == "wrong-architecture":
+        report["Results"][0]["Packages"][0]["Arch"] = "arm64"
+    elif fault == "duplicate-inventory":
+        inventory["os_packages"] *= 2
+    elif fault == "unknown-global-package":
+        inventory["global_python_packages"] = [["pip", "25.0.1"]]
+    else:
+        report["Results"][1]["Packages"].append(dict(Name="pip", Version="25.0.1"))
+    with pytest.raises(ValueError):
+        assess(values, now)
 
 
 @pytest.mark.parametrize("system,release,free,allowed", [

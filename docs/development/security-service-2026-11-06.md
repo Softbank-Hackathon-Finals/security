@@ -446,3 +446,15 @@ push commit 메시지에 `[review-endurance]`가 있는 경우에만 10,800초 �
 [object API](https://github.com/Softbank-Hackathon-Finals/platform/blob/8b12236ae4277de16cebdf1391f87721e5851d47/docs/object-operations.md),
 [T15 host](https://github.com/Softbank-Hackathon-Finals/platform/blob/8b12236ae4277de16cebdf1391f87721e5851d47/infra/charts/rehearsal-host/README.md),
 [T14 실측](https://github.com/Softbank-Hackathon-Finals/platform/blob/8b12236ae4277de16cebdf1391f87721e5851d47/docs/evidence/t14-dual-source-scan-2026-11-06/README.md).
+
+## SVC-25: 실제 OS 인벤토리와 scanner 범위의 대조
+
+- installer 제거 후 [원본과 결과](../evidence/service-image-scan-2026-11-06/README.md)를 별도로 보존했다.
+  pip finding 6건 제거를 확인했으며 OS HIGH 49건 때문에 BLOCK은 유지한다.
+- v2 수집 정책은 실제 컨테이너 `dpkg-query`의 설치 name/version/architecture 전체와 scanner의
+  OS package 집합이 같아야 한다. Python package 집합도 venv와 같고 global installer가 없어야 한다.
+  OS result 하나만 존재하거나 일부 라이브러리가 누락된 결과를 충분한 검사로 취급하지 않는다.
+- 실제 컨테이너 검증 스크립트와 scanner 계약 시험을 수정했다. Windows 계약 **32 PASS**.
+  CI summary에 정책 BLOCK/PASS/UNKNOWN과 finding 수를 직접 표시해 수집 성공과 배포 판정을 구분한다.
+- 앞선 receipt 변경 `4283346`의 Linux 전체는 **913 PASS, 1 SKIP, 153.04초**였다.
+  SKIP은 명시적으로 별도 실행하는 endurance다. 현재 원본 변경과 여섯 번째 플랫폼 기준은 별도 CI로 검증한다.

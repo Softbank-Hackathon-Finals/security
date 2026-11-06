@@ -6,6 +6,7 @@ import json
 import os
 from pathlib import Path
 import sys
+import subprocess
 
 import cryptography
 import psycopg
@@ -35,8 +36,20 @@ def main():
     assert metadata.version("sova-security") == manifest["version"]
     assert manifest["execution_authorized"] is False and manifest["signed_attestation"] is False
     inventory = sorted((item.metadata["Name"], item.version) for item in metadata.distributions())
+    query = subprocess.run(["/usr/bin/dpkg-query", "--admindir=/var/lib/dpkg", "-W",
+        "-f=${Package}\\t${Version}\\t${Architecture}\\t${db:Status-Status}\\t${db:Status-Eflag}\\n"],
+        check=True, capture_output=True, timeout=5, env={"PATH": "/usr/bin:/bin", "LANG": "C.UTF-8"})
+    assert len(query.stdout) <= 262144, "OS inventory exceeds qualification bound"
+    packages = []
+    for row in query.stdout.decode("utf-8").splitlines():
+        fields = row.split("\t")
+        assert len(fields) == 5 and fields[3:] == ["installed", "ok"], "Incomplete OS package state"
+        assert fields[2] in {"amd64", "all"}, "Unexpected image architecture"
+        packages.append(tuple(fields[:3]))
+    assert packages and len(packages) == len(set(packages))
     print(json.dumps(dict(commit_sha=manifest["commit_sha"], uid=os.getuid(), dependencies=inventory,
                           global_python_packages=[], package_installers_absent=True,
+                          os_packages=sorted(packages),
                           root_write_denied=True, effective_capabilities=0, no_new_privileges=True)))
 
 
