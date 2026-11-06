@@ -3,7 +3,7 @@
 기준: platform `b19488e2debbee8bbe120f1309eadbe19df85b6f`, security catalog
 `security-modernization.v1`. 원문 요구 ID는 `domain/security_program.py`의 CHECKS가
 정본이며 [원문 요구사항 연결](architecture-integration.md)과 함께 읽는다.
-T5 원문 기준은 위 SHA를 유지한다. 후속 platform `bb174860bedf100de3970c3e8e410f02f23994e2`까지
+T5 원문 기준은 위 SHA를 유지한다. 후속 platform `98885a69999398bfe3f49fbc8324a7b19aae3e16`까지
 T10/T19 계약 차이를 재검토했으며, 새 T14 SEC-01.2 실측을 나머지 검사 PASS로 합산하지 않는다.
 
 최신 T19 정정 기록은 기존 양쪽 앱 경로가 같은 출발지 DB에 도달했음을 설명한다. 과거 앱 경로의

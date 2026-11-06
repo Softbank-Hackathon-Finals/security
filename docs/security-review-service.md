@@ -1,12 +1,13 @@
 # 제한된 보안 판정 서비스
 
-현재 기준 플랫폼: `bb174860bedf100de3970c3e8e410f02f23994e2`.
+현재 기준 플랫폼: `98885a69999398bfe3f49fbc8324a7b19aae3e16`.
 이전 기준 `f602b39a949b99f3e2e7be901103063e78a52a70`과
 `b19488e2debbee8bbe120f1309eadbe19df85b6f`,
 `c225c86cf5e408b5fcd016b0e367d3672d1bac44`,
 `9e0d6a59d7a00925ddafc50cfa2ccad00c5ba768`,
 `a610bbfb60d3a633597d75dc6e070addd3c3b559`,
-`8b12236ae4277de16cebdf1391f87721e5851d47`도 별도 소비 시험으로 유지한다.
+`8b12236ae4277de16cebdf1391f87721e5851d47`,
+`bb174860bedf100de3970c3e8e410f02f23994e2`도 별도 소비 시험으로 유지한다.
 `T10ProgramAuthority`의 `baseline_sha`는 호스트의 검증한 실제 소스에 맞춰 명시한다.
 기본값은 현재 기준이며 실행 시 Git을 조회하거나 버전을 자동 추측하지 않는다. 구현은 개인 환경용이다.
 실제 클러스터의 T7 audience·CNPG 역할·NetworkPolicy·T24 인수는 아직 수행하지 않았다.
@@ -222,6 +223,15 @@ Sova는 `RemoteProgramService`를 기존 `with_patch_security_program`에 조합
 현재 서명/권한/예외/T13 공급자를 결합한다. 호스트가 이 경로를 사용할 때 그대로 upstream을
 구성하며 우리 쪽에 별도 T19 원장이나 issuer를 만들지 않는다. 새 `CollectedNetworkProofAuthority`의
 DB·pooler 양쪽 원문 검증도 유지한다. 단일 네트워크 경로의 성공을 전체 NET 통과로 바꾸지 않는다.
+
+98885a6의 `PlanAuthorityKeys`는 T19 원본 공개키를 기존 `plan_commands`와 계획 잠금 아래 관리한다.
+T19의 `Ed25519Authority`에 같은 현재 `GateRecordView`로 연결하며, 별도 관리 권한과 생산자 분리를 유지한다.
+서비스의 프로그램 근거 trust를 이 공개키 객체로 암묵 변환하거나 T19 키 원장을 복제하지 않는다.
+원본 서명키 폐기 후에는 기존 승인/추가 서비스 PASS가 있어도 현재 T10 접수를 거부해야 한다.
+이 경계는 실제 고정 T19/SQLite/Ed25519 + 추가 서비스 모의 전송으로 initial/post_apply에서 검증했다.
+
+T28의 `happy_path.py`는 운영자 도구의 순서를 기록하는 별도 경로다. 현재 결과 기록 전 중단 후에는
+operator가 재호출될 수 있어 보안 집행 정본으로 연결하지 않는다. [중단·재시작 모의 재현](evidence/t28-restart-boundary-2026-11-06/README.md).
 
 `compare_shadow`는 기존 로컬 판정과 원격 shadow 결과를 비교만 한다. 통신 장애는 unavailable,
 검사별 차이는 mismatch로 남긴다. shadow 결과로 운영 승인/기존 상태를 바꾸지 않는다.

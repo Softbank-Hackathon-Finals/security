@@ -85,7 +85,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           repository: Softbank-Hackathon-Finals/platform
-          ref: bb174860bedf100de3970c3e8e410f02f23994e2
+          ref: 98885a69999398bfe3f49fbc8324a7b19aae3e16
           path: .local-notes/platform-image-source
           persist-credentials: false
           sparse-checkout: |
@@ -222,6 +222,8 @@ jobs:
             ref: 8b12236ae4277de16cebdf1391f87721e5851d47
           - name: bb17486
             ref: bb174860bedf100de3970c3e8e410f02f23994e2
+          - name: 98885a6
+            ref: 98885a69999398bfe3f49fbc8324a7b19aae3e16
     env:
       SOVA_PLATFORM_SOURCE: '${{ github.workspace }}/.local-notes/platform-contract-source'
       UV_PYTHON_DOWNLOADS: 'never'
@@ -249,7 +251,7 @@ jobs:
           enable-cache: false
       - run: uv sync --locked --extra dev --extra platform-test --no-install-project --no-build --python '3.12'
       - run: .venv/bin/python -m pip install --no-deps --no-build-isolation --no-index -e .
-      - run: .venv/bin/python -m pytest tests/contracts/test_platform_review_bridge.py tests/contracts/test_platform_workflow_host_bridge.py -q
+      - run: .venv/bin/python -m pytest tests/contracts/test_platform_review_bridge.py tests/contracts/test_platform_workflow_host_bridge.py tests/contracts/test_platform_current_key_bridge.py -q
   secrets:
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -328,7 +330,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           repository: Softbank-Hackathon-Finals/platform
-          ref: bb174860bedf100de3970c3e8e410f02f23994e2
+          ref: 98885a69999398bfe3f49fbc8324a7b19aae3e16
           path: .local-notes/platform-contract-source
           persist-credentials: false
           sparse-checkout: |

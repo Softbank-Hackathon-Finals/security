@@ -1,0 +1,14 @@
+{
+  "effect_kind": "synthetic in-memory callback",
+  "effects_after_restart": 2,
+  "effects_before_restart": 1,
+  "execution_authorized": false,
+  "path": "scripts/happy_path.py",
+  "persisted_lines_after_interruption": 1,
+  "platform_sha": "98885a69999398bfe3f49fbc8324a7b19aae3e16",
+  "qualification": "BLOCK",
+  "real_operator_commands": 0,
+  "resumed_exit_code": 0,
+  "scenario": "interrupted-after-effect-before-record",
+  "source_sha256": "edac61dcc4ec0f0bf26e5e7583f33fb3137c544836d9d1c6441453724210d14c"
+}

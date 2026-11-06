@@ -5,12 +5,16 @@ import pytest
 from platform_review_support import platform_admission as pinned_admission
 
 platform_admission = pinned_admission
+WORKFLOW_BASELINES = {
+    "bb174860bedf100de3970c3e8e410f02f23994e2",
+    "98885a69999398bfe3f49fbc8324a7b19aae3e16",
+}
 
 
 @pytest.mark.parametrize("platform_admission", ["initial", "post_apply"], indirect=True)
 def test_workflow_driver_does_not_take_shift_execution_ownership(platform_admission):
     fixture = platform_admission
-    if fixture.platform_baseline != "bb174860bedf100de3970c3e8e410f02f23994e2":
+    if fixture.platform_baseline not in WORKFLOW_BASELINES:
         pytest.skip("Workflow host did not exist in this historical baseline")
     from bravo_platform_events.workflow import WorkflowRecovery
     from bravo_platform_events.workflow_host import DRIVEN, StageReaders, WorkflowHost
@@ -26,7 +30,7 @@ def test_workflow_driver_does_not_take_shift_execution_ownership(platform_admiss
 
 @pytest.mark.parametrize("platform_admission", ["initial"], indirect=True)
 def test_prepared_stage_reader_is_not_reused_for_a_new_plan_version(platform_admission):
-    if platform_admission.platform_baseline != "bb174860bedf100de3970c3e8e410f02f23994e2":
+    if platform_admission.platform_baseline not in WORKFLOW_BASELINES:
         pytest.skip("Workflow host did not exist in this historical baseline")
     from bravo_platform_events.store import EventError
     from bravo_platform_events.workflow_host import StageReaders

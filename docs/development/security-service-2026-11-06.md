@@ -582,3 +582,19 @@ push commit 메시지에 `[review-endurance]`가 있는 경우에만 10,800초 �
   이 사고의 재현으로 주장하지 않는다. Nikkei 공식 본문은 재시도에서도 접근되지 않아 구체 주장은 보류한다.
 - 코드 변경 없이 확인된 ADR 상태를 정리한다. 장시간 CI는 기존 source별로 계속 실행 중이며
   결과 원본을 받은 뒤 해당 기록에 추가한다.
+
+## SVC-31: 여덟 번째 플랫폼 기준과 T19 현재 키 원장 연결
+
+- develop `98885a69999398bfe3f49fbc8324a7b19aae3e16`은 bb17486보다 16 commit 진행됐다.
+  새 PlanAuthorityKeys·T28 운영자 도구와 기존 증거 정정을 검토하고 기본 SHA/CI matrix를 갱신한다.
+- T19 공개키 원장을 기존 StoredGateServices/Ed25519Authority와 같은 계획 view로 연결했다.
+  별도 manager가 공개키를 등록하고, 승인 이후 run-target 키를 폐기하면 initial/post_apply 모두
+  추가 서비스 호출/외부 dispatch 전에 거부된다. 긍정 대조군은 POST 1회 후 GET 조정만 수행한다.
+- 격리된 pinned platform/실제 SQLite/Ed25519 계약 **22 PASS, 7.31초**. 최초 4 FAIL은 시험 조립에서
+  개별 보안 보고서를 combined report 자리에 넣은 오류였다. 두 보고서와 원래 서명을 구분해 수정했다.
+  플랫폼 구현이나 운영 키는 변경하지 않았다. 과거 일곱 기준에는 새 키 원장 시험만 명시적으로 skip한다.
+- [T28 재현](../evidence/t28-restart-boundary-2026-11-06/README.md)은 결과 기록 전 중단 뒤 재시작 시
+  모의 효과가 1→2회임을 보였다. 실제 명령 0회이며 플랫폼 T10 원장의 결함으로 확대하지 않는다.
+  현재 운영자 JSONL을 집행 정본으로 연결하지 않고 기존 T10/T31 영속 접수/조정을 인계 조건으로 남긴다.
+- 정식 CI의 여덟 기준·전체·이미지 검증 후 Sova pin을 갱신한다. 진행 중 장시간 시험은 이전 source이며,
+  새 baseline 허용 목록/계약 시험을 소급 검증한 것으로 기록하지 않는다.
