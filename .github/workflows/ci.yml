@@ -85,7 +85,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           repository: Softbank-Hackathon-Finals/platform
-          ref: 7edab5312f965bd683a7738e74d49b883190e8da
+          ref: 42811da4cf19ce941491d4794ab49790881dc409
           path: .local-notes/platform-image-source
           persist-credentials: false
           sparse-checkout: |
@@ -226,6 +226,8 @@ jobs:
             ref: 98885a69999398bfe3f49fbc8324a7b19aae3e16
           - name: 7edab53
             ref: 7edab5312f965bd683a7738e74d49b883190e8da
+          - name: 42811da
+            ref: 42811da4cf19ce941491d4794ab49790881dc409
     env:
       SOVA_PLATFORM_SOURCE: '${{ github.workspace }}/.local-notes/platform-contract-source'
       UV_PYTHON_DOWNLOADS: 'never'
@@ -332,7 +334,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           repository: Softbank-Hackathon-Finals/platform
-          ref: 7edab5312f965bd683a7738e74d49b883190e8da
+          ref: 42811da4cf19ce941491d4794ab49790881dc409
           path: .local-notes/platform-contract-source
           persist-credentials: false
           sparse-checkout: |

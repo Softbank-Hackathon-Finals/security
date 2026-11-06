@@ -14,7 +14,7 @@ platform_admission = pinned_admission
 @pytest.mark.parametrize("fault", ["revocation", "expiry"])
 def test_published_context_signature_is_current_across_plan_views(platform_admission, fault):
     f = platform_admission
-    if f.platform_baseline != "7edab5312f965bd683a7738e74d49b883190e8da":
+    if f.platform_baseline not in {"7edab5312f965bd683a7738e74d49b883190e8da", "42811da4cf19ce941491d4794ab49790881dc409"}:
         pytest.skip("Public signature ledger did not exist in this historical baseline")
     from bravo_platform_events.gate_records import GateRecords
     from bravo_platform_events.plan_api import Principal

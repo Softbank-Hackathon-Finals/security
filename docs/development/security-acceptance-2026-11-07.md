@@ -46,3 +46,17 @@ WSL에는 AWS 설정이 있지만 kubeconfig가 없다. 사용자에게 시험 �
   Alpine의 잘못된 릴리스·아키텍처·OS 종류·버전·누락된 inventory와 미지원 scanner category를
   거부하고, 미수정 HIGH는 계속 BLOCK임을 검증했다. 최초 lint의 import 순서 오류를 수정했다.
   실제 이미지 빌드·런타임·스캔은 이 커밋의 원격 CI 결과를 기다린다.
+
+- IMG-01 완료 근거: source `338f755`, CI `42252529744`에서 **전체 심각도 0건, PASS**.
+  실제 OS 38/Python 10 대조, PG 58·HBA 1·이미지/T10 11 PASS.
+  [원본과 공급망 대조](../evidence/service-image-scan-2026-11-07/qualified-338f755/README.md).
+  registry 발행·ARM64·운영 인수는 아직 별도다.
+- T28-01: sova-test `31fc071`에 기존 effect journal 연결을 구현했다.
+  최신 42811da 실제 T28 원문과 자식 프로세스 강제 종료/경쟁을 포함해 **24 PASS / 2.81초**.
+  플랫폼 직접 실행 entrypoint의 권한 제한과 실제 T10/운영 adapter 주입은 아직 인수 전이다.
+- COMPAT-10: 기본 플랫폼을 42811da로 이동하고 앞선 9개 기준을 유지하는 열 번째 소비 시험을 추가했다.
+  로컬 focused 시험은 C: 공간이 1.5 GiB 아래로 내려가 용량 guard에서 중단됐으며 성공으로 세지 않았다.
+  대형 다운로드·추가 WSL 실행을 중단하고 원격 CI에서 검증한다. 다른 사용자 프로세스/파일은 건드리지 않았다.
+- OPS-01: 최신 팀 self-service는 kubeconfig 배포 대신 본인 Tailscale 로그인과 비밀 없는
+  `team-test.json`을 사용한다. 기존 T7 직접 API·단기 토큰을 우선 재사용한다.
+  실제 RKE2 시험 기록은 ARM64이므로 amd64 이미지 성공을 해당 배포 성공으로 간주하지 않는다.
