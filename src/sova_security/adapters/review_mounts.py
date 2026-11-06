@@ -89,10 +89,13 @@ class LocalReviewAudit:
     Production hosts should provide the existing T24-backed audit callback.
     """
 
-    def __init__(self, path):
+    def __init__(self, path, *, maximum_bytes=16 * 1024 * 1024):
         self.path = Path(path)
         if not self.path.is_absolute():
             raise ContractError("Absolute protected audit path required")
+        if type(maximum_bytes) is not int or not 8192 <= maximum_bytes <= 64 * 1024 * 1024:
+            raise ContractError("Bounded local audit capacity required")
+        self.maximum_bytes = maximum_bytes
         self.lock = threading.Lock()
 
     def __call__(self, event):
@@ -103,9 +106,12 @@ class LocalReviewAudit:
         with self.lock:
             fd = os.open(self.path, flags, 0o600)
             try:
-                mode = os.fstat(fd).st_mode
+                info = os.fstat(fd)
+                mode = info.st_mode
                 if not stat.S_ISREG(mode) or (os.name != "nt" and mode & 0o077):
                     raise ContractError("Private regular audit file required")
+                if info.st_size + len(raw) > self.maximum_bytes:
+                    raise ContractError("Local audit capacity exhausted")
                 offset = 0
                 while offset < len(raw):
                     written = os.write(fd, raw[offset:])

@@ -75,6 +75,18 @@ def test_mount_bounds_and_local_audit(tmp_path):
             audit(dict(kind="security-review.v1", stage="computed"))
 
 
+def test_local_audit_capacity_stops_growth_without_overwriting_history(tmp_path):
+    path = tmp_path / "bounded-audit.jsonl"
+    audit = LocalReviewAudit(path, maximum_bytes=8192)
+    assert audit(dict(kind="security-review.v1", stage="computed")) is True
+    with path.open("ab") as stream:
+        stream.write(b" " * (8192 - path.stat().st_size))
+    original = path.read_bytes()
+    with pytest.raises(ContractError, match="capacity"):
+        audit(dict(kind="security-review.v1", stage="rejected"))
+    assert path.read_bytes() == original
+
+
 @pytest.mark.skipif(os.name == "nt", reason="POSIX projected symlink and FIFO behavior")
 def test_projected_symlink_supported_but_fifo_and_audit_symlink_rejected(tmp_path):
     source = tmp_path / "current-token"
