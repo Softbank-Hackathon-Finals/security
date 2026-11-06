@@ -22,8 +22,10 @@
 - Windows Python 3.12.1: detection 기존·최신 계약 및 admission 회귀 47 PASS.
 - 수정 전 느린 인증 회귀 2 FAIL → 수정 후 2 PASS. 실행은 모의 인증·메모리 저장소다.
 - 최신 platform 실제 T33 normalizer를 호출하는 온프렘 2건과 AWS 마스킹 거부 교차 시험.
-- 최신 T10/T19 소비 시험은 Windows에서 POSIX 조건에 의한 skip이 있어 Linux CI로
-  보완한다. CI의 실제 SHA·결과는 완료 후 추가하며 지금 통과로 간주하지 않는다.
+- 최초 최신 T10/T19 소비 시험은 18 PASS·19 SKIP였다. 후속 확인에서 19 SKIP는
+  OS 조건이 아니라 네 개 시험 파일의 feature별 baseline 목록 누락이었다. 해당 목록에
+  c364e628을 명시적으로 추가해 현재 key·서명·workflow·재평가 시험도 실제 실행한다.
+  CI의 최종 SHA·결과는 완료 후 추가하며 중간 실행을 최종 통과로 간주하지 않는다.
 
 ## 남은 실환경 인수
 
@@ -48,3 +50,11 @@ Windows 전체 unit/contract 회귀에서 942 PASS·47 SKIP와 기존 UTF-8 기�
 1개를 관측했다. 해당 계약 시험을 UTF-8 모드로 다시 실행해 3 PASS를 확인했다.
 플랫폼 T33 회귀도 Windows에서는 UTF-8 설정 뒤 POSIX O_NOFOLLOW 조건에서 실패하므로,
 현재 platform 코드는 바꾸지 않고 Linux CI에서 정본 회귀 전체를 실행한다.
+
+최종 보강으로 T10 서버 발급 workload ID를 카탈로그 표시 이름으로 강제하지 않고,
+양쪽 workload 일치·서로 다른 환경/run ID를 확인한다. 인증 중 보류 권한만 철회되는
+경우도 효과 직전에 다시 검사한다. 최종 detection/intake 회귀는 64 PASS다.
+
+feature별 baseline 목록을 보완한 후 최신 c364e628의 실제 T10/T19·T33 교차 시험은
+**37 PASS / 0 SKIP (20.84초)**다. 이 실행은 실제 플랫폼 코드·SQLite와 합성 측정/신원을
+사용한다. 실제 클러스터 로그인·수집·인가 인수를 증명하지 않는다.

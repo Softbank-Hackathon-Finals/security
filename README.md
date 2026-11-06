@@ -53,6 +53,9 @@ cd /path/to/sova
 
 서비스 실행은 `service` extra와 [설정·신뢰 경계·배포·인수 안내](docs/security-review-service.md)를 따른다. platform 고정 SHA의 소비 시험은 Python 3.12 이상에서 `dev,platform-test` extra로 수행한다. 기본 패키지 설치는 서비스를 자동 시작하지 않는다.
 
+0.11.1은 최신 T33 normalizer v2의 명시적 계약 선택, 인증 뒤 현재 권한 재검사와
+T14·T33 오프라인 인수 목록을 추가한다. 인수 목록의 schema 소비에는 `team` extra가 필요하다.
+
 두 문서의 원문·요구사항 추적·구현 경계는 [보안 설계 통합](docs/architecture-integration.md), 실제 `platform` 연결 순서는 Sova의 [인계 문서](../sova-test/docs/platform-security-handoff.md)를 참고한다. 카탈로그에 검사가 있다는 사실은 해당 환경의 통과 근거가 아니다.
 
 현재 저장소·서명 증거·실행기를 연결하는 코드는 [생산자 연결과 호스트 조합](docs/program-evidence-integration.md)에 있다. 기존 팀 ControlRun과 강화된 2026-11-06 schema snapshot을 명시적으로 선택할 수 있다.

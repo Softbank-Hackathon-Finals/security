@@ -14,7 +14,7 @@ platform_admission = pinned_admission
 @pytest.mark.parametrize("revoked", [False, True])
 def test_current_plan_key_ledger_remains_required_at_t10_dispatch(platform_admission, revoked):
     f = platform_admission
-    if f.platform_baseline not in {"98885a69999398bfe3f49fbc8324a7b19aae3e16", "7edab5312f965bd683a7738e74d49b883190e8da", "42811da4cf19ce941491d4794ab49790881dc409", "0795f65e24f58e43545b16b97757efcc0923fd4a", "445848d2ed9878e31eb6f5aabad0575c61739b47"}:
+    if f.platform_baseline not in {"98885a69999398bfe3f49fbc8324a7b19aae3e16", "7edab5312f965bd683a7738e74d49b883190e8da", "42811da4cf19ce941491d4794ab49790881dc409", "0795f65e24f58e43545b16b97757efcc0923fd4a", "445848d2ed9878e31eb6f5aabad0575c61739b47", "c364e6284d2e635ff86001e2feac88560ed23ebc"}:
         pytest.skip("Plan public-key registry did not exist in this historical baseline")
     from bravo_platform_events.gate_records import GateRecords
     from bravo_platform_events.plan_api import Principal
