@@ -378,6 +378,13 @@ process/container 모두 통과. 실제 컨테이너 소비 **39 PASS, 31.89초*
 - 수집기에 native Linux/6 GiB 여유 공간 사전 조건을 추가했다. WSL VHD의 호스트 용량 오인을 피하며,
   이 조건도 실행 중 외부 공간 사용까지 보장하는 quota는 아니다. 계약 시험 **25 PASS**.
 
+사용자가 약 4 GiB 공간 확보와 재시작을 승인한 뒤 **Ubuntu 배포판만** 재시작했다.
+그 후 새 임시 파일의 읽기/쓰기/fsync와 기존 Python 3.14.10 실행을 확인했다.
+기존 scanner 임시 경로에는 복구 후 예상 이름의 0바이트 파일만 남아 있었다. 경로·symlink 부재·
+전체 항목 whitelist·파일 크기를 검사한 후 그 경로만 제거했다. 다른 배포판/사용자 자료는 정리하지 않았다.
+Windows C: 여유 공간은 약 4.25 GB였다. 이전 중단된 시험은 계속 실패로 보존한다.
+대용량 scanner DB는 로컬에 다시 받지 않으며, 새 소스 복사본에서 로컬 회귀를 준비한다.
+
 ### 원격 endurance 재시도
 
 기존 CI에 별도의 PostgreSQL 18.4 / Python 3.14 endurance job을 추가했다. 개인 검증 브랜치의
@@ -458,3 +465,8 @@ push commit 메시지에 `[review-endurance]`가 있는 경우에만 10,800초 �
   CI summary에 정책 BLOCK/PASS/UNKNOWN과 finding 수를 직접 표시해 수집 성공과 배포 판정을 구분한다.
 - 앞선 receipt 변경 `4283346`의 Linux 전체는 **913 PASS, 1 SKIP, 153.04초**였다.
   SKIP은 명시적으로 별도 실행하는 endurance다. 현재 원본 변경과 여섯 번째 플랫폼 기준은 별도 CI로 검증한다.
+- 첫 v2 [CI](https://github.com/Softbank-Hackathon-Finals/security/actions/runs/42221842328)는
+  전체 기능/6개 계약은 통과했지만 image coverage에서 거부됐다. Trivy의 `Version`은 전체 Debian 버전이
+  아니라 `Epoch`/`Release`와 분리된 구성요소였다. 원본과 실제 dpkg 목록을 대조해 확인했다.
+  고정 scanner schema대로 binary epoch/upstream/revision을 재구성하며 source 버전이나 `+bN`을 버리지 않는다.
+  잘못된 epoch·revision·architecture·누락 거부 조건은 유지하고 계약 시험을 **40 PASS**로 확장했다.

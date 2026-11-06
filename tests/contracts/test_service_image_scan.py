@@ -107,6 +107,29 @@ def test_scan_must_cover_exact_actual_os_and_python_inventory(now, fault):
         assess(values, now)
 
 
+@pytest.mark.parametrize("epoch,upstream,revision,full", [
+    (0, "5.2.37", "2+b10", "5.2.37-2+b10"),
+    (1, "2.41.5", "0+deb13u1", "1:2.41.5-0+deb13u1"),
+    (1, "4.16.0-2+really2.41.5", "0+deb13u1", "1:4.16.0-2+really2.41.5-0+deb13u1"),
+    (0, "3.152", "", "3.152"),
+])
+def test_debian_full_binary_version_preserves_epoch_revision_and_rebuild(now, epoch, upstream, revision, full):
+    values = fixture(now)
+    entry = values[0]["Results"][0]["Packages"][0]
+    entry.update(Epoch=epoch, Version=upstream, Release=revision, SrcVersion="different-source-version", SrcRelease="different-source-revision")
+    values[2]["os_packages"][0][1] = full
+    assert assess(values, now)["os_packages_verified"] == 1
+    entry["Release"] = revision + "+b99"
+    with pytest.raises(ValueError):
+        assess(values, now)
+
+
+@pytest.mark.parametrize("epoch", [True, "1", -1, 2147483648])
+def test_debian_epoch_is_not_coerced(epoch):
+    with pytest.raises(ValueError):
+        scanner.debian_package_version(dict(Version="1.0", Epoch=epoch))
+
+
 @pytest.mark.parametrize("system,release,free,allowed", [
     ("Linux", "6.8.0", 6 * 1024 ** 3, True),
     ("Linux", "6.8.0", 6 * 1024 ** 3 - 1, False),

@@ -62,6 +62,21 @@ def timestamp(value):
     return result
 
 
+def debian_package_version(entry):
+    # Trivy 0.76 stores binary epoch/upstream/revision in separate fields.
+    # SrcVersion/SrcRelease describe a different source package, not the
+    # installed binary. In particular, preserve the binary rebuild (+bN).
+    epoch, version, release = entry.get("Epoch", 0), entry.get("Version"), entry.get("Release", "")
+    if type(epoch) is not int or not 0 <= epoch <= 2147483647:
+        raise ValueError("Typed Debian binary epoch required")
+    if type(version) is not str or not version or type(release) is not str:
+        raise ValueError("Typed Debian binary version required")
+    result = (str(epoch) + ":" if epoch else "") + version + ("-" + release if release else "")
+    if len(result) > 1024 or not result.isascii() or any(c.isspace() for c in result):
+        raise ValueError("Bounded Debian binary version required")
+    return result
+
+
 def assess(report, database, inventory, *, image_id, commit, started_at, finished_at):
     """Structural diagnostic projection of a caller-authenticated invocation."""
     if not re.fullmatch(r"sha256:[0-9a-f]{64}", image_id) or not re.fullmatch(r"[0-9a-f]{40}", commit):
@@ -120,7 +135,7 @@ def assess(report, database, inventory, *, image_id, commit, started_at, finishe
             if category == ("lang-pkgs", "python-pkg"):
                 detected.add((name, entry["Version"]))
             elif category == ("os-pkgs", "debian"):
-                detected_os.add((entry["Name"], entry["Version"], entry.get("Arch")))
+                detected_os.add((entry["Name"], debian_package_version(entry), entry.get("Arch")))
         vulnerabilities = result.get("Vulnerabilities", [])
         if type(vulnerabilities) is not list:
             raise ValueError("Typed scanner findings required")
@@ -136,7 +151,7 @@ def assess(report, database, inventory, *, image_id, commit, started_at, finishe
                 findings.append({key: finding.get(key) for key in
                                  ("VulnerabilityID", "PkgName", "InstalledVersion", "FixedVersion", "Severity", "Status")})
     if not packages[("os-pkgs", "debian")] or expected != detected or expected_os != detected_os:
-        raise ValueError("Operating system or installed service package coverage is missing")
+        raise ValueError("Scanner coverage differs from the actual OS or Python inventory")
     gate = "BLOCK" if counts["HIGH"] or counts["CRITICAL"] or os_info.get("EOSL") else "UNKNOWN" if counts["UNKNOWN"] else "PASS"
     return dict(schema_version=1, policy="service-image-high-critical.v2", gate=gate,
                 source_commit=commit, local_image_config_id=image_id, registry_digest=None,
