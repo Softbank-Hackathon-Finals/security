@@ -8,6 +8,7 @@
 실환경 로그인·검증은 사용자가 데모용 맥에서 후속 진행하도록 지정했다.
 [실환경 인수 실행안](platform-live-acceptance.md)에 `bravo-personal` SSO/SSM,
 `platform-state` 읽기 전용 범위와 일괄 배포 후 확인 순서를 남겼다. 온프렘 목적지 설정과 구분한다.
+[데모 맥 인계](demo-mac-handoff.md)에 아키텍처별 exact archive 다운로드와 해시 대조 순서를 모았다.
 
 ## 인계할 구조
 
