@@ -11,7 +11,13 @@ from sova_security.domain.review_service import ReviewPrincipal
 
 
 class ExecCredentialProvider:
-    """Wrap the host's T7 acquire/standard exec provider without minting tokens."""
+    """Consume a host ExecCredential without minting or changing its audience.
+
+    Format compatibility is not audience compatibility. Current platform T7
+    acquire verifies API authentication, so its default API token cannot be
+    used for a distinct review audience. In-cluster consumers should use a
+    dedicated projected token through MountedTokenCredential.
+    """
 
     def __init__(self, acquire, *, clock):
         self.acquire, self.clock = acquire, clock

@@ -10,8 +10,9 @@ from sova_security.contracts.commands import ContractError, utc
 from sova_security.domain.review_service import HostReviewBinding, ReviewRegistration
 from sova_security.domain.security_program import ProgramKind, ProgramPhase
 
-PLATFORM_BASELINE = "b19488e2debbee8bbe120f1309eadbe19df85b6f"
-PLATFORM_BASELINES = ("f602b39a949b99f3e2e7be901103063e78a52a70", PLATFORM_BASELINE)
+PLATFORM_BASELINE = "c225c86cf5e408b5fcd016b0e367d3672d1bac44"
+PLATFORM_BASELINES = ("f602b39a949b99f3e2e7be901103063e78a52a70",
+                      "b19488e2debbee8bbe120f1309eadbe19df85b6f", PLATFORM_BASELINE)
 
 
 def t10_host_binding(program, session, plan, *, baseline_sha=PLATFORM_BASELINE):

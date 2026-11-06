@@ -118,11 +118,14 @@ class LocalKubernetes:
         assert status == 201, f"Owned fixture create failed: HTTP {status}"
         return data
 
-    def token(self, namespace, service_account, audience, *, secret=None):
+    def token(self, namespace, service_account, audience, *, secret=None, pod=None):
         from sova_security.adapters.review_https import BearerCredential
         spec = dict(audiences=[audience], expirationSeconds=600)
-        if secret is not None:
-            spec["boundObjectRef"] = dict(apiVersion="v1", kind="Secret", name=secret["metadata"]["name"], uid=secret["metadata"]["uid"])
+        assert secret is None or pod is None
+        bound = secret if secret is not None else pod
+        if bound is not None:
+            spec["boundObjectRef"] = dict(apiVersion="v1", kind="Secret" if secret is not None else "Pod",
+                name=bound["metadata"]["name"], uid=bound["metadata"]["uid"])
         data = self.create(f"/api/v1/namespaces/{namespace}/serviceaccounts/{service_account}/token",
             dict(apiVersion="authentication.k8s.io/v1", kind="TokenRequest", spec=spec))
         return BearerCredential(data["status"]["token"], datetime.fromisoformat(data["status"]["expirationTimestamp"].replace("Z", "+00:00")))

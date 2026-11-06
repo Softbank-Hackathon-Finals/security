@@ -186,3 +186,21 @@ Sova/bravo_gate 없이 import/CLI help와 pip check를 확인했다.
   규칙 전체 또는 테스트 디렉터리를 제외하지 않는다. 전체 Git 이력을 다시 검사한다.
 - 근거: 공식 SIG envtest v1.35.0 archive SHA-512 검증과 추출 바이너리 SHA-256 검증,
   CI run `42199949004`의 secrets 작업 및 마스킹된 로컬 이력 보고서.
+
+## SVC-10: 세 번째 플랫폼 기준과 실제 T7 audience 경계
+
+- 요구: CTRL-01·02, POL-01·09·11, SG-1, SEC-PATCH-05. 기준 `c225c86cf5e408b5fcd016b0e367d3672d1bac44`.
+- `b19488e` 이후 10개 커밋은 console 초기 판정 표시·allowlist 기반 agent 관측·의존성 및
+  설계 문서 변경이다. T10/T19 집행 코드의 변경은 없었다. 기준을 자동 추적하지 않고 세 SHA를
+  명시하고 각 계약 CI를 유지한다. 사용자 platform 작업 사본은 변경하지 않았다.
+- 전체 로컬 보안 시험: `SOVA_PLATFORM_SOURCE=<c225c86 checkout>`와 실제 PG/OPA/API를
+  지정하여 **794 PASS, 153.31초**. 이후 추가한 T7/audience 시험은 **3 PASS, 4.47초**.
+- 실제 T7 acquire는 API audience에서 성공하지만 보안 서비스가 해당 토큰을 거부한다.
+  서비스 audience를 주면 T7의 최종 대상 SelfSubjectReview가 HTTP 401로 거부한다.
+  [ADR-0005](../adr/0005-service-credential-audience.md)에 기존 Kubernetes projected token
+  경로를 내부 소비자의 기본 방향으로 정했다. 새 issuer를 만들거나 두 audience를 합치지 않는다.
+- 시험의 issuer 접근은 shim이며 Tailscale·kubelet 실환경 인수가 아니다. 외부 소비자를 위한
+  T7 확장은 플랫폼 인계 사항으로 남긴다. 문서의 형식 호환 설명을 실제 동작에 맞춰 보완했다.
+- `baba9ba` CI의 secrets 및 이전 두 계약/3.11은 통과했으나 3.14에서 서명 증거 전체 경로
+  15개 시험이 실패했다(779 PASS). 로컬 통과로 덮지 않고 성능 계측을 이어간다. 공개 digest
+  예외 추가는 서비스 동작을 바꾸지 않았다. 최종 원격 인수는 이 실패를 해결한 뒤 판정한다.

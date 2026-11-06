@@ -1,7 +1,8 @@
 # 제한된 보안 판정 서비스
 
-현재 기준 플랫폼: `b19488e2debbee8bbe120f1309eadbe19df85b6f`.
-최초 기준 `f602b39a949b99f3e2e7be901103063e78a52a70`도 별도 소비 시험으로 유지한다.
+현재 기준 플랫폼: `c225c86cf5e408b5fcd016b0e367d3672d1bac44`.
+이전 기준 `f602b39a949b99f3e2e7be901103063e78a52a70`과
+`b19488e2debbee8bbe120f1309eadbe19df85b6f`도 별도 소비 시험으로 유지한다.
 `T10ProgramAuthority`의 `baseline_sha`는 호스트의 검증한 실제 소스에 맞춰 명시한다.
 기본값은 현재 기준이며 실행 시 Git을 조회하거나 버전을 자동 추측하지 않는다. 구현은 개인 환경용이다.
 실제 클러스터의 T7 audience·CNPG 역할·NetworkPolicy·T24 인수는 아직 수행하지 않았다.
@@ -16,7 +17,7 @@
 T31/T12 실행, T24 감사 및 원장을 소유한다. 원격 PASS는 추가 조건이며 실행 허가가 아니다.
 
 ```text
-기존 T7 발급 → 호스트의 짧은 수명 토큰 → 고정 TLS 서비스
+기존 워크로드 신원 → 보안 서비스용 짧은 수명 토큰 → 고정 TLS 서비스
                                           ↓ 매번 TokenReview + 현재 UID/범위 등록
 현재 호스트 계획 → 등록 context → SELECT 전용 테넌트 DB → 현재 원본 서명/철회/hold
                                           ↓ 요청 nonce에 결속한 최대 5초 결과
@@ -49,8 +50,17 @@ profile ID/version·gate phase·application ID가 있다. 플랫폼 profile vers
 
 ## 신원과 시간
 
-`ExecCredentialProvider`는 기존 T7 표준 ExecCredential 반환을 소비하며 토큰을 새로 발급하지
-않는다. `TokenReviewAuthenticator`는 고정 API TLS origin·audience와 현재 ServiceAccount UID를
+`ExecCredentialProvider`는 표준 ExecCredential 반환을 소비하며 토큰을 새로 발급하지 않는다.
+현재 T7 `acquire`의 최종 검증은 대상 Kubernetes API의 SelfSubjectReview다. API audience
+토큰은 보안 서비스에서 거부되고, 서비스 전용 audience 토큰은 그 최종 API 검증을 통과하지
+못한다. 반환 형식 호환만으로 현재 T7를 서비스 자격 공급자로 연결할 수 있다고 보지 않는다.
+클러스터 내부 소비자는 기존 ServiceAccount에 서비스 전용 audience의 projected token을
+추가하고 `MountedTokenCredential`로 읽는다. kubelet/Kubernetes의 기존 발급·회전 경로를
+사용하며 새 발급 서버를 만들지 않는다. 외부 소비자의 T7 확장은 별도 플랫폼 인수 항목이다.
+API audience를 서비스에 허용하거나 복수 audience로 권한 범위를 넓혀 우회하지 않는다.
+선택과 시험 범위는 [ADR-0005](adr/0005-service-credential-audience.md)에 기록한다.
+
+`TokenReviewAuthenticator`는 고정 API TLS origin·audience와 현재 ServiceAccount UID를
 대조한다. 토큰의 그룹/tenant 주장은 권한 등록에 사용하지 않는다. JWT를 로컬 파싱하는 부분은
 시간 범위 확인이며 서명 인증이 아니다. 성공한 온라인 TokenReview가 매번 필요하다.
 
