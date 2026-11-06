@@ -1,6 +1,6 @@
 # 두 보안 제안서의 구현과 검증 연결
 
-2026-11-06 · 패키지 0.10.0 · catalog `security-modernization.v1`
+2026-11-06 · 0.10.0 통합 기반 + 제한된 서비스 확장 · catalog `security-modernization.v1`
 
 사용자가 제공한 두 설계 제안서를 기존 보안 구현에 연결한다. 원문은
 `proposals/patching-as-a-service.txt`, `proposals/incident-security-architecture.txt`에
@@ -15,10 +15,12 @@
 승인, effect CAS, 실제 어댑터, 감시 작업을 소유한다. `platform` 소비자는 Sova 전체를
 설치하지 않고 검증한 wheel을 설치하고 현재 팀 계약에 맞는 어댑터를 연결한다.
 
-새 네트워크 서비스보다 Python 패키지를 유지한다. 핵심 구현이 이미 독립되어 있고,
-Sova와 팀 플랫폼의 Python 서비스에서 동일한 타입·규칙·시험을 재사용할 수 있기 때문이다.
-기존 공통 계약의 직렬화나 SQL은 변경하지 않았고, 프로그램·원본 연결을 위한 새 wire kind 네 개를 추가했다.
-새 승인 엔진, DB 마이그레이션, 클라우드 실행 자격은 추가하지 않는다.
+공통 Python 패키지를 유지하고 선택형 제한 보안 서비스를 추가한다. 0.10.0에서 패키지를
+직접 소비하던 선택은 [ADR-0001](adr/0001-security-review-service.md)으로 확장했다.
+Sova와 팀 플랫폼은 같은 검증 규칙을 재사용하며 독립 서비스의 권한·장애 경계도 시험한다.
+기존 프로그램/원본 wire kind 네 개와 SQL 7개는 유지한다. 서비스 등록/요청/응답 kind 세 개,
+테넌트 전용 reader 정책을 추가하며 새 승인 엔진이나 클라우드 실행 자격을 만들지 않는다.
+현재 실행·배포·호환 계약은 [보안 판정 서비스](security-review-service.md)를 따른다.
 
 ## 원문 요구사항과 실제 연결
 
@@ -41,6 +43,8 @@ Sova와 팀 플랫폼의 Python 서비스에서 동일한 타입·규칙·시험
 | CTRL-08~09 AI 권한 분리 | 보호 파일·고정 계약·독립 검증·별도 실행 | `proposal-scope` | 모델 출력·도구 호출에서 실제 비인가 실행 0건 |
 
 실행 정책 POL-01~12의 매핑은 `CHECKS`의 `references`에 고정되어 있다.
+각 22개 검사와 T5의 6개 범주·하위 시험·추가 근거는
+[플랫폼 통제 대응표](platform-control-traceability.md)에 따로 정리했다.
 `sova security-program-catalog`로 전체를 조회한다. 기존 SG/CC/T5 및 Sova Gate 번호를
 새 번호로 바꾸지 않는다. 원문의 G0~G7은 설명용 번호이며 Sova의 Gate enum과 다르다.
 

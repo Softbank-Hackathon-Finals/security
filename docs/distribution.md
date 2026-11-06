@@ -11,7 +11,7 @@ main push의 Python 3.11 작업은 시험·정적 검사 후 wheel을 빌드하�
 - `dependencies.json`: 시험 환경에서 실제 설치된 패키지명·버전
 - `SHA256SUMS`: wheel과 dependencies.json의 해시
 
-산출물 이름은 `sova-security-wheel-<전체 commit SHA>`이며 보존 기간은 30일이다. 설치 전에 **전체 워크플로의 두 Python 작업과 secrets 작업이 모두 성공했는지** 확인한다. 3.11 산출물이 존재한다는 사실만으로 아직 실행 중이거나 실패한 3.14 작업이 통과한 것은 아니다.
+산출물 이름은 `sova-security-wheel-<전체 commit SHA>`이며 보존 기간은 30일이다. 설치 전에 **두 Python 작업, secrets, platform-contract가 모두 성공했는지** 확인한다. 3.11 산출물이 존재한다는 사실만으로 다른 작업이 통과한 것은 아니다. platform-contract는 Python 3.12에서 고정한 공개 platform 소스를 읽고 실제 T10/T19 모듈과의 소비 시험을 수행한다. 운영 배포 인수를 뜻하지 않는다.
 
 ```sh
 gh run view RUN_ID --repo Softbank-Hackathon-Finals/security

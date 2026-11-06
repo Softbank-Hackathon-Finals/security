@@ -10,14 +10,17 @@ from sova_security.contracts.commands import ContractError, utc
 from sova_security.domain.review_service import HostReviewBinding, ReviewRegistration
 from sova_security.domain.security_program import ProgramKind, ProgramPhase
 
-PLATFORM_BASELINE = "f602b39a949b99f3e2e7be901103063e78a52a70"
+PLATFORM_BASELINE = "b19488e2debbee8bbe120f1309eadbe19df85b6f"
+PLATFORM_BASELINES = ("f602b39a949b99f3e2e7be901103063e78a52a70", PLATFORM_BASELINE)
 
 
-def t10_host_binding(program, session, plan):
+def t10_host_binding(program, session, plan, *, baseline_sha=PLATFORM_BASELINE):
     """Structural projection of a host-authenticated session. Not authentication."""
     from bravo_gate.contract import decode
     from bravo_gate.t10 import PlanGateSession
 
+    if baseline_sha not in PLATFORM_BASELINES:
+        raise ContractError("Explicitly qualified platform source revision required")
     if type(session) is not PlanGateSession:
         raise ContractError("Actual platform PlanGateSession required")
     spec = decode(plan["spec_json"].encode())
@@ -35,7 +38,7 @@ def t10_host_binding(program, session, plan):
             or ctx.source_environment_id != program.source.environment_id
             or ctx.target_environment_id != program.target.environment_id):
         raise ContractError("Platform plan, profile, environment or tenant differs")
-    return HostReviewBinding("platform-t10", PLATFORM_BASELINE, plan["plan_id"], program.subject_digest,
+    return HostReviewBinding("platform-t10", baseline_sha, plan["plan_id"], program.subject_digest,
                              session.fingerprint, ctx.profile_id, ctx.profile_version,
                              session.gate_phase, session.application_id)
 
@@ -48,13 +51,16 @@ class T10ProgramAuthority:
     through; remote I/O itself is not a distributed lock or immediate revocation.
     """
 
-    def __init__(self, *, upstream, load_session, load_registration, client, scope, clock):
+    def __init__(self, *, upstream, load_session, load_registration, client, scope, clock, baseline_sha=PLATFORM_BASELINE):
         from bravo_gate.t10 import T10GateAuthority
         from sova_security.adapters.remote_review import RemoteReviewClient
         if type(upstream) is not T10GateAuthority or type(client) is not RemoteReviewClient:
             raise ContractError("Existing platform authority and remote client required")
         if not callable(load_registration):
             raise ContractError("Registration reader under the host plan lock required")
+        if baseline_sha not in PLATFORM_BASELINES:
+            raise ContractError("Explicitly qualified platform source revision required")
+        self.baseline_sha = baseline_sha
         self.upstream, self.load_session, self.client = upstream, load_session, client
         self.load_registration = load_registration
         self.scope, self.clock = scope, clock
@@ -75,7 +81,7 @@ class T10ProgramAuthority:
         registration = self.load_registration(connection, principal, plan, ProgramPhase.PREFLIGHT)
         if type(registration) is not ReviewRegistration or registration.program.kind != ProgramKind.MIGRATION:
             raise ContractError("Registered migration preflight required")
-        binding = t10_host_binding(registration.program, session, plan)
+        binding = t10_host_binding(registration.program, session, plan, baseline_sha=self.baseline_sha)
         if registration.host_binding != binding:
             raise ContractError("Registered security context differs from current platform session")
         if self.client.current_registration(self.scope, registration.program.subject_digest, ProgramPhase.PREFLIGHT) != registration:

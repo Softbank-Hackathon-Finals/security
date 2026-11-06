@@ -69,3 +69,51 @@
   Sova 기존 SQLite effect/패치 실행 시험 31 PASS: 사전 실패 효과 0회, 사후 실패 APPLIED+hold,
   재시도해도 재적용 없음, shadow 비교가 실행하지 않음.
 - 상태: 구현 + 소비 계약/로컬 원장 실측. 실제 platform 연결은 인계 대상이며 원본 저장소를 수정하지 않았다.
+
+## SVC-04: 진행 중 플랫폼 변경의 별도 인수
+
+- 새 기준: `b19488e2debbee8bbe120f1309eadbe19df85b6f`, 최초 f602b39보다 46개 커밋 진행.
+  [비교](https://github.com/Softbank-Hackathon-Finals/platform/compare/f602b39a949b99f3e2e7be901103063e78a52a70...b19488e2debbee8bbe120f1309eadbe19df85b6f).
+- T19 StoredGateServices는 같은 T10 GateRecordView transaction에 현재 서명/권한/예외/T13을
+  연결한다. 이를 upstream으로 재사용하고 별도 T19 저장·발급 경로는 만들지 않는다.
+- NET-01.2/01.3은 DB/pooler 원문 둘 다 필요하다. 새 네트워크 집계 검증을 약화하지 않는다.
+- T14 앱 격리는 실제 로컬 PostgreSQL 검증이 추가됐지만 AWS 객체의 양쪽 실제 접근은 미검증이다.
+  EKS 별도 namespace의 Deployment TCP 정책 집행 성공은 이전 DB/pooler FAIL을 뒤집지 않는다.
+- 수정: `PLATFORM_BASELINES`, 명시적 `baseline_sha`, 양쪽 source checkout/CI 소비 시험.
+- 시험: 새 기준 실제 모듈/SQLite 15 PASS(6.17초). 기존 기준도 별도 유지한다.
+- 원본 platform 폴더: 계속 `505d451`에서 수정 없음. 참조 checkout은 security의 무시된 개인 폴더에만 둔다.
+- 상태: 계약 소비 검증. 플랫폼 개발이 계속되므로 이후 head의 자동 호환은 주장하지 않는다.
+
+## SVC-05: 독립 실행·배포 준비·사고 관점 보강
+
+- 요구: CTRL-01·02·06·07, SEC-PATCH-09·10, POL-01·03·10. 현재 기준 b19488e.
+- 독립 프로세스: 실제 Python 서비스 프로세스 + TLS + 온라인 Ed25519 검증기 모형 +
+  테넌트 고정 PG 역할의 연결/철회 포함 6 PASS(7.57초). 실제 Kubernetes 인증으로 확대하지 않는다.
+- 배포 생성기: 명시한 digest·tenant·audience·주소/port로 JSON만 생성. non-root/read-only,
+  최소 RBAC, SA 자동 mount 해제, NetworkPolicy와 제한 자원을 구성한다. apply는 하지 않는다.
+- 사고 검토 중 원본 관측을 재수집할 때 heartbeat/finding 유효기간이 늘어날 수 있음을 발견했다.
+  `team_detection.import_detection`의 만료를 원본 last_success/event 시각에도 결속했다.
+  관련 단위 시험 31 PASS; 오래된 원본의 재수집으로 새 보안 근거를 만들지 않는다.
+- 로컬 감사 파일에 16MiB 기본 상한을 추가했다. 가득 차면 기존 기록을 보존하며 신규 판정을 보류한다.
+  이것은 감사 보관 정책/전체 PVC 용량 관리의 대체물이 아니다.
+
+## SVC-06: 전체 증거 경로와 회귀 검증
+
+- 요구: SEC-PATCH-05·10, CTRL-02·07, POL-03·09·11. 기준 b19488e/f602b39.
+- 정상 서명 원본을 모두 채운 실행 시험에서 5초 기한 초과를 발견했다. 연결만 요청별로
+  재사용하고 현재 원본을 묶음 검증하도록 수정했다. 공통 인증 callback의 tuple 반환 거부도
+  실제 서비스 시험에서 발견·수정했다. [ADR-0003](../adr/0003-request-scoped-live-evidence.md)에
+  설계와 실패 기록을 남겼다. callback 계약이나 만료·철회 검사는 완화하지 않았다.
+- 코드: `review_connections`, `program_evidence`, `registered_program`, `security_program`,
+  `review_service`, `review_server`. 실제 TLS/PG 서비스 7 PASS(10.44초).
+- 전체 Linux PostgreSQL 17.11·OPA 1.22 회귀: security **775 PASS, 43.03초**;
+  Sova **1,102 PASS, 3 SKIP, 107.56초**. 격리 DB를 만들고 시험 뒤 종료했다.
+  Sova skip은 실제 컨테이너/Collector/등록된 AWS SQS 시험이다. 합성 클라우드 검증으로 세지 않는다.
+- 증거: `tests/integration/test_review_host_runtime.py`, 단위 회귀, 개인 실행 로그
+  `.local-notes/service-work/{security,sova-test}-pg-opa-tests.txt`.
+- 배포 생성기 등 Windows 관련 시험: 46 PASS/1 POSIX 전용 SKIP. Linux 전체에는 해당 시험 포함.
+- 현재 Docker 엔진 두 로컬 endpoint가 실행 중이지 않음을 확인했다. Kubernetes 명세 생성 시험은
+  통과했지만 컨테이너 이미지 실행이나 실제 CNI/RBAC 차단의 증거로 사용하지 않는다.
+- [22개 검사 대응표](../platform-control-traceability.md)를 추가했다. 6개 범주/하위 시험과
+  추가 요구를 분리하고 부분적인 T14/T19 PASS를 전체 프로그램 인수로 확대하지 않는다.
+- 상태: 로컬 실제 DB/TLS + 모의 권한/측정 검증. 운영 TokenReview·CNI·T24 인수는 남아 있다.

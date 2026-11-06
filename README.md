@@ -1,6 +1,6 @@
 # Sova Security
 
-Team Bravo 플랫폼에 설치하는 Python 보안 패키지다. 보호 수준 비교, 근거 검증, 보안 보류와 제한된 대응 계획을 제공한다. **보안 판정은 사용자 승인이나 운영 실행 권한을 부여하지 않는다.**
+Team Bravo 플랫폼에서 사용하는 공통 Python 보안 패키지와 선택형 보안 판정 서비스다. 보호 수준 비교, 근거 검증, 보안 보류와 제한된 대응 계획을 제공한다. **보안 판정은 사용자 승인이나 운영 실행 권한을 부여하지 않는다.**
 
 ## 현재 포함 범위
 
@@ -21,6 +21,7 @@ Team Bravo 플랫폼에 설치하는 Python 보안 패키지다. 보호 수준 �
 - 테넌트 제한 PostgreSQL 어댑터와 보안 소유 SQL 7개
 - 두 보안 설계 문서의 CTRL-01~09 · POL-01~12 · SEC-PATCH-01~10을 연결한 패치/이전 검사 프로필과 사전·사후 검증
 - 기존 생산자 원본 서명·최신 관측과 프로그램 증거 연결, PostgreSQL 등록·철회 및 Sova 패치 실행 조합
+- 현재 워크로드 인증·테넌트 전용 읽기 권한·TLS 판정 서비스, 병행 비교와 T10/Sova 소비 어댑터
 
 Sova의 실행 원장·승인 서비스·작업 큐·격리 실행 조정기·시험용 클러스터 어댑터·전체 콘솔·데모 앱은 포함하지 않는다. Sova는 이 패키지를 사용하는 첫 통합 시험 환경이다. 팀 platform 연결과 일반 고객 환경의 운영 자격은 별도 검증 대상이다.
 
@@ -29,7 +30,7 @@ Sova의 실행 원장·승인 서비스·작업 큐·격리 실행 조정기·�
 Python 3.11 이상을 사용한다. 기본 설치에는 클라우드 SDK나 DB 연결이 필요 없다.
 
 ```sh
-python -m pip install /path/to/sova_security-0.10.0-py3-none-any.whl
+python -m pip install /path/to/sova_security-0.11.0-py3-none-any.whl
 # 개발 시 이 저장소에서
 python -m pip install -e '.[dev]'
 python -m pytest -q
@@ -45,7 +46,9 @@ cd /path/to/sova
 .local-notes/venv/bin/python -m pip install -e '../team-bravo/security[postgres,signing,aws]'
 ```
 
-릴리스 소비 환경은 검증한 wheel과 해시를 고정한다. [CI 산출물 소비 방법](docs/distribution.md)을 따른다. 현재 0.10.0은 두 설계 문서의 통합 검사 계약을 추가한 버전이며 PyPI 배포를 뜻하지 않는다.
+릴리스 소비 환경은 검증한 wheel과 해시를 고정한다. [CI 산출물 소비 방법](docs/distribution.md)을 따른다. 0.11.0은 0.10.0의 두 문서 통합 계약에 선택형 서비스를 추가하며 PyPI 배포를 뜻하지 않는다.
+
+서비스 실행은 `service` extra와 [설정·신뢰 경계·배포·인수 안내](docs/security-review-service.md)를 따른다. platform 고정 SHA의 소비 시험은 Python 3.12 이상에서 `dev,platform-test` extra로 수행한다. 기본 패키지 설치는 서비스를 자동 시작하지 않는다.
 
 두 문서의 원문·요구사항 추적·구현 경계는 [보안 설계 통합](docs/architecture-integration.md), 실제 `platform` 연결 순서는 Sova의 [인계 문서](../sova-test/docs/platform-security-handoff.md)를 참고한다. 카탈로그에 검사가 있다는 사실은 해당 환경의 통과 근거가 아니다.
 
@@ -65,6 +68,6 @@ PostgreSQL은 현재 `sova_control` 스키마와 `sova.tenant_id` 컨텍스트�
 
 ## 검증과 출처
 
-기존 Sova의 검증된 코드와 테스트를 추출했다. [원본 커밋·파일 해시](docs/provenance.json)를 제공한다. 패키지 시험과 Sova 전체 통합 회귀는 구분하며, 테스트 더블을 실제 AWS·Kubernetes 검증으로 표현하지 않는다. 개발기록·인증정보·실행 상태는 게시하지 않는다.
+기존 Sova의 검증된 코드와 테스트를 추출했다. [원본 커밋·파일 해시](docs/provenance.json)를 제공한다. 패키지 시험과 Sova 전체 통합 회귀는 구분하며, 테스트 더블을 실제 AWS·Kubernetes 검증으로 표현하지 않는다. 비밀을 제외한 [개발 기록](docs/development/security-service-2026-11-06.md)을 유지하며 인증정보·개인 실행 상태는 게시하지 않는다.
 
 팀 T33 탐지 계약은 [탐지 연결 안내](docs/detection-integration.md)를 따른다. 정확한 자원 매핑·등록과 수집 출처 인증을 요구하며, 탐지 데이터가 변경·격리 권한을 직접 부여하지 않는다.

@@ -16,7 +16,7 @@ import pytest
 
 from program_support import program_bundle
 from sova_security.adapters.modernization_codec import decode, encode
-from sova_security.adapters.platform_review import PLATFORM_BASELINE, T10ProgramAuthority, t10_host_binding
+from sova_security.adapters.platform_review import PLATFORM_BASELINES, T10ProgramAuthority, t10_host_binding
 from sova_security.adapters.remote_review import RemoteReviewClient
 from sova_security.adapters.review_https import BearerCredential
 from sova_security.application.review_service import SecurityReviewEndpoint
@@ -33,7 +33,8 @@ def platform_admission(tmp_path, request):
         pytest.skip("Explicit pinned SOVA_PLATFORM_SOURCE required for platform interoperability")
     root = Path(location).resolve()
     git = ["git", "-c", f"safe.directory={root.as_posix()}", "-C", str(root)]
-    assert subprocess.check_output(git + ["rev-parse", "HEAD"], text=True).strip() == PLATFORM_BASELINE
+    baseline = subprocess.check_output(git + ["rev-parse", "HEAD"], text=True).strip()
+    assert baseline in PLATFORM_BASELINES
     assert not subprocess.check_output(git + ["status", "--porcelain"])
     paths = [root / "services/control-gate/src", root / "services/platform-events/src", root / "services/control-gate/tests"]
     old_path = list(sys.path)
@@ -55,6 +56,7 @@ def platform_admission(tmp_path, request):
         ready = readiness.ready.__wrapped__(service)
         parameter = SimpleNamespace(param="sqlite", getfixturevalue=lambda name: ready if name == "ready" else None)
         value = admission.admission.__wrapped__(parameter, tmp_path, "context", request.param)
+        value.platform_baseline = baseline
         yield value
     finally:
         sys.path[:] = old_path
@@ -73,7 +75,7 @@ def attach(fixture):
         row = dict(connection.execute("SELECT * FROM plans WHERE plan_id=?", (f.plan.plan_id,)).fetchone())
         f.adapter(connection, f.principal, row, now=now.isoformat(), approved_by="operator", approval_id="test")
         session = f.loader(connection, f.principal, row)
-        host = t10_host_binding(program, session, row)
+        host = t10_host_binding(program, session, row, baseline_sha=f.platform_baseline)
     registration = ReviewRegistration(program, host, ProgramPhase.PREFLIGHT, now, program.valid_until)
     actor = ReviewPrincipal("service-worker", ctx.tenant_id, (source, scope), ("enforce", "shadow"),
                             now, program.valid_until, "9" * 64)
@@ -94,6 +96,7 @@ def attach(fixture):
         credential_for=lambda: BearerCredential("synthetic-service-token", actor.valid_until),
         current_registration=lambda *_: state["registration"], subject_id=actor.subject_id, clock=lambda: f.state["now"])
     f.service.authority = T10ProgramAuthority(upstream=f.adapter, load_session=f.loader, client=client,
+                                            baseline_sha=f.platform_baseline,
                                             load_registration=lambda connection, *_: state["host_registration"] if connection.in_transaction else None,
                                             scope=scope, clock=lambda: f.state["now"])
     return state, client
