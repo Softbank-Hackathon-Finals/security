@@ -42,6 +42,7 @@ def test_three_tls_reports_never_fill_other_seventeen_or_authenticate_pass(now):
                     "excerpt": "private-excerpt"})
     target = deepcopy(source)
     target["environment"].update(role="target", id="private-target")
+    target["run_id"] = "synthetic-target"
     result = intake_plan(now=now, control_runs=(raw(source), raw(target)))
     assert result["reported_counts"] == {"source": {"PASS": 3, "UNKNOWN": 17}, "target": {"PASS": 3, "UNKNOWN": 17}}
     text = json.dumps(result)
@@ -53,7 +54,7 @@ def test_three_tls_reports_never_fill_other_seventeen_or_authenticate_pass(now):
     assert all(r["source"]["coverage"] == "EVIDENCE_NOT_CURRENT" for r in expired["required_tests"] if r["source"]["reported_verdict"] == "PASS")
 
 
-@pytest.mark.parametrize("case", ["duplicate-role", "same-environment", "duplicate-test", "foreign-app", "future", "gate-instead-of-run"])
+@pytest.mark.parametrize("case", ["duplicate-role", "same-environment", "duplicate-test", "different-app", "same-run", "future", "gate-instead-of-run"])
 def test_ambiguous_or_mismatched_runs_fail_without_raw_value_in_error(now, case):
     plan = intake_plan(now=now)
     source, target = run_for(plan, now), run_for(plan, now, "target")
@@ -63,8 +64,10 @@ def test_ambiguous_or_mismatched_runs_fail_without_raw_value_in_error(now, case)
         target["environment"]["id"] = source["environment"]["id"]
     elif case == "duplicate-test":
         source["results"].append(source["results"][0])
-    elif case == "foreign-app":
+    elif case == "different-app":
         source["app"] = "private-foreign-application"
+    elif case == "same-run":
+        target["run_id"] = source["run_id"]
     elif case == "future":
         source["finished_at"] = (now + timedelta(seconds=1)).isoformat()
     else:
@@ -95,3 +98,13 @@ def test_duplicate_json_keys_and_unbounded_input_are_rejected(now):
     for bad in (b'{"kind":"control_run","kind":"control_run"}', b" " * (2 * 1024 * 1024 + 1)):
         with pytest.raises(ContractError):
             intake_plan(now=now, control_runs=(bad,))
+
+
+def test_t10_registered_workload_reference_is_not_replaced_with_catalog_display_name(now):
+    plan = intake_plan(now=now)
+    source, target = run_for(plan, now), run_for(plan, now, "target")
+    source["app"] = target["app"] = "workload-private-server-issued-id"
+    result = intake_plan(now=now, control_runs=(raw(source), raw(target)))
+    assert result["reported_counts"]["source"] == {"UNKNOWN": 20}
+    assert result["workload_reference_sha256"] is not None
+    assert "workload-private-server-issued-id" not in json.dumps(result)

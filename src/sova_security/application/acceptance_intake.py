@@ -83,8 +83,12 @@ def intake_plan(*, now, control_runs=(), source_statuses=()):
         data = bounded_report(raw)
         _validate(controls_validator(CONTROL_SCHEMA), data, "control_run")
         role = data["environment"]["role"]
-        if role in runs or data["app"] != profile["app"]:
-            raise ContractError("One source and one target for the pinned workload required")
+        if role in runs:
+            raise ContractError("One source and one target for the same workload required")
+        if runs and data["app"] != next(iter(runs.values()))["app"]:
+            raise ContractError("Matching source and target workload references required")
+        if any(data["run_id"] == other["run_id"] for other in runs.values()):
+            raise ContractError("Distinct source and target run references required")
         if not _time(data["started_at"]) <= _time(data["finished_at"]) <= now:
             raise ContractError("Ordered, non-future intake run required")
         items = data["results"]
@@ -99,6 +103,10 @@ def intake_plan(*, now, control_runs=(), source_statuses=()):
     for test_id in required:
         spec = catalog["tests"][test_id]
         tasks, prerequisite = ROUTES[spec["control_id"]]
+        if test_id == "SEC-01.2":
+            tasks = ["T14"]
+        elif test_id == "SEC-01.3":
+            tasks = ["T14", "T34"]
         row = {"test_id": test_id, **spec, "tasks": list(tasks), "prerequisite": prerequisite,
             "acceptance": "LIVE_NOT_VERIFIED", "execution": "NOT_EXECUTED"}
         for role in ("source", "target"):
@@ -143,6 +151,7 @@ def intake_plan(*, now, control_runs=(), source_statuses=()):
     return {"kind": "platform-security-intake.v1", "platform_sha": PLATFORM_SHA,
         "profiles_sha256": PROFILES_SHA256, "generated_at": now.isoformat(),
         "profile": {"id": profile["id"], "version": profile["version"]},
+        "workload_reference_sha256": hashlib.sha256(next(iter(runs.values()))["app"].encode()).hexdigest() if runs else None,
         "live_verified": False, "authorizes_execution": False,
         "scope": "Offline diagnostic; input authenticity and current plan binding are NOT verified",
         "required_tests": rows, "reported_counts": counts, "source_statuses": statuses,
