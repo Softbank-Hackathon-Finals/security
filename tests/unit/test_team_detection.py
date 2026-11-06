@@ -327,19 +327,23 @@ def test_typed_source_status_cannot_disguise_a_gap_as_sample_or_lifecycle(
         replace(finding, valid_until=now + timedelta(minutes=6))
 
 
-@pytest.mark.parametrize("fault", ["revoked", "expired"])
+@pytest.mark.parametrize("fault", ["revoked", "expired", "hold-grant-revoked"])
 def test_slow_authentication_cannot_open_hold_with_lapsed_authority(admitted, now, fault):
     service, holds, state, parse, _ = admitted
     calls = 0
     current = now
+    hold_allowed = True
+    service.authorize = lambda _actor, _scope, action: hold_allowed if action == "security:hold" else True
 
     def authenticate(_):
-        nonlocal calls, current
+        nonlocal calls, current, hold_allowed
         calls += 1
         # The second validation is immediately before opening the incident.
         if calls == 2:
             if fault == "expired":
                 current = now + timedelta(minutes=11)
+            elif fault == "hold-grant-revoked":
+                hold_allowed = False
             else:
                 state["reg"] = None
         return True

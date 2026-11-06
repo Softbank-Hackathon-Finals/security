@@ -65,6 +65,8 @@ class DetectionAdmission:
         if observation.requires_hold:
             require_accept(self.authorize, actor, scope, "security:hold")
             self._authority(actor, observation)
+            require_accept(self.authorize, actor, scope, "security:hold")
+            self._current(observation)
             # Stable per source/resource finding, independent of collection time.
             # A later clean/no-event sample does not close this incident.
             reason = "detection:" + observation.signal + ":" + observation.finding_key
