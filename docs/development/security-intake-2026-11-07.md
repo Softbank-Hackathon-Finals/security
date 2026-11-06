@@ -58,3 +58,12 @@ Windows 전체 unit/contract 회귀에서 942 PASS·47 SKIP와 기존 UTF-8 기�
 feature별 baseline 목록을 보완한 후 최신 c364e628의 실제 T10/T19·T33 교차 시험은
 **37 PASS / 0 SKIP (20.84초)**다. 이 실행은 실제 플랫폼 코드·SQLite와 합성 측정/신원을
 사용한다. 실제 클러스터 로그인·수집·인가 인수를 증명하지 않는다.
+
+## 최종 CI 근거
+
+`3d46637`의 [CI 42291826766](https://github.com/Softbank-Hackathon-Finals/security/actions/runs/42291826766)는
+최신 계약 37 PASS·0 SKIP, 기존 T33 183 PASS, 전체 패키지 Python 3.14 1117 PASS·5 SKIP /
+3.11 1059 PASS·63 SKIP로 통과했다. 두 native 이미지도 최종 코드 기준으로 모든 취약점
+등급 0건이며, Sova 실제 wheel 소비와 기존 T28 회귀가 통과했다.
+[정제한 검증 기록](../evidence/security-intake-2026-11-07/README.md)에 source·Git tree·
+archive hash·실행 권한 없음·실환경 미검증 범위를 남겼다. 문서 기록은 실환경 인수 완료가 아니다.

@@ -1,5 +1,15 @@
 # 데모용 맥에서 이어받기
 
+## 2026-11-07 후속: 0.11.1 T14·T33 준비
+
+현재 인수 CLI·T33 계약 보강은 0.11.1이다. [맥 실행 안내](mac-t14-t33-intake.md)와
+[최종 로컬 검증](evidence/security-intake-2026-11-07/README.md)을 먼저 읽는다.
+Sova의 package source와 native 이미지의 PR 시험 병합 source를 구분하고, JSON 증빙의
+archive hash를 대조한다. 아래 0.11.0 고정 이미지·90분 결과는 이전 검증 기록이다.
+실제 플랫폼 배포·로그인·수집·운영 인수는 여전히 맥에서 이어간다.
+
+## 이전 0.11.0 인계 기록
+
 후속: [Mac 대조·시험 결과](development/mac-acceptance-preparation-2026-11-07.md)와
 [읽기 전용 인수 목록](platform-readonly-intake.md). 일괄 배포 시점 미확인으로
 현재는 로컬 준비만 수행했고 실제 플랫폼 조회는 아직 하지 않았다.
