@@ -351,3 +351,29 @@ process/container 모두 통과. 실제 컨테이너 소비 **39 PASS, 31.89초*
   DB를 정리하며 민감한 자격이나 원본 데이터를 보고서에 넣지 않는다.
 - DB 관리 함수 [CI](https://github.com/Softbank-Hackathon-Finals/security/actions/runs/42213904868)
   전체 통과: PG18.4 경계 **42 PASS, 11.39초**, 실제 이미지/T10 **11 PASS, 39.47초**.
+
+## SVC-20: 실제 서비스 이미지 취약점 수집과 판정의 분리
+
+- [ADR-0014](../adr/0014-service-image-vulnerability-evidence.md)에 수집/판정/배포 승인 경계를 기록했다.
+  `scripts/scan_service_image.py`, 계약 시험, 실제 이미지 CI를 추가/수정했다.
+- 공식 불변 Trivy 0.76.2 archive를 GitHub release digest로 검증해 executable 해시도 확인했다.
+  별도 공개 DB·고정 로컬 이미지·실제 Python inventory를 결속하며 OS package도 검사한다.
+- 계약 **21 PASS**. 0건 결과, 스캔 오류, UNKNOWN/BLOCK을 구분한다. repo digest를 만들어서
+  기존 플랫폼 inventory/원본 계약을 우회하지 않으며 registry 발행은 수행하지 않는다.
+- 앞선 `uv audit --frozen` service subset은 2026-11-06T11:21:30Z에 **10 packages, 알려진 취약점 0건**이었다.
+  lock SHA-256 `8668d10143d6f24123a3aca54adad7052cbb40d547baa53ae21f96a4cded37ac`.
+  대상은 Linux x86_64/Python 3.12.16 dependency 선택이며, 감사 도구가 실행한 interpreter는
+  별개다. OS image 전체나 미래의 취약점 부재를 입증하는 결과가 아니다.
+
+### 로컬 검증 중 저장 공간 소진 — 2026-11-06T12:15Z
+
+- 새 scanner DB가 1,675,603,968 bytes로 내려받아지는 동안 Windows C:의 여유 공간이 소진됐다.
+  WSL 내부 `df`의 가상 여유 공간만 확인한 것은 충분하지 않았다. 이후 Ubuntu에서 EIO/SIGBUS가 발생했다.
+- 진행 중이던 전체 시험과 13,200초 endurance는 중단/실패다. 기존 881 PASS나 180초 예비 시험을
+  이번 실행의 성공으로 대체하지 않는다. 장시간 보고서의 마지막 `running` 상태는 프로세스 사망 전 기록이며 완료 증거가 아니다.
+- endurance 마지막 관측은 약 572초, 20 cycles, 정상 40회, issuer/grant 거부 각 20회, 만료 거부 16회다.
+  이는 중간 관측일 뿐 통과 결과가 아니다. DB/프로세스 최종 정리도 확인되지 않았다.
+- 기존 사용자 Bash/Redis 프로세스 때문에 Ubuntu 재시작은 사용자 승인 대기다. 전역 WSL 종료나
+  파일시스템 수리는 수행하지 않았다. 새 대용량 로컬 다운로드를 중단하고 원격 CI로 검증을 옮긴다.
+- 수집기에 native Linux/6 GiB 여유 공간 사전 조건을 추가했다. WSL VHD의 호스트 용량 오인을 피하며,
+  이 조건도 실행 중 외부 공간 사용까지 보장하는 quota는 아니다. 계약 시험 **25 PASS**.
