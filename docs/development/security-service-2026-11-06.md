@@ -176,3 +176,13 @@ Sova/bravo_gate 없이 import/CLI help와 pip check를 확인했다.
   모든 작업 통과. 실제 API 추가분은 별도 commit/CI로 검증한다.
 - 미검증: 팀 EKS/RKE2 배포판·CNI·Pod·실제 DB/Secret 연동, 운영 revocation 상한,
   host-side 보류 writer의 운영 배선, 이미 접수한 실행의 실환경 조정. 로컬 실측과 구분한다.
+
+### SVC-09 CI 결과와 공개 checksum 오탐
+
+- `051687a`의 Python 3.11/3.14 및 두 플랫폼 계약 작업은 통과했다.
+  secrets 작업은 `tests/kubernetes_api_support.py:21`의 공개 kube-apiserver 바이너리
+  SHA-256을 `generic-api-key`로 탐지했다. 토큰이나 키를 저장한 결과가 아니다.
+- `.gitleaks.toml`에 해당 공개 digest의 정확한 값만 예외로 추가했다. 파일 전체,
+  규칙 전체 또는 테스트 디렉터리를 제외하지 않는다. 전체 Git 이력을 다시 검사한다.
+- 근거: 공식 SIG envtest v1.35.0 archive SHA-512 검증과 추출 바이너리 SHA-256 검증,
+  CI run `42199949004`의 secrets 작업 및 마스킹된 로컬 이력 보고서.

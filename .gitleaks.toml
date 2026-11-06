@@ -7,4 +7,10 @@ description = "Public verifier identifier; not an authentication credential (202
 regexTarget = "secret"
 # protection_profiles.py names a required on-prem secret rotation probe.
 # This exact public identifier has no authentication or authorization capability.
-regexes = ['''^onprem-secret-rotation-probe-v1$''']
+regexes = [
+    '''^onprem-secret-rotation-probe-v1$''',
+    # Public SHA-256 of the official envtest-v1.35.0 Linux amd64 kube-apiserver
+    # executable, independently checked against the SHA-512-verified release.
+    # generic-api-key matches the binary filename plus digest, not a credential.
+    '''^999e4874de50139f40929d6a9f4844efc66ad09647dc0e84031daca4711f12b6$''',
+]
