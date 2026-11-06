@@ -19,7 +19,7 @@
 | 승인된 변경만 실행 | 원래 T10 authority와 현재 등록/계획 잠금 결합, 단일 접수 | 운영 writer의 같은 잠금, 직접 실행 IAM/RBAC 경로 제한 |
 | 장애·철회·응답 유실 | 사전 효과 0회, 사후 APPLIED/hold 유지, 재적용 없음 | 운영 실행기 원장 조정·별도 복구/해제 승인 |
 | 복원 뒤 신뢰 회귀 | 보안 DB의 과거 trust 복원에도 별도 호스트 hold 유지 | 복원과 독립된 차단/체크포인트, 최신 철회 재등록·실제 PITR |
-| 감사·자원 제한 | 입력·시간·worker·감사 크기 제한, 부분 쓰기 후 거부 | T24 외부 불변 보관·용량 경보·권한·회전 절차 |
+| 감사·자원 제한 | 입력·시간·worker·DB 역할 연결 수·감사 크기 제한, 부분 쓰기 후 거부 | T24 외부 불변 보관·전체 DB 예산·용량 경보·권한·회전 절차 |
 | 공급망 | 정확한 source/lock/wheel/image 입력, 설치 도구 제거, 전체 OS/Python 재고 대조 | 현재 이미지 BLOCK 해소, 기존 발행/서명 경로의 registry digest |
 
 원문별 상세 매핑은 [두 문서 연결](architecture-integration.md), 팀 통제별 범위는
@@ -28,18 +28,17 @@
 
 ## 검증 기준과 결과
 
-소비 기준 producer는 `5ddf281b31568e49cdd1a2c993e8d8172cdc7b1e`, 기본 platform은
-`98885a69999398bfe3f49fbc8324a7b19aae3e16`다. 앞선 일곱 플랫폼 SHA도 계약 CI에 유지한다.
+소비 기준 producer는 `ec4aac6c3d839111f76ef7466f7b6fc7fcea1e49`, 기본 platform은
+`7edab5312f965bd683a7738e74d49b883190e8da`다. 앞선 여덟 플랫폼 SHA도 계약 CI에 유지한다.
 동명 `0.11.0` 버전만으로 선택하지 말고 [배포 산출물 계약](distribution.md)의 source/lock/wheel hash를 확인한다.
 
-- [Producer CI](https://github.com/Softbank-Hackathon-Finals/security/actions/runs/42238259304):
-  Python 3.14 **1,008 PASS / 2 SKIP**, 여덟 플랫폼 기준 성공. skip은 별도 장시간 시험과 CA 등록형 HBA다.
-  이 실행의 30분 지속 시험은 별도 job이며 완료 여부는 아래 지속 시험 원본에서 확인한다.
-- 같은 CI의 실제 PostgreSQL 18.4 권한 **54 PASS**, TLS/HBA **1 PASS**, 서비스 image/T10 **11 PASS**.
+- [Producer CI](https://github.com/Softbank-Hackathon-Finals/security/actions/runs/42242142761):
+  Python 3.14 **1,032 PASS / 2 SKIP**, 아홉 플랫폼 기준 성공. skip은 별도 장시간 시험과 CA 등록형 HBA다.
+- 같은 CI의 실제 PostgreSQL 18.4 권한 **58 PASS**, TLS/HBA **1 PASS**, 서비스 image/T10 **11 PASS**.
 - [DB 생성 제한 수정 전후](evidence/reader-storage-2026-11-06/README.md): PG17.11 수정 전
   네 작업 허용 실패를 직접 재현하고 수정 후 거부/권한 drift 12개를 통과했다.
-- [Sova 복원 회귀](https://github.com/Softbank-Hackathon-Finals/sova-test/actions/runs/42227270467):
-  process/container 성공, container **42 PASS**. 이 실행의 producer는 d9c878f이며 최신 pin 소비는 별도 기록한다.
+- [Sova 최종 소비](https://github.com/Softbank-Hackathon-Finals/sova-test/actions/runs/42242378539):
+  process/container 각각 **44 PASS**. 실제 두 PG·TLS와 기존 승인/효과/복원 hold 경계를 확인했다.
 - [지속 시험 원본](evidence/review-endurance-2026-11-06/README.md): 코드 SHA·실측 시간·자원·종료를 구분한다.
   합성 issuer/측정 내용과 실제 PG/TLS/프로세스를 구분하고, 실패한 로컬 실행을 성공에 합산하지 않는다.
 - [이미지 원본](evidence/service-image-scan-2026-11-06/README.md): OS 87개/Python 10개 대조,
@@ -47,6 +46,8 @@
 
 개별 변경 이유·실패 재현·재검증은 [개발 기록](development/security-service-2026-11-06.md)에 있다.
 운영 환경의 모든 권한·네트워크·백업·업무 복원을 시험한 결과로 확대하지 않는다.
+현재 서비스 이미지 실측은 `linux/amd64`다. ARM64 노드 배포에는 해당 아키텍처 이미지/의존성·
+동일 거부/복구 시험을 추가로 인수해야 한다. Python 계약의 호환성을 이미지 아키텍처 검증으로 대체하지 않는다.
 
 ## 플랫폼 연결 순서
 
@@ -67,6 +68,8 @@ T19의 이전 두 앱은 같은 출발지 DB를 사용했다는 정정이 있다
 운영 계정·외부 발급·CNI·T24·백업 저장소가 필요한 항목은 이 인계 조건으로 남겼다.
 
 98885a6의 T19 공개키 원장은 기존 plan view/잠금과 결합하여 승인 후 키 철회를 확인했다.
+7edab53의 공개 서명 원장도 새 인스턴스 재조회에서 원래 만료를 보존하고 현재 철회를 반영한다.
+단계별 host 구현이 추가됐지만 운영 ANALYZE/PROPOSE/WATCH ports·현재 생산자 연결은 별도 인수다.
 [T28 재시작 경계](evidence/t28-restart-boundary-2026-11-06/README.md)에서는 결과 기록 전 중단 후
 모의 효과가 재호출됐다. 운영자 JSONL을 별도 집행 정본으로 채택하지 않으며 기존 T10/T31의
 영속 접수·현재 권한·실제 효과 조정을 유지한다. 플랫폼 T10 원장에 같은 결함이 있다는 주장도 아니다.

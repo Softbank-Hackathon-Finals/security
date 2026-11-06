@@ -12,6 +12,8 @@
 `T10ProgramAuthority`의 `baseline_sha`는 호스트의 검증한 실제 소스에 맞춰 명시한다.
 기본값은 현재 기준이며 실행 시 Git을 조회하거나 버전을 자동 추측하지 않는다. 구현은 개인 환경용이다.
 실제 클러스터의 T7 audience·CNPG 역할·NetworkPolicy·T24 인수는 아직 수행하지 않았다.
+현재 서비스 이미지 실측은 linux/amd64다. ARM64 배포에는 해당 이미지/잠금 의존성과 동일 시험을
+별도로 인수해야 한다. 플랫폼 노드 아키텍처를 확인하지 않은 채 현재 이미지가 실행된다고 전제하지 않는다.
 전용 보안 DB는 PUBLIC TEMPORARY/대형 객체 생성 권한도 제거해야 한다.
 [ADR-0019](adr/0019-reader-storage-creation-boundaries.md)의 운영자 준비 helper와 현재 권한 검사를 따른다.
 기존 공유 DB에 자동 REVOKE하지 않으며 원래 기본 권한이 남아 있으면 신규 판정은 보류한다.

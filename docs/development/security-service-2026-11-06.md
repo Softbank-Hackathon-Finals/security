@@ -681,3 +681,38 @@ push commit 메시지에 `[review-endurance]`가 있는 경우에만 10,800초 �
   생성한 reader 이름 두 prefix/UUID 형태와 autocommit 연결만 허용하고 다른 오류는 즉시 실패한다.
   앱 실행·판정·시험 본문을 재시도하지 않고 autovacuum도 끄지 않는다. 단위 **7 PASS / 0.24초**.
 - 제품 `src`는 변경하지 않았다. 같은 전체 회귀·PG18.4·실제 image/T10을 다시 확인한 뒤 Sova pin을 확정한다.
+
+### SVC-33 원격 검증 결과
+
+- `68ec731` [CI](https://github.com/Softbank-Hackathon-Finals/security/actions/runs/42240519877)의
+  Python 3.14 **1,021 PASS / 2 SKIP, 158.53초**. 실제 PG18.4 권한 **58 PASS / 13.29초**,
+  HBA **1 PASS / 0.44초**, image/T10 **11 PASS / 37.59초**. 여덟 플랫폼 계약도 성공했다.
+- 아홉 번째 플랫폼의 계약은 별도 b859233 CI에서 **26 PASS / 11.84초**였다. 그 run 전체의
+  fixture 정리 실패는 앞 기록대로 유지하며, 수정 후 재검증 source는 `ec4aac6`이다.
+
+### SVC-34 최종 소비 기준 검증
+
+- `ec4aac6c3d839111f76ef7466f7b6fc7fcea1e49`
+  [CI](https://github.com/Softbank-Hackathon-Finals/security/actions/runs/42242142761) 전체 성공.
+  Python 3.14 **1,032 PASS / 2 SKIP, 141.46초**, 아홉 플랫폼 계약 성공.
+  실제 PG18.4 권한 **58 PASS / 9.26초**, HBA **1 PASS / 0.50초**, image/T10 **11 PASS / 25.63초**.
+- Sova `5415fca` [CI](https://github.com/Softbank-Hackathon-Finals/sova-test/actions/runs/42242378539)는
+  process **44 PASS / 66.32초**, container **44 PASS / 39.86초**. 고정 producer/아홉 baseline과
+  기존 두 DB·TLS·승인·원장·보류의 소비 경계가 일치한다. 플랫폼 작업 트리는 변경하지 않았다.
+- 이미지 정책은 HIGH 49건 때문에 계속 BLOCK이다. 실측 이미지의 linux/amd64 범위와 ARM64
+  별도 인수 필요를 명시했다. 계약/순수 Python의 호환성을 모든 노드 이미지 호환으로 확대하지 않는다.
+
+## SVC-35: 완료된 지속 시험의 원본 보존
+
+- 3시간 `163111e`: 실제 10,800.001초, **1 PASS / 10,802.96초**. 360회 회전, 정상 720,
+  issuer/grant 거부 각각 360, 만료 거부 356, RSS 62,108→62,620KiB.
+- 90분 `c4730bb`: 실제 5,400초, **1 PASS / 5,401.77초**. 180회 회전, 정상 360,
+  issuer/grant 거부 각각 180, 만료 거부 176, RSS 62,848→63,352KiB.
+- 저장 생성 제한 30분 `5ddf281`: 실제 1,800초, **1 PASS / 1,801.61초**. 60회 회전, 정상 120,
+  issuer/grant 거부 각각 60, 만료 거부 56, RSS 62,804→63,204KiB.
+- 모두 descriptor 7/thread 2를 유지했고 본인 서비스 프로세스 종료를 확인했다. 각 artifact ZIP/report
+  SHA-256과 전체 113/114개 src Python 파일·시험 SHA를 해당 Git commit에 대조했다.
+  [원본과 공개 출처](../evidence/review-endurance-2026-11-06/README.md)에 결과를 보존했다.
+- 각 source에 들어간 수정 범위를 구분하며 겹친 실행 시간을 합산하지 않는다. 실제 PG/TLS/서명과
+  합성 issuer·측정값의 차이, 운영 부하/전체 통제 인수 미검증 상태를 유지한다.
+  연결 수 예산을 추가한 `68ec731`의 별도 30분 시험은 아직 진행 중이다.

@@ -1,6 +1,6 @@
 # ADR-0020: 전용 reader의 DB 연결 수 상한
 
-- 상태: 구현·실제 PG17.11 집중 검증 완료, PG18.4/서비스 전체 CI 확인 예정.
+- 상태: 구현·실제 PG17.11/18.4 및 서비스 전체 CI 검증 완료. 운영 역할 인수는 별도.
 - 요구: CTRL-07 자원 한도, CTRL-01 침해 범위 제한, SEC-PATCH-08 보호 보존.
 - 플랫폼 기준: `98885a69999398bfe3f49fbc8324a7b19aae3e16`.
 
@@ -25,3 +25,7 @@ prepared transaction/background worker도 이 계산과 다르다. 기존 연결
 CPU/쿼리 비용·전체 max_connections·공유 DB/다른 역할·네트워크 예산과 경보는 운영 인수 항목이다.
 
 근거: [PostgreSQL 18 CREATE ROLE — CONNECTION LIMIT와 Notes](https://www.postgresql.org/docs/18/sql-createrole.html).
+
+`68ec731` [CI](https://github.com/Softbank-Hackathon-Finals/security/actions/runs/42240519877)의
+Python 3.14는 1,021 PASS/2 SKIP, PG18.4 권한은 58 PASS, HBA 1 PASS, image/T10 11 PASS다.
+같은 source의 별도 지속 시험 완료 여부는 [원본 기록](../evidence/review-endurance-2026-11-06/README.md)에 따른다.
