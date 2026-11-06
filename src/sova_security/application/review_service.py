@@ -1,5 +1,6 @@
 """Online authentication and repeated registration checks around pure review."""
 
+from contextlib import nullcontext
 from sova_security.contracts.commands import ContractError, utc
 from sova_security.domain.review_service import (
     MAX_REVIEW_LIFETIME, RemoteProgramReview, ReviewPrincipal, ReviewRegistration,
@@ -16,11 +17,12 @@ class ReviewServiceError(ContractError):
 
 
 class SecurityReviewEndpoint:
-    def __init__(self, *, authenticate, registration_for, service_for, audit, clock):
-        if not all(callable(v) for v in (authenticate, registration_for, service_for, audit, clock)):
+    def __init__(self, *, authenticate, registration_for, service_for, audit, clock, review_scope=nullcontext):
+        if not all(callable(v) for v in (authenticate, registration_for, service_for, audit, clock, review_scope)):
             raise ContractError("Explicit authenticated service dependencies required")
         self.authenticate, self.registration_for, self.service_for = authenticate, registration_for, service_for
         self.audit, self.clock = audit, clock
+        self.review_scope = review_scope
 
     def _identity(self, credential, request):
         actor = self.authenticate(credential)
@@ -50,37 +52,12 @@ class SecurityReviewEndpoint:
         started = utc(self.clock())
         try:
             actor = self._identity(credential, request)
-            registration = self._registration(actor, request)
-            service = self.service_for(actor, registration, request.mode)
-            review = service.review(
-                actor.subject_id, scope=registration.scope,
-                subject_digest=registration.program.subject_digest,
-                phase=registration.phase, not_before=registration.not_before,
-            )
-            validate_review(review, registration)
-
-            def current():
-                if self._identity(credential, request) != actor or self._registration(actor, request) != registration:
-                    raise ReviewServiceError("CONTEXT_CHANGED")
-                now = utc(self.clock())
-                if now < started or now - started >= MAX_REVIEW_LIFETIME:
-                    raise ReviewServiceError("AUTHORITY_UNAVAILABLE")
-                return now
-
-            finished = current()
-            # Receipt contains identifiers/digests only; no tokens, raw evidence or provider errors.
-            event = dict(kind="security-review.v1", stage="computed", request_id=request.request_id,
-                         context_digest=registration.fingerprint, principal_digest=actor.fingerprint,
-                         review_digest=review.fingerprint, mode=request.mode,
-                         passed=review.passed, observed_at=finished.isoformat())
-            if self.audit(event) is not True:
-                raise ReviewServiceError("AUDIT_UNAVAILABLE")
-            finished = current()
-            return RemoteProgramReview(
-                registration.fingerprint, request.request_id, actor.subject_id, actor.fingerprint,
-                registration.scope, request.mode, review, finished,
-                min(started + MAX_REVIEW_LIFETIME, review.valid_until, registration.valid_until, actor.valid_until),
-            )
+            with self.review_scope():
+                result = self._review(credential, request, actor, started)
+            finished = utc(self.clock())
+            if not started <= finished < result.valid_until:
+                raise ReviewServiceError("AUTHORITY_UNAVAILABLE")
+            return result
         except ReviewServiceError as error:
             self._rejected(request, error.code)
             raise
@@ -88,6 +65,39 @@ class SecurityReviewEndpoint:
             # Even trusted adapters can include credentials in SDK exceptions.
             self._rejected(request, "AUTHORITY_UNAVAILABLE")
             raise ReviewServiceError("AUTHORITY_UNAVAILABLE") from None
+
+    def _review(self, credential, request, actor, started):
+        registration = self._registration(actor, request)
+        service = self.service_for(actor, registration, request.mode)
+        review = service.review(
+            actor.subject_id, scope=registration.scope,
+            subject_digest=registration.program.subject_digest,
+            phase=registration.phase, not_before=registration.not_before,
+        )
+        validate_review(review, registration)
+
+        def current():
+            if self._identity(credential, request) != actor or self._registration(actor, request) != registration:
+                raise ReviewServiceError("CONTEXT_CHANGED")
+            now = utc(self.clock())
+            if now < started or now - started >= MAX_REVIEW_LIFETIME:
+                raise ReviewServiceError("AUTHORITY_UNAVAILABLE")
+            return now
+
+        finished = current()
+        # Receipt contains identifiers/digests only; no tokens, raw evidence or provider errors.
+        event = dict(kind="security-review.v1", stage="computed", request_id=request.request_id,
+                     context_digest=registration.fingerprint, principal_digest=actor.fingerprint,
+                     review_digest=review.fingerprint, mode=request.mode,
+                     passed=review.passed, observed_at=finished.isoformat())
+        if self.audit(event) is not True:
+            raise ReviewServiceError("AUDIT_UNAVAILABLE")
+        finished = current()
+        return RemoteProgramReview(
+            registration.fingerprint, request.request_id, actor.subject_id, actor.fingerprint,
+            registration.scope, request.mode, review, finished,
+            min(started + MAX_REVIEW_LIFETIME, review.valid_until, registration.valid_until, actor.valid_until),
+        )
 
     def _rejected(self, request, code):
         # A rejected request cannot become accepted because its audit sink fails.

@@ -116,6 +116,23 @@ class SignedProgramEvidence:
     def projections_for(self, program, phase):
         return tuple(projection for _, projection in self._collect(program, phase))
 
+    def authenticate_batch(self, bundle):
+        """Reverify every original once per pass, without N full route rescans.
+
+        This uses the same live route/key/envelope checks as individual admission.
+        No collection is shared between calls and no historical proof is cached.
+        """
+        if type(bundle) is not tuple or len(bundle) != 3:
+            raise ContractError("Exact program/phase/evidence bundle required")
+        program, phase, evidence = bundle
+        bounded_tuple(evidence, EvidenceRecord)
+        current = tuple(record for record, _ in self._collect(program, phase))
+        if current != evidence:
+            raise ContractError("Evidence batch differs from current authenticated producers")
+        # The shared callback contract accepts True/None or an exact dataclass;
+        # an arbitrary tuple must never become an authentication assertion.
+        return True
+
     def authenticate_evidence(self, record):
         if not isinstance(record, EvidenceRecord):
             raise ContractError("Typed program evidence required")

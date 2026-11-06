@@ -18,6 +18,7 @@ class SecurityProgramService:
         authorize,
         require_no_holds,
         clock,
+        authenticate_evidence_batch=None,
     ):
         self.program_for = program_for
         self.evidence_for = evidence_for
@@ -26,6 +27,9 @@ class SecurityProgramService:
         self.authorize = authorize
         self.require_no_holds = require_no_holds
         self.clock = clock
+        if authenticate_evidence_batch is not None and not callable(authenticate_evidence_batch):
+            raise ContractError("Explicit batch evidence authenticator required")
+        self.authenticate_evidence_batch = authenticate_evidence_batch
 
     def review(self, actor, *, scope, subject_digest, phase, not_before=None):
         require_accept(self.authorize, actor, scope, "security:review-program")
@@ -54,8 +58,11 @@ class SecurityProgramService:
                 )
                 require_accept(self.require_no_holds, current_scope)
             require_authentication(self.authenticate_program, program)
-            for record in evidence:
-                require_authentication(self.authenticate_evidence, record)
+            if self.authenticate_evidence_batch is None:
+                for record in evidence:
+                    require_authentication(self.authenticate_evidence, record)
+            else:
+                require_authentication(self.authenticate_evidence_batch, (program, phase, evidence))
             if (
                 self.program_for(scope, subject_digest) != program
                 or self.evidence_for(program, phase) != evidence

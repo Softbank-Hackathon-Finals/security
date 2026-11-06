@@ -28,31 +28,34 @@ def app_from_config(path, *, clock=None):
     import psycopg
     from sova_security.adapters.postgres_review import PostgresReviewHost
     from sova_security.adapters.review_database import require_reader
+    from sova_security.adapters.review_connections import RequestScopedReader
 
     def connect_read():
         dsn = mounted_bytes(data["database_dsn_file"], limit=8192).decode().strip()
-        connection = psycopg.connect(dsn, connect_timeout=2,
+        connection = psycopg.connect(dsn, connect_timeout=2, autocommit=True,
             options="-c statement_timeout=2000 -c default_transaction_read_only=on -c idle_in_transaction_session_timeout=3000")
         try:
+            connection.isolation_level = psycopg.IsolationLevel.READ_COMMITTED
             params = connection.info.get_parameters()
             if not params.get("host", "").startswith("/") and (
                 not connection.info.ssl_in_use or params.get("sslmode") != "verify-full"
             ):
                 raise ContractError("Verified TLS or registered private Unix socket required")
-            require_reader(connection, tenant_id=data["tenant_id"])
         except Exception:
             connection.close()
             raise
         return connection
 
-    host = PostgresReviewHost(connect_read, clock=clock)
+    reader = RequestScopedReader(connect_read, validate=lambda connection: require_reader(connection, tenant_id=data["tenant_id"]))
+    host = PostgresReviewHost(reader.connect, clock=clock)
     context = ssl.create_default_context(cadata=mounted_bytes(data["tokenreview_ca_file"], limit=65536).decode("ascii"))
     verifier = TokenReviewAuthenticator(audience=data["audience"],
         transport=HTTPSJSONTransport(data["tokenreview_origin"], tls_context=context),
         reviewer_credential=MountedTokenCredential(data["reviewer_token_file"], clock=clock),
         grant_for=MountedWorkloadGrants(data["grants_file"]), clock=clock)
     endpoint = SecurityReviewEndpoint(authenticate=verifier, registration_for=host.registration_for,
-        service_for=host.service_for, audit=LocalReviewAudit(data["local_audit_file"]), clock=clock)
+        service_for=host.service_for, audit=LocalReviewAudit(data["local_audit_file"]), clock=clock,
+        review_scope=reader.request)
     return SecurityReviewApp(endpoint)
 
 

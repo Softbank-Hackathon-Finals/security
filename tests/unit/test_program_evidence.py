@@ -76,7 +76,8 @@ def producers(scope, now):
     return authority, state, signer
 
 
-def test_original_signatures_drive_existing_program_service(producers, scope):
+@pytest.mark.parametrize("batch", [False, True])
+def test_original_signatures_drive_existing_program_service(producers, scope, batch):
     authority, state, _ = producers
     service = SecurityProgramService(
         program_for=lambda *_: state["program"],
@@ -86,6 +87,7 @@ def test_original_signatures_drive_existing_program_service(producers, scope):
         authorize=lambda *_: True,
         require_no_holds=lambda _: True,
         clock=lambda: state["at"],
+        authenticate_evidence_batch=authority.authenticate_batch if batch else None,
     )
     for phase in ProgramPhase:
         report = service.review(
@@ -99,6 +101,24 @@ def test_original_signatures_drive_existing_program_service(producers, scope):
     state["trust"] = replace(state["trust"], revoked=True)
     with pytest.raises(ContractError):
         authority.authenticate_evidence(proof)
+
+
+@pytest.mark.parametrize("fault", ["missing", "tampered", "revoked", "changes-during-read"])
+def test_batch_authentication_rechecks_exact_original_collection(producers, fault):
+    authority, state, _ = producers
+    program, phase = state["program"], ProgramPhase.PREFLIGHT
+    records = authority.evidence_for(program, phase)
+    assert authority.authenticate_batch((program, phase, records)) is True
+    if fault == "missing":
+        records = records[1:]
+    elif fault == "tampered":
+        records = (replace(records[0], artifact_digest="0" * 64),) + records[1:]
+    elif fault == "revoked":
+        state["trust"] = replace(state["trust"], revoked=True)
+    else:
+        state["on_lookup"] = lambda: state.update(trust=replace(state["trust"], revoked=True))
+    with pytest.raises(ContractError):
+        authority.authenticate_batch((program, phase, records))
 
 
 def test_no_routes_or_missing_originals_remain_unknown(producers):

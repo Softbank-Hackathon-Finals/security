@@ -80,6 +80,7 @@ class RegisteredProgramAuthority:
             evidence_for=self.producers.evidence_for,
             authenticate_program=self.authenticate_program,
             authenticate_evidence=self.producers.authenticate_evidence,
+            authenticate_evidence_batch=self.producers.authenticate_batch,
             authorize=authorize,
             require_no_holds=require_no_holds,
             clock=self.clock,

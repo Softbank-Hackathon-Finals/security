@@ -20,7 +20,7 @@ pytestmark = pytest.mark.postgres
 database = isolated_database
 
 
-@pytest.mark.parametrize("fault", ["issuer-revoked", "uid-replaced", "grant-revoked", "reviewer-rotated", "registration-revoked", "audit-unavailable"])
+@pytest.mark.parametrize("fault", ["issuer-revoked", "uid-replaced", "grant-revoked", "reviewer-rotated", "registration-revoked", "audit-unavailable", "signed-producer-revoked"])
 def test_standalone_review_runtime_reads_current_authority(database, scope, tmp_path, fault):
     import psycopg
     from psycopg import sql
@@ -40,6 +40,31 @@ def test_standalone_review_runtime_reads_current_authority(database, scope, tmp_
     artifacts = PostgresSecurityArtifacts(write, tenant_id=scope.tenant_id)
     artifacts.register(scope, state.registration.program, actor_id="registrar")
     artifacts.register(scope, state.registration, actor_id="registrar")
+    trust_store = trust_change = None
+    if fault == "signed-producer-revoked":
+        from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+        from sova_security.adapters.ed25519_evidence import Ed25519EvidenceSigner
+        from sova_security.adapters.postgres_signed_evidence import PostgresSignedEvidence
+        from sova_security.adapters.postgres_verifier_registry import PostgresVerifierRegistry
+        from sova_security.domain.program_evidence import ProgramEvidenceRoute, ProgramSource
+        from sova_security.domain.signed_evidence import VerifierTrust
+        from sova_security.domain.verifier_registry import VerifierTrustChange
+        originals = tuple(replace(record, evidence_id=uuid4().hex, obligation_id="producer:" + binding.check_id,
+            verifier_version="test-only-original:" + binding.check_id)
+            for binding, record in zip(state.registration.program.bindings, state.evidence, strict=True))
+        signer = Ed25519EvidenceSigner(Ed25519PrivateKey.generate(), issuer_id=uuid4().hex, key_id="test-key")
+        trust_store = PostgresVerifierRegistry(write, tenant_id=scope.tenant_id, application_id=scope.application_id)
+        trust = VerifierTrust(signer.issuer_id, signer.key_id, signer.public_key_hex,
+            (state.registration.program.source, scope), tuple(r.verifier_version for r in originals),
+            now - timedelta(seconds=1), state.registration.valid_until)
+        trust_change = VerifierTrustChange(scope.tenant_id, scope.application_id, 1, trust,
+            "registrar", "independent-reviewer", "synthetic-full-program", now, now + timedelta(minutes=1))
+        trust_store.publish(trust_change)
+        signed = PostgresSignedEvidence(write, tenant_id=scope.tenant_id)
+        for binding, original in zip(state.registration.program.bindings, originals, strict=True):
+            signed.save_envelope(signer.sign(original, issued_at=now))
+            artifacts.register(scope, ProgramEvidenceRoute(state.registration.program.fingerprint, binding.check_id,
+                (ProgramSource(signer.issuer_id, original),)), actor_id="registrar")
     with psycopg.connect(dsn, autocommit=True) as admin:
         # The standalone service accepts only verified TLS or this registered private Unix socket.
         if not admin.info.host.startswith("/"):
@@ -71,8 +96,9 @@ def test_standalone_review_runtime_reads_current_authority(database, scope, tmp_
                 def call():
                     return decode(transport.post("/v1/program-reviews", encode(request).encode(), credential))
                 result = call()
-                assert result.subject_id == p.subject_id and not result.review.passed
-                assert all(r.result.value == "unknown" for r in result.review.results)
+                assert result.subject_id == p.subject_id
+                assert result.review.passed is (fault == "signed-producer-revoked")
+                assert all(r.result.value == ("pass" if fault == "signed-producer-revoked" else "unknown") for r in result.review.results)
                 assert issuer.calls >= 2  # online identity rechecked around protected work
                 if fault == "issuer-revoked":
                     issuer.active = False
@@ -84,6 +110,8 @@ def test_standalone_review_runtime_reads_current_authority(database, scope, tmp_
                     mount("reviewer.token", issuer.issue("different-reviewer", "api-server"))
                 elif fault == "registration-revoked":
                     artifacts.revoke(scope, state.registration.fingerprint, expected_revision=1, actor_id="registrar", reason="test")
+                elif fault == "signed-producer-revoked":
+                    trust_store.publish(replace(trust_change, revision=2, trust=replace(trust_change.trust, revoked=True)))
                 else:
                     (tmp_path / "audit.jsonl").unlink()
                     (tmp_path / "audit.jsonl").mkdir()
