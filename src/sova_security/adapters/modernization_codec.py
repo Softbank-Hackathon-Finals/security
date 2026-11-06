@@ -23,9 +23,15 @@ from sova_security.domain import configuration_scan as config
 from sova_security.domain import team_controls as team
 from sova_security.domain import exploitation_intelligence as intel
 from sova_security.domain import detection as detection
+from sova_security.domain import security_program as program
+from sova_security.domain import program_evidence as program_evidence
 
 KINDS = MappingProxyType(
     {
+        "security-program.v1": program.SecurityProgram,
+        "security-program-input.v1": program.ProgramInput,
+        "program-evidence-route.v1": program_evidence.ProgramEvidenceRoute,
+        "program-evidence-projection.v1": program_evidence.ProgramEvidenceProjection,
         "detection-registration.v1": detection.DetectionRegistration,
         "detection-observation.v1": detection.DetectionObservation,
         "asset-inventory.v1": a.AssetInventory,
