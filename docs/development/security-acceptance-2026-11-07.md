@@ -117,3 +117,22 @@ Docker CLI 프로세스의 자원을 서비스 자원으로 잘못 기록하지 
 `platform` import가 팀 저장소 `platform` 의존 금지 규칙과 이름이 겹쳤다. 검사를 완화하지 않고
 Linux 전용 자원 시험에서 기존 `os.uname().machine`을 사용하도록 수정했다.
 90분 컨테이너 시험은 시작되지 않았으며 완료 시간에 포함하지 않는다.
+
+## 보안 스캐너 공급망의 실행 범위 제한 (IMG-05)
+
+2026년 3월 Trivy 공급망 침해의 공식 공지는 악성 0.69.4 및 일부 이미지·Action tag를
+명시한다. 현재 고정한 0.76.2가 침해됐다는 의미는 아니다.
+[공식 공지](https://github.com/aquasecurity/trivy/security/advisories/GHSA-69fq-xp46-6x23),
+[조사 결론](https://github.com/aquasecurity/trivy/discussions/10462)을 참고했다.
+
+기존 hash 고정·깨끗한 환경 변수만으로는 호스트에서 실행한 스캐너의 파일/소켓 접근을
+제한할 수 없었다. 신뢰하는 수집기가 Docker image archive를 만들고, 스캐너는 그 파일과
+전용 cache/output만 마운트한 non-root/read-only 컨테이너에서 실행하도록 변경한다.
+Docker 소켓·checkout·호스트 HOME·클라우드 자격은 마운트하지 않는다. DB 다운로드만
+bridge network를 사용하며 실제 스캔·변환은 network none이다. 현재 이미지 자체를
+실행 환경으로 재사용하므로 별도 mutable scanner image를 추가하지 않는다.
+
+스캐너가 만든 symlink/hardlink/FIFO 또는 과대 파일을 호스트 증거 수집기로 읽지 않는다.
+이 격리는 호스트 자격 노출 범위를 줄인다. 악성 스캐너의 거짓 판정을 탐지하거나 컨테이너
+탈출까지 방어한다고 주장하지 않는다. 기존 전체 심각도·정확한 패키지 집합·최신 DB·
+HIGH/CRITICAL BLOCK 기준은 그대로다. 실제 amd64/arm64 CI 통과 후 인계에 사용한다.

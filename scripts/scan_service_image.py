@@ -15,6 +15,7 @@ from pathlib import Path
 import platform
 import re
 import shutil
+import stat
 import subprocess
 import tempfile
 
@@ -179,6 +180,42 @@ def assess(report, database, inventory, *, image_id, commit, started_at, finishe
                 execution_authorized=False, release_authorized=False, signed_attestation=False)
 
 
+def scanner_command(*, image_id, trivy, inputs, cache, results, uid, gid, network, arguments):
+    """Run the pinned scanner without the host checkout, credentials or Docker socket."""
+    if network not in {"none", "bridge"} or uid <= 0 or gid <= 0:
+        raise ValueError("Non-root isolated scanner identity required")
+    mounts = [(trivy, "/scan-tool", True), (inputs, "/scan-input", True),
+              (cache, "/scan-cache", False), (results, "/scan-output", False)]
+    if any(not path.is_absolute() or "," in str(path) for path, _, _ in mounts):
+        raise ValueError("Explicit safe scanner mount paths required")
+    command = ["docker", "run", "--rm", "--pull=never", "--read-only", "--cap-drop=ALL",
+               "--security-opt=no-new-privileges", "--pids-limit=128", "--memory=2g", "--cpus=2",
+               "--user", f"{uid}:{gid}", "--network=" + network,
+               "--tmpfs", "/tmp:rw,noexec,nosuid,size=256m", "--workdir=/tmp", "--env=HOME=/tmp",
+               "--entrypoint=/scan-tool"]
+    for path, target, readonly in mounts:
+        command.extend(["--mount", f"type=bind,src={path},dst={target}" + (",readonly" if readonly else "")])
+    return command + [image_id, "--cache-dir", "/scan-cache", "--config", "/scan-input/config.yaml", *arguments]
+
+
+def scanner_file(root, relative, limit):
+    """Do not let scanner-created symlinks turn artifact collection into a host read."""
+    root = root.resolve(strict=True)
+    path = root / relative
+    if (not Path(relative).parts or Path(relative).is_absolute() or not path.is_relative_to(root)
+            or any(part == ".." for part in Path(relative).parts)):
+        raise ValueError("Scanner artifact escapes its owned directory")
+    current = root
+    for part in path.relative_to(root).parts:
+        current = current / part
+        info = current.lstat()
+        if stat.S_ISLNK(info.st_mode):
+            raise ValueError("Scanner artifact symlinks are forbidden")
+    if not stat.S_ISREG(info.st_mode) or info.st_nlink != 1 or not 0 < info.st_size <= limit:
+        raise ValueError("Bounded regular scanner artifact required")
+    return path
+
+
 def collect(*, trivy, image_id, commit, inventory_path, output):
     require_scan_capacity(output.parent)
     scanner_digest = {"x86_64": TRIVY_SHA256, "aarch64": TRIVY_ARM64_SHA256}.get(platform.machine())
@@ -190,8 +227,11 @@ def collect(*, trivy, image_id, commit, inventory_path, output):
     started = datetime.now(UTC)
     with tempfile.TemporaryDirectory(prefix="sova-public-image-scan-") as temporary:
         work = Path(temporary)
-        (work / "config.yaml").write_text("{}\n")
-        (work / "ignore").write_text("")
+        inputs, cache, results = (work / name for name in ("inputs", "cache", "results"))
+        for directory in (inputs, cache, results):
+            directory.mkdir(mode=0o700)
+        (inputs / "config.yaml").write_text("{}\n")
+        (inputs / "ignore").write_text("")
         environment = {"PATH": os.environ["PATH"], "HOME": str(work), "LANG": "C.UTF-8"}
         def run(args, *, stage, timeout=360):
             result = subprocess.run(args, cwd=work, env=environment, capture_output=True, timeout=timeout, check=False)
@@ -204,24 +244,36 @@ def collect(*, trivy, image_id, commit, inventory_path, output):
         inventory = document(inventory_path, 65536)
         if inventory.get("platform") != inspected[0].get("Os", "") + "/" + inspected[0].get("Architecture", ""):
             raise ValueError("Runtime inventory differs from actual image architecture")
-        common = [str(trivy), "--cache-dir", str(work / "cache"), "--config", str(work / "config.yaml")]
-        raw = run(common + ["--version", "--format", "json"], stage="scanner version", timeout=10)
+        run(["docker", "image", "save", "--output", str(inputs / "image.tar"), image_id],
+            stage="owned image archive", timeout=120)
+        def scan(arguments, *, stage, network="none", timeout=360):
+            return run(scanner_command(image_id=image_id, trivy=trivy, inputs=inputs, cache=cache, results=results,
+                                       uid=os.getuid(), gid=os.getgid(), network=network, arguments=arguments),
+                       stage=stage, timeout=timeout)
+        raw = scan(["--version", "--format", "json"], stage="scanner version", timeout=30)
         if json.loads(raw).get("Version") != TRIVY_VERSION:
             raise ValueError("Scanner version mismatch")
         (output / "scanner-version.json").write_bytes(raw)
-        run(common + ["image", "--image-src", "docker", "--scanners", "vuln", "--pkg-types", "os,library",
-            "--list-all-pkgs", "--severity", "UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL", "--ignorefile", str(work / "ignore"),
-            "--offline-scan", "--skip-version-check", "--timeout", "5m", "--format", "json", "--quiet",
-            "--output", str(output / "scan.json"), image_id], stage="vulnerability collection")
-        db = work / "cache" / "db"
-        metadata_raw = (db / "metadata.json").read_bytes()
+        scan(["image", "--download-db-only", "--skip-version-check", "--quiet"],
+             stage="isolated public database download", network="bridge")
+        scan(["image", "--input", "/scan-input/image.tar", "--scanners", "vuln", "--pkg-types", "os,library",
+              "--list-all-pkgs", "--severity", "UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL", "--ignorefile", "/scan-input/ignore",
+              "--offline-scan", "--skip-db-update", "--skip-version-check", "--timeout", "5m", "--format", "json", "--quiet",
+              "--output", "/scan-output/scan.json"], stage="offline archive vulnerability collection")
+        scan(["convert", "--format", "cyclonedx", "--output", "/scan-output/sbom.cdx.json", "/scan-output/scan.json"],
+             stage="offline SBOM conversion", timeout=60)
+        metadata_raw = scanner_file(cache, "db/metadata.json", 16384).read_bytes()
         (output / "database-metadata.json").write_bytes(metadata_raw)
+        for name, limit in (("scan.json", 8 * 1024 ** 2), ("sbom.cdx.json", 16 * 1024 ** 2)):
+            shutil.copyfile(scanner_file(results, name, limit), output / name)
         finished = datetime.now(UTC)
         result = assess(document(output / "scan.json"), document(output / "database-metadata.json", 16384), document(inventory_path, 65536),
                         image_id=image_id, commit=commit, started_at=started, finished_at=finished)
-        result.update(scanner_binary_sha256=scanner_digest, database_sha256=sha_file(db / "trivy.db"),
-                      report_sha256=sha_file(output / "scan.json"), runtime_inventory_sha256=sha_file(inventory_path))
-        run(common + ["convert", "--format", "cyclonedx", "--output", str(output / "sbom.cdx.json"), str(output / "scan.json")], stage="SBOM conversion", timeout=30)
+        result.update(scanner_binary_sha256=scanner_digest, database_sha256=sha_file(scanner_file(cache, "db/trivy.db", 1024 ** 3)),
+                      report_sha256=sha_file(output / "scan.json"), runtime_inventory_sha256=sha_file(inventory_path),
+                      scanner_isolation="nonroot-container-offline-archive.v1", scanner_docker_socket=False,
+                      scan_network="none", database_download_network="bridge",
+                      scanned_archive_sha256=sha_file(inputs / "image.tar"))
         result["sbom_sha256"] = sha_file(output / "sbom.cdx.json")
         (output / "decision.json").write_text(json.dumps(result, sort_keys=True, indent=2) + "\n")
     print(json.dumps({key: result[key] for key in ("gate", "severity_counts", "os_package_count", "runtime_python_packages_verified", "release_authorized")}))
