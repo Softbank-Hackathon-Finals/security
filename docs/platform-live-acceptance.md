@@ -29,6 +29,12 @@ ServiceAccount UID, 관련 RBAC/NetworkPolicy와 ConfigMap의 참조·revision�
 Secret 값·전체 환경 변수·DSN은 출력하지 않는다. Reader 설정 v2와 이미지가 같은 rollout인지,
 호스트·등록 API가 준비됐는지 확인한다. rollout을 유도하는 patch·restart·apply·exec는 수행하지 않는다.
 
+0795f65의 GitOps 등록 API·rehearsal-host 이미지 원본은 `445848d2ed9878e31eb6f5aabad0575c61739b47`이다.
+workflow-host도 registration-image pin을 사용한다. develop HEAD와 실제 발행 sourceRevision은
+다를 수 있다. 445848d를 별도 소비 시험에 포함하고, 실제 host binding은 확인한 runtime SHA를
+명시한다. Reader의 sourceRevision은 별도 pin을 따르며 모두를 develop SHA로 덮어쓰지 않는다.
+이 파일은 선언된 배포 입력일 뿐 실제 클러스터에 반영됐다는 증거는 아니다.
+
 아래 실제 거부·철회·복구 시험 중 자원 생성이나 상태 변경이 필요한 부분은 현재 읽기 전용
 확인으로 대체할 수 없다. 후속 전용 시험 창·소유 리소스가 정해진 뒤 시행하고 그전에는 UNKNOWN이다.
 

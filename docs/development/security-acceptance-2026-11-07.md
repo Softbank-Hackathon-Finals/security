@@ -192,3 +192,11 @@ readiness binding 변경은 원격 호출 전에 차단한다. 정상 시 과거
 최신 플랫폼 소비·재평가 **34 PASS / 13.70초**, 최신 T28/SQLite 원장 **34 PASS / 4.71초**.
 Windows 팀 platform checkout은 505d451 그대로이며 수정하지 않았다. PostgreSQL 두 시험을 포함한
 T28 36개 결과는 앞선 원격 CI와 구분한다.
+
+배포 원본을 추가 확인했다. 0795f65의 registration/rehearsal-host pin은 실제 발행 source
+`445848d2ed9878e31eb6f5aabad0575c61739b47`이며 workflow-host도 registration pin을 사용한다.
+개발 HEAD로 runtime SHA를 대신하지 않도록 445848d를 열두 번째 계약 기준으로 별도 검증한다.
+이 선언을 실제 rollout 완료로 해석하지 않으며 맥의 읽기 전용 확인에서 현재 digest/revision을 대조한다.
+
+발행 source 445848d의 focused 실제 모듈 소비 시험도 **34 PASS / 13.24초**다.
+runtime image source와 develop 계약 기준을 모두 별도로 남긴다.

@@ -8,14 +8,14 @@ import pytest
 from platform_review_support import attach, platform_admission as pinned_admission
 
 platform_admission = pinned_admission
-BASELINE = "0795f65e24f58e43545b16b97757efcc0923fd4a"
+BASELINES = {"0795f65e24f58e43545b16b97757efcc0923fd4a", "445848d2ed9878e31eb6f5aabad0575c61739b47"}
 
 
 @pytest.mark.parametrize("platform_admission", ["initial", "post_apply"], indirect=True)
 @pytest.mark.parametrize("fault", [None, "remote-evidence", "fresh-block", "fresh-binding"])
 def test_stored_gate_age_and_current_remote_review_remain_separate(platform_admission, monkeypatch, fault):
     f = platform_admission
-    if f.platform_baseline != BASELINE:
+    if f.platform_baseline not in BASELINES:
         pytest.skip("Historical platform predates dispatch-time re-evaluation")
     from bravo_gate.contract import canonical
     from bravo_platform_events.store import EventError

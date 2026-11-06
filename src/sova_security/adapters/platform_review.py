@@ -20,7 +20,8 @@ PLATFORM_BASELINES = ("f602b39a949b99f3e2e7be901103063e78a52a70",
                       "bb174860bedf100de3970c3e8e410f02f23994e2",
                       "98885a69999398bfe3f49fbc8324a7b19aae3e16",
                       "7edab5312f965bd683a7738e74d49b883190e8da",
-                      "42811da4cf19ce941491d4794ab49790881dc409", PLATFORM_BASELINE)
+                      "42811da4cf19ce941491d4794ab49790881dc409",
+                      "445848d2ed9878e31eb6f5aabad0575c61739b47", PLATFORM_BASELINE)
 
 
 def t10_host_binding(program, session, plan, *, baseline_sha=PLATFORM_BASELINE):
