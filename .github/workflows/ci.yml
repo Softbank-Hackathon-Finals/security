@@ -106,7 +106,7 @@ jobs:
               assert connection.execute("SHOW server_version_num").fetchone() == ('180004',)
           print('Verified isolated PostgreSQL 18.4')
           PY
-          .venv/bin/python -m pytest -q tests/integration/test_review_database_escape.py tests/integration/test_review_database_admin_functions.py tests/integration/test_postgres_boundary.py
+          .venv/bin/python -m pytest -q -rx tests/integration/test_review_database_escape.py tests/integration/test_review_database_admin_functions.py tests/integration/test_postgres_boundary.py tests/integration/test_review_reader_storage.py
       - name: Prepare TLS only in the disposable PostgreSQL service container
         env:
           TEST_DATABASE_CONTAINER: ${{ job.services.postgres.id }}

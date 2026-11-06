@@ -598,3 +598,12 @@ push commit 메시지에 `[review-endurance]`가 있는 경우에만 10,800초 �
   현재 운영자 JSONL을 집행 정본으로 연결하지 않고 기존 T10/T31 영속 접수/조정을 인계 조건으로 남긴다.
 - 정식 CI의 여덟 기준·전체·이미지 검증 후 Sova pin을 갱신한다. 진행 중 장시간 시험은 이전 source이며,
   새 baseline 허용 목록/계약 시험을 소급 검증한 것으로 기록하지 않는다.
+
+## SVC-32 조사 시작: reader의 TEMP·대형 객체 생성 권한
+
+- 테이블 SELECT/RLS 검사가 DB의 기본 PUBLIC TEMP와 대형 객체 생성 함수까지 막는지는 별도 문제다.
+  공식 PostgreSQL 18 privilege/large-object 문서를 대조하고 실제 사설 DB 재현 네 경우를 추가한다.
+- 시험은 각기 임시 테이블 또는 0~1 byte 대형 객체 하나만 만든 뒤 transaction rollback/역할 정리한다.
+  기대하는 거부가 현재 구현에서는 실패할 것으로 예상하여 **strict xfail**로 명시했다. XFAIL은 보안 통과가 아니다.
+  원격 결과를 확인한 뒤 전용 DB의 운영자 준비 조건과 runtime drift 검사를 함께 보강한다.
+- 로컬 C: 여유가 다시 약 0.81GiB여서 DB 재현은 원격 CI에서 수행한다. 큰 로컬 회귀·DB 다운로드를 재개하지 않는다.
