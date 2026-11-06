@@ -325,3 +325,18 @@ process/container 모두 통과. 실제 컨테이너 소비 **39 PASS, 31.89초*
 - `test_review_database_admin_functions.py` 및 PG18 CI에 시험을 추가했다.
   실제 PG17 경계와 TLS 서비스 **49 PASS, 16.91초**. 전체/PG18 결과는 후속 기록한다.
 - 잠금 Python 3.14 + 실제 PG/OPA/Kubernetes + 9e0d6a5 전체 회귀 **881 PASS, 117.78초**.
+
+## SVC-18: 다섯 번째 플랫폼 기준과 T30 쓰기 개방 경계
+
+- 원격 develop `a610bbfb60d3a633597d75dc6e070addd3c3b559` 확인. 이전 기준보다 6개 커밋:
+  T43 Helm 복구/field conflict 처리, gate grant ConfigMap mount 보정, T30 APPLIED 뒤 쓰기 개방 helper.
+  T10/T19 집행 코드 변경은 없다. 기본 기준을 갱신하고 앞선 네 SHA도 별도 소비 CI로 유지한다.
+- 새 `open_after_apply.py`는 T31 기록을 읽고 기존 `write_switch.py`의 status/open을 한 번 호출하는
+  운영자 helper다. marker가 있는 불명확한 실행은 재개방하지 않는다. 자체 보안 승인기를 추가한
+  기능이 아니므로 우리 원격 보안 판정의 강제 집행으로 계산하지 않는다.
+- 플랫폼 인계 때 **쓰기 개방·Edge 전환·컷오버도 같은 계획·반영 ID·이미지 digest·현재 상태에 결속**하고,
+  직접 operator/kubeconfig 경로의 권한을 제한해야 한다. 기존 T10 승인이나 서비스 PASS만으로
+  해당 수동 명령의 우회가 제거됐다고 주장하지 않는다. 별도 인수 항목으로 유지한다.
+- 사용자 platform checkout은 수정하지 않고 소유한 격리 참조 복사본에서 계약/실행 시험을 수행한다.
+- 새 기준에서 계약/실제 T10/TLS/T7 연결 **32 PASS, 60.51초**. upstream의 T30 helper 모의 시험도
+  **7 PASS**였다. 후자는 실제 쓰기 개방이나 클러스터 권한 인수가 아니다.

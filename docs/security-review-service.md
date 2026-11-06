@@ -1,9 +1,10 @@
 # 제한된 보안 판정 서비스
 
-현재 기준 플랫폼: `9e0d6a59d7a00925ddafc50cfa2ccad00c5ba768`.
+현재 기준 플랫폼: `a610bbfb60d3a633597d75dc6e070addd3c3b559`.
 이전 기준 `f602b39a949b99f3e2e7be901103063e78a52a70`과
 `b19488e2debbee8bbe120f1309eadbe19df85b6f`,
-`c225c86cf5e408b5fcd016b0e367d3672d1bac44`도 별도 소비 시험으로 유지한다.
+`c225c86cf5e408b5fcd016b0e367d3672d1bac44`,
+`9e0d6a59d7a00925ddafc50cfa2ccad00c5ba768`도 별도 소비 시험으로 유지한다.
 `T10ProgramAuthority`의 `baseline_sha`는 호스트의 검증한 실제 소스에 맞춰 명시한다.
 기본값은 현재 기준이며 실행 시 Git을 조회하거나 버전을 자동 추측하지 않는다. 구현은 개인 환경용이다.
 실제 클러스터의 T7 audience·CNPG 역할·NetworkPolicy·T24 인수는 아직 수행하지 않았다.
