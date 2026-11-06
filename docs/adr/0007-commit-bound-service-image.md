@@ -12,6 +12,10 @@
 내보낸다. Docker는 실행 의존성을 binary wheel로만 설치한다. 개발 도구·AWS SDK·FastAPI는
 서비스 venv에 넣지 않는다. 바탕 이미지에 포함된 전역 도구까지 제거했다는 의미는 아니다.
 
+후속 ADR-0014에서 전역 pip의 실제 취약점을 확인했다. 현재 구현은 build installer를
+기존 lock의 pip 26.2.2 wheel hash로 고정하고 최종 이미지의 pip/ensurepip 및 전역 Python package를
+제거·검증한다. OS 전체 최소화나 취약점 부재를 뜻하지 않으며 실제 v2 검사는 아직 BLOCK이다.
+
 `scripts/prepare_service_image.py`는 깨끗한 정확한 Git commit을 임시 공간에 archive하고
 잠금 개발 환경의 backend로 wheel을 만든다. Docker에 전달하는 별도 새 디렉터리는
 Dockerfile, wheel, requirements, 공개 manifest만 포함한다. 작업 폴더·Git 메타데이터·로컬
@@ -42,7 +46,7 @@ docker build --platform linux/amd64 --iidfile /tmp/new-service-image-id \
   --label "org.opencontainers.image.revision=$(git rev-parse HEAD)" /tmp/new-service-image-context
 ```
 
-CI `service-image`는 기존 package·세 플랫폼 계약·secrets 성공 후 이 과정을 수행한다.
+CI `service-image`는 기존 package·현재 여섯 플랫폼 계약·secrets 성공 후 이 과정을 수행한다.
 레지스트리에 push하지 않으며, 공개 build inputs와 **local image ID**만 artifact로 보존한다.
 local image ID는 레지스트리 manifest digest가 아니다. 운영 배포에 쓰려면 팀의 기존 이미지
 발행/서명/검증 경로를 통해 registry digest를 받고 그 값을 review manifest에 지정해야 한다.

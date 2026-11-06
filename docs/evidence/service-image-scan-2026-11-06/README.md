@@ -59,3 +59,23 @@ ZIP SHA-256은 `c91c65e58932ff9ac040c742d0dd7e9900414b6398f50030a7f8ec2e7c0677c7
 - 정책은 여전히 **BLOCK**이다. OS 87개 / 서비스 Python 10개가 있는 같은 기능 경로를 유지한다.
 - 이 원본은 v1 수집 정책이다. 이후 도입하는 실제 dpkg inventory와의 완전 일치 검사를 이 결과에
   소급 적용했다고 주장하지 않는다.
+
+## 실제 전체 inventory와 대조한 v2 재검사
+
+`complete-inventory-v2/`는 source `d9c878f7be63b72a2d693f24af37148776fb7fe2`의 원본이다.
+[CI](https://github.com/Softbank-Hackathon-Finals/security/actions/runs/42223422299)와
+[artifact](https://github.com/Softbank-Hackathon-Finals/security/actions/runs/42223422299/artifacts/13505445477)의
+ZIP SHA-256은 `d281d0fbf41b636b6819fe35f998cc9a758514e8fb35bfe30986b619c8cb8c90`이다.
+
+- 관측: 2026-11-06T13:17:31Z. 정책 `service-image-high-critical.v2`.
+- 실제 dpkg의 전체 binary version/architecture와 scanner OS 87개가 일치한다.
+  Epoch/Version/Release를 합치며 Debian revision과 `+bN`을 보존한다. Python 10개도 정확히 일치한다.
+- CRITICAL 0 / HIGH 49 / MEDIUM 75 / LOW 62 / UNKNOWN 0, **배포 BLOCK**.
+- report SHA-256: `ee26a348f85be9ebc22566fe331cff7070a7ad99627ebbb789d7b9a2135489d9`.
+- runtime inventory SHA-256: `753c789707f46650a16f48105399c7a8a7df6f89189c881d107faa3121e35345`.
+- 실제 image/T10 **11 PASS, 36.43초**, PG18.4 경계 **42 PASS, 11.45초**.
+
+플랫폼 8b12236의 T15 이미지 발행은 OCI bytes를 검사한 뒤 기존 GHCR 경로로 발행하지만
+scanner에 `ignore-unfixed: true`를 사용한다. 그 정책을 이 서비스의 v2와 같다고 해석하지 않는다.
+향후 기존 발행 경로를 재사용할 때도 미수정 항목의 처리·예외 승인·registry digest를 명시적으로 인수한다.
+[플랫폼 고정 workflow](https://github.com/Softbank-Hackathon-Finals/platform/blob/8b12236ae4277de16cebdf1391f87721e5851d47/.github/workflows/publish-rehearsal-host-image.yml).

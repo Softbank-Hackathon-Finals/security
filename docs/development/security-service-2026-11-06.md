@@ -470,3 +470,17 @@ push commit 메시지에 `[review-endurance]`가 있는 경우에만 10,800초 �
   아니라 `Epoch`/`Release`와 분리된 구성요소였다. 원본과 실제 dpkg 목록을 대조해 확인했다.
   고정 scanner schema대로 binary epoch/upstream/revision을 재구성하며 source 버전이나 `+bN`을 버리지 않는다.
   잘못된 epoch·revision·architecture·누락 거부 조건은 유지하고 계약 시험을 **40 PASS**로 확장했다.
+
+### SVC-25 결과와 복구 후 전체 회귀
+
+- `d9c878f` [CI](https://github.com/Softbank-Hackathon-Finals/security/actions/runs/42223422299) 전체 성공.
+  Python 3.14 **928 PASS / 1 SKIP, 150.66초**, 여섯 플랫폼 기준, PG18.4 **42 PASS**,
+  실제 서비스 이미지/T10 **11 PASS**. SKIP은 별도 opt-in endurance다.
+- v2 실제 inventory는 OS 87개/Python 10개 모두 일치했다. 원본은
+  [증거 디렉터리](../evidence/service-image-scan-2026-11-06/README.md)에 보존한다.
+  이미지의 미수정 HIGH 49건은 그대로이며 기능/수집 성공과 배포 BLOCK을 구분한다.
+- 사용자 승인 Ubuntu 복구 후 새 참조 checkout과 검증 복사본으로 실행한 로컬 Python 3.14 전체는
+  **928 PASS / 1 SKIP, 133.32초**였다. 실제 격리 PG17/TLS/OPA/Kubernetes API 및 platform 8b12236을 사용했다.
+  앞선 SIGBUS 중단은 실패로 남긴다. 이번 시험은 scanner DB를 내려받지 않았다.
+- 플랫폼 T15 발행의 `ignore-unfixed: true`를 이 서비스에 복사하지 않는다. 기존 OCI/digest 발행 경로의
+  재사용과 취약점 정책의 호환은 별도 조건이며 현재 BLOCK을 자동 예외 처리하지 않는다.
