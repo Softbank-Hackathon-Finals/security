@@ -408,3 +408,6 @@ push commit 메시지에 `[review-endurance]`가 있는 경우에만 10,800초 �
   현재 격리 통제나 일반 CI 통과를 해당 CVE 해결로 간주하지 않는다.
 - 공개 scanner 원본을 보존한 `5c4e0f5`의 Gitleaks가 2개 항목을 거부했다. 이를 바로 예외 처리하지 않고
   규칙/파일/줄만 출력하는 실패 진단을 추가해 위치를 확인한다. 탐지 내용이나 credential은 출력하지 않는다.
+- 두 탐지는 `scan.json` 55/149행의 공식 Python 이미지 **공개 서명 키 fingerprint**였다.
+  [공식 Dockerfile](https://github.com/docker-library/python/blob/master/3.12/slim-trixie/Dockerfile)의
+  GPG_KEY와 정확히 대조했다. 그 값 하나만 literal allowlist에 추가하고 모든 탐지 규칙/전체 history 검사는 유지한다.

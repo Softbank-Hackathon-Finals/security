@@ -13,4 +13,8 @@ regexes = [
     # executable, independently checked against the SHA-512-verified release.
     # generic-api-key matches the binary filename plus digest, not a credential.
     '''^999e4874de50139f40929d6a9f4844efc66ad09647dc0e84031daca4711f12b6$''',
+    # Public CPython 3.12 release signing key fingerprint, inherited from the
+    # official Docker image. This is not private key material or a credential.
+    # https://github.com/docker-library/python/blob/master/3.12/slim-trixie/Dockerfile
+    '''^7169605F62C751356D054A26A821E680E5FA6305$''',
 ]
