@@ -22,6 +22,11 @@ from sova_security.domain.remediation import (
     RehearsalDecision,
 )
 from sova_security.ports.modernization import StoredSecurityArtifact
+from sova_security.domain.security_program import SecurityProgram
+from sova_security.domain.program_evidence import (
+    ProgramEvidenceRoute,
+    ProgramEvidenceProjection,
+)
 
 
 class PostgresSecurityArtifacts:
@@ -67,7 +72,23 @@ class PostgresSecurityArtifacts:
         return StoredSecurityArtifact(scope, value, row[2], row[3] == "revoked")
 
     def _validate_scope(self, conn, scope, value):
-        if isinstance(value, RehearsalRequest):
+        if isinstance(value, SecurityProgram):
+            own = value.target
+        elif isinstance(value, ProgramEvidenceRoute):
+            parent = self._get(conn, scope, value.program_digest)
+            if not isinstance(parent.value, SecurityProgram):
+                raise ContractError("Registered security program parent required")
+            value.binding_for(parent.value)
+            own = parent.scope
+        elif isinstance(value, ProgramEvidenceProjection):
+            parent = self._get(conn, scope, value.route_digest)
+            if not isinstance(parent.value, ProgramEvidenceRoute) or (
+                parent.value.program_digest != value.program_digest
+                or parent.value.check_id != value.check_id
+            ):
+                raise ContractError("Projection differs from registered route")
+            own = parent.scope
+        elif isinstance(value, RehearsalRequest):
             own = value.proposal.scope
         elif isinstance(value, (RehearsalReceipt, RehearsalDecision)):
             # Derive scope through the registered request, never a caller label.
@@ -85,12 +106,56 @@ class PostgresSecurityArtifacts:
         if own != scope:
             raise ContractError("Security artifact scope mismatch")
 
+    def _active_artifacts(self, conn, scope, kind, selector):
+        return conn.execute(
+            """SELECT a.artifact_digest FROM sova_control.security_artifacts_v1 a
+            WHERE a.tenant_id=%s AND a.application_id=%s AND a.environment_id=%s
+              AND a.resource_id=%s AND a.artifact_kind=%s
+              AND a.envelope->'value' @> %s
+              AND NOT EXISTS (SELECT 1 FROM sova_control.security_artifact_events_v1 e
+                WHERE e.tenant_id=a.tenant_id AND e.application_id=a.application_id
+                  AND e.artifact_digest=a.artifact_digest AND e.event_kind='revoked')
+            ORDER BY a.artifact_digest LIMIT 65""",
+            (
+                self.tenant_id,
+                scope.application_id,
+                scope.environment_id,
+                scope.resource_id,
+                kind,
+                Jsonb(selector),
+            ),
+        ).fetchall()
+
     def register(self, scope, value, *, actor_id):
         self._scope(scope)
         identifier(actor_id)
         body = json.loads(encode(value))
         fingerprint = value.fingerprint
         with self.transactions.transaction() as conn:
+            if isinstance(value, (SecurityProgram, ProgramEvidenceRoute)):
+                if isinstance(value, SecurityProgram):
+                    identity = "program-subject:" + value.subject_digest
+                    selector = {"subject_digest": value.subject_digest}
+                else:
+                    identity = (
+                        "program-route:" + value.program_digest + ":" + value.check_id
+                    )
+                    selector = {
+                        "program_digest": value.program_digest,
+                        "check_id": value.check_id,
+                    }
+                self._lock(conn, scope, identity)
+                matches = self._active_artifacts(conn, scope, kind_of(value), selector)
+                if any(row[0] != fingerprint for row in matches):
+                    raise RepositoryConflict(
+                        "Active program identity cannot be rebound; revoke it first"
+                    )
+                if isinstance(value, ProgramEvidenceRoute):
+                    self._lock(conn, scope, value.program_digest)
+                    if self._get(conn, scope, value.program_digest).revoked:
+                        raise RepositoryConflict(
+                            "Cannot attach evidence route to revoked program"
+                        )
             if isinstance(value, RehearsalRequest):
                 # Stable request IDs cannot be rebound to another content digest.
                 self._lock(conn, scope, "request-id:" + value.request_id)
@@ -171,6 +236,49 @@ class PostgresSecurityArtifacts:
             if require_active and stored.revoked:
                 raise RepositoryConflict("Security artifact revoked")
             return stored
+
+    def program(self, scope, subject_digest):
+        """Resolve one currently active host registration for this exact plan."""
+        self._scope(scope)
+        digest(subject_digest)
+        with self.transactions.transaction() as conn:
+            rows = self._active_artifacts(
+                conn, scope, "security-program.v1", {"subject_digest": subject_digest}
+            )
+            if not rows:
+                raise RecordNotFound("Active security program not found")
+            if len(rows) != 1:
+                raise RepositoryConflict("Ambiguous active security program")
+            saved = self._get(conn, scope, rows[0][0])
+            if (
+                saved.revoked
+                or not isinstance(saved.value, SecurityProgram)
+                or saved.value.subject_digest != subject_digest
+            ):
+                raise ContractError("Current program identity mismatch")
+            return saved.value
+
+    def program_routes(self, scope, program_digest):
+        self._scope(scope)
+        digest(program_digest)
+        with self.transactions.transaction() as conn:
+            parent = self._get(conn, scope, program_digest)
+            if parent.revoked or not isinstance(parent.value, SecurityProgram):
+                raise RepositoryConflict("Active security program parent required")
+            rows = self._active_artifacts(
+                conn,
+                scope,
+                "program-evidence-route.v1",
+                {"program_digest": program_digest},
+            )
+            if len(rows) > 64:
+                raise ContractError("Program evidence route bound exceeded")
+            routes = tuple(self._get(conn, scope, row[0]).value for row in rows)
+            if any(not isinstance(route, ProgramEvidenceRoute) for route in routes):
+                raise ContractError("Typed registered evidence routes required")
+            if len({route.check_id for route in routes}) != len(routes):
+                raise RepositoryConflict("Ambiguous active program evidence route")
+            return tuple(sorted(routes, key=lambda route: route.check_id))
 
     def revoke(self, scope, fingerprint, *, expected_revision, actor_id, reason):
         self._scope(scope)

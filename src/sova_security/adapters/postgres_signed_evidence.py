@@ -101,3 +101,48 @@ class PostgresSignedEvidence:
         ):
             raise ContractError("Signed evidence lookup integrity mismatch")
         return result
+
+    def current_envelope(self, scope, *, obligation_id, issuer_id):
+        """Latest observation on an explicitly registered producer channel.
+
+        Deliberately do not filter revision/method: newer changed or failed
+        evidence must invalidate an old route, not leave an old PASS selectable.
+        Selection does not authenticate the result; consumers verify its issuer.
+        """
+        from sova_security.contracts.commands import ResourceScope
+
+        if not isinstance(scope, ResourceScope) or scope.tenant_id != self.tenant_id:
+            raise ContractError("Producer channel scope mismatch")
+        identifier(obligation_id)
+        identifier(issuer_id)
+        with self.lifecycle.transaction() as conn:
+            rows = conn.execute(
+                """SELECT evidence_id,(document #>> '{evidence,observed_at}')::timestamptz
+                FROM sova_control.signed_security_evidence
+                WHERE tenant_id=%s AND application_id=%s AND issuer_id=%s
+                  AND document #>> '{evidence,scope,environment_id}'=%s
+                  AND document #>> '{evidence,scope,resource_id}'=%s
+                  AND document #>> '{evidence,obligation_id}'=%s
+                ORDER BY (document #>> '{evidence,observed_at}')::timestamptz DESC
+                LIMIT 2""",
+                (
+                    self.tenant_id,
+                    scope.application_id,
+                    issuer_id,
+                    scope.environment_id,
+                    scope.resource_id,
+                    obligation_id,
+                ),
+            ).fetchall()
+        if not rows:
+            raise RecordNotFound("Current producer envelope not found")
+        if len(rows) == 2 and rows[0][1] == rows[1][1]:
+            raise ContractError("Ambiguous current producer evidence")
+        result = self.get_envelope(scope.application_id, rows[0][0])
+        if (
+            result.evidence.scope != scope
+            or result.evidence.obligation_id != obligation_id
+            or result.issuer_id != issuer_id
+        ):
+            raise ContractError("Producer channel lookup integrity mismatch")
+        return result

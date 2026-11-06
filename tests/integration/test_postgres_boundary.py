@@ -16,6 +16,80 @@ from sova_security.migrations import MIGRATIONS, migration_sql
 pytestmark = pytest.mark.postgres
 
 
+@pytest.mark.parametrize("revocation", ["route", "program", "producer-key", "producer-updated", "ambiguous-producer"])
+def test_registered_program_rechecks_real_pg_routes_and_signed_producers(database, scope, revocation):
+    import psycopg
+    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+    from program_support import program_bundle
+    from sova_security.adapters.ed25519_evidence import Ed25519EvidenceSigner
+    from sova_security.adapters.postgres_modernization import PostgresSecurityArtifacts
+    from sova_security.adapters.postgres_signed_evidence import PostgresSignedEvidence
+    from sova_security.adapters.postgres_verifier_registry import PostgresVerifierRegistry
+    from sova_security.adapters.registered_program import RegisteredProgramAuthority
+    from sova_security.contracts.repositories import RepositoryConflict
+    from sova_security.domain.program_evidence import ProgramEvidenceRoute, ProgramSource
+    from sova_security.domain.security_program import ProgramPhase
+    from sova_security.domain.signed_evidence import VerifierTrust
+    from sova_security.domain.verifier_registry import VerifierTrustChange
+
+    dsn, role, password = database
+    def connect():
+        return psycopg.connect(dsn, user=role, password=password)
+    now = datetime.now(UTC)
+    scope = replace(scope, resource_id="program-" + uuid4().hex)
+    program, records = program_bundle(scope, now)
+    original = next(record for record in records if record.evidence_id == "test:identity-boundary")
+    original = replace(original, evidence_id=uuid4().hex, obligation_id="producer:iam-isolation",
+                       verifier_version="owned-identity-verifier:v1")
+    signer = Ed25519EvidenceSigner(Ed25519PrivateKey.generate(), issuer_id=uuid4().hex, key_id="test-key")
+    route = ProgramEvidenceRoute(program.fingerprint, "identity-boundary", (ProgramSource(signer.issuer_id, original),))
+    artifacts = PostgresSecurityArtifacts(connect, tenant_id=scope.tenant_id)
+    signed = PostgresSignedEvidence(connect, tenant_id=scope.tenant_id)
+    registry = PostgresVerifierRegistry(connect, tenant_id=scope.tenant_id, application_id=scope.application_id)
+    trust = VerifierTrust(signer.issuer_id, signer.key_id, signer.public_key_hex, (scope,),
+                          (original.verifier_version,), now - timedelta(seconds=1), program.valid_until)
+    change = VerifierTrustChange(scope.tenant_id, scope.application_id, 1, trust,
+        "registrar", "independent-approver", "local-test", now, now + timedelta(minutes=1))
+    registry.publish(change)
+    signed.save_envelope(signer.sign(original, issued_at=now))
+    artifacts.register(scope, program, actor_id="host-registrar")
+    artifacts.register(scope, route, actor_id="host-registrar")
+    assert artifacts.program(scope, program.subject_digest) == program
+    assert artifacts.program_routes(scope, program.fingerprint) == (route,)
+    with pytest.raises(RepositoryConflict):
+        artifacts.register(scope, replace(program, valid_until=program.valid_until + timedelta(seconds=1)), actor_id="host-registrar")
+    with pytest.raises(RepositoryConflict):
+        different = replace(route, sources=(replace(route.sources[0], issuer_id="another-producer"),))
+        artifacts.register(scope, different, actor_id="host-registrar")
+    authority = RegisteredProgramAuthority(artifacts=artifacts, signed_evidence=signed,
+        resolve_trust=registry.resolve, scope=scope, subject_digest=program.subject_digest,
+        clock=lambda: datetime.now(UTC))
+    service = authority.service(authorize=lambda *_: True, require_no_holds=lambda _: True)
+    report = service.review("operator", scope=scope, subject_digest=program.subject_digest, phase=ProgramPhase.PREFLIGHT)
+    assert not report.passed  # A single IAM proof does not satisfy every control.
+    assert next(row for row in report.results if row.check_id == "identity-boundary").result.value == "pass"
+    proof = authority.producers.evidence_for(program, ProgramPhase.PREFLIGHT)[0]
+    assert authority.producers.authenticate_evidence(proof) == proof
+    projection = authority.producers.projections_for(program, ProgramPhase.PREFLIGHT)[0]
+    assert artifacts.register(scope, projection, actor_id="auditor").value == projection
+    other = PostgresSecurityArtifacts(connect, tenant_id="other-tenant")
+    with pytest.raises(RecordNotFound):
+        other.program(replace(scope, tenant_id="other-tenant"), program.subject_digest)
+    if revocation in {"producer-updated", "ambiguous-producer"}:
+        from sova_security.contracts.evidence import VerificationResult
+        observed_at = datetime.now(UTC) if revocation == "producer-updated" else original.observed_at
+        newer = replace(original, evidence_id=uuid4().hex, observed_at=observed_at,
+                        result=VerificationResult.FAIL)
+        signed.save_envelope(signer.sign(newer, issued_at=datetime.now(UTC)))
+    elif revocation == "producer-key":
+        registry.publish(replace(change, revision=2, trust=replace(trust, revoked=True)))
+    else:
+        value = route if revocation == "route" else program
+        artifacts.revoke(scope, value.fingerprint, expected_revision=1, actor_id="operator", reason="qualification")
+    with pytest.raises((ContractError, RecordNotFound, RepositoryConflict)):
+        authority.producers.authenticate_evidence(proof)
+
+
 @pytest.fixture(scope="module")
 def database():
     dsn = os.environ.get("SOVA_SECURITY_TEST_POSTGRES_DSN")
