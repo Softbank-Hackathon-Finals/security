@@ -85,3 +85,45 @@ Asahi의 [2026-02-18 공식 조사·재발 방지 발표](https://www.asahigroup
 신뢰 이력의 복원을 스스로 감지한다고 주장하지 않으며, 호스트 원장까지 함께 되돌아가는 상황은 미검증이다.
 후속 플랫폼 인수는 복원 대상과 독립된 차단 → 최신 키/철회와 실제 효과 조정 → 현재 데이터·업무 검증 →
 별도 해제 승인 순서로 준비한다. T12/T13/T20/T24/T35의 기존 경로에 원본 증거를 연결하고 중복 복구기를 만들지 않는다.
+
+## 2026-11-07 추가 대조: 승인 화면과 실제 실행 입력
+
+2025-02-21 Bybit 사고에 대해 FBI는 약 15억 달러의 가상자산 탈취를 공지했다.
+[FBI/IC3 원문, 2025-02-26](https://www.ic3.gov/PSA/2025/PSA250226).
+사고 조사에 참여한 Sygnia는 개발자 단말·AWS 접근과 웹 자원 변조를 거쳐 승인 과정의 거래 내용이
+조작된 경로를 정리했다. 일부 세부 내용은 다른 조사팀의 예비 결과를 인용하며 미공개 부분도 구분한다.
+[Sygnia 조사 정리, 2025-03-16](https://www.sygnia.co/blog/sygnia-investigation-bybit-hack/).
+이 사고는 블록체인 거래 사례이며 우리 플랫폼 사고나 동일 공격의 재현 결과가 아니다.
+
+이 자료에서 도출한 설계 판단은 **사용자가 본 설명·화면과 실행되는 실제 입력의 결속을 별도로
+검증해야 한다**는 것이다. 사람의 승인과 서명이 존재한다는 사실만으로 올바른 입력을 보장하지 않는다.
+이번 T28 연결은 현재 계획/application·diff/image·정확한 argv·플랫폼 source를 기존 command fingerprint에
+결속하고 변경·철회·위조 JSONL을 차단한다. 새 T10 재평가 시험은 과거 GATE 기록과 실행 직전 판정을
+분리한다. 이 두 변경은 사고를 읽기 전에 구현한 기존 보강이며 금융 사고 대응 기능을 새로 복제하지 않는다.
+
+| 남길 경계 | 구현 또는 현재 시험 | 실제 플랫폼 인수에 남는 것 |
+|---|---|---|
+| 승인과 현재 실행 입력 일치 | Sova `test_platform_t28_restart.py`의 changed registration·initial args 거부, 현재 T10 authority 소비 | 승인 UI가 표시한 대상·diff·distribution digest와 서버의 canonical 승인 payload가 같은지 독립 대조 |
+| 과거 PASS 재사용 방지 | `tests/contracts/test_platform_reevaluation_bridge.py`, initial/post_apply별 새 BLOCK·binding 변경·추가 근거 누락 차단 | 실제 생산자 원문·시각·현재 등록·계획 잠금 연결 |
+| 파일 이름과 실제 내용 구분 | T28의 argv는 정확히 결속하지만 파일 내용 자체를 인증하지 않음을 명시 | 기존 공급자 adapter.validate에서 등록된 입력 digest와 실제 읽은 내용을 대조. 운영 입력이 미결속이면 보류 |
+| 승인자와 실행 주체 분리 | 최신 T10의 host subject/apply_change 흐름을 그대로 소비 | 개발자·UI 자격이 실제 변경 경로를 우회하지 못하는 IAM/RBAC 거부와 허용 대조 |
+
+추가 운영 시험은 현재 읽기 전용 Mac 확인 이후 별도 시험 창에서 수행한다. 이 표를 기존 22개 검사나
+전체 금융권 보안 인수 PASS로 환산하지 않는다. 승인 UI 변경이나 새 발급·서명 체계는 이번에 추가하지 않았다.
+
+## 2026-11-07 추가 대조: 보안 도구도 공급망 입력
+
+Trivy의 공식 공지는 2026-03-19의 악성 0.69.4 발행·Action tag 변조와 03-22의 일부 Docker 이미지
+변조를 설명한다. 이미 고정한 0.76.2가 침해됐다고 주장하는 근거는 아니다.
+[공식 GHSA](https://github.com/aquasecurity/trivy/security/advisories/GHSA-69fq-xp46-6x23).
+
+이 사건에서 도출한 최소 권한 판단을 이번 IMG-05에 반영했다. hash 고정뿐 아니라 scanner를
+호스트 Docker socket/checkout/HOME 없이 제한된 컨테이너에서 실행하고 archive만 제공한다.
+실제 검사/변환은 network none, DB 다운로드만 bridge다. scanner가 생성한 link/FIFO·과대 출력은
+호스트에서 수집하지 않는다. 구현은 `scripts/scan_service_image.py`, 시험은
+`tests/contracts/test_scanner_isolation.py`, 실제 두 아키텍처의 결과는
+[최종 이미지 근거](evidence/service-image-scan-2026-11-07/README.md)에 있다.
+
+이는 유출 가능한 CI 자격과 파일 접근 범위를 줄이는 조치다. 독립 scanner의 교차 검증이나 서명된
+발행 증명은 아니므로 악성 도구의 거짓 PASS까지 방어한다고 표현하지 않는다. 기존 플랫폼 발행·서명
+경로를 인수하고, 실제 발행 시 새 scan과 검토한 도구 source/artifact를 확인하는 조건을 유지한다.
