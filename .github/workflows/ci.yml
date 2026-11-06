@@ -227,6 +227,18 @@ jobs:
           "$RUNNER_TEMP/gitleaks" git --redact=100 --no-banner
           --log-opts=--all --report-format=json
           --report-path="$RUNNER_TEMP/gitleaks-report.json" .
+      - name: Locate rejected records without printing their content
+        if: failure()
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import json, os
+          path = Path(os.environ['RUNNER_TEMP']) / 'gitleaks-report.json'
+          if path.is_file():
+              records = json.loads(path.read_text())
+              for record in records[:20]:
+                  print(json.dumps({key: record.get(key) for key in ('RuleID', 'File', 'StartLine', 'Commit')}))
+          PY
   package:
     runs-on: ubuntu-latest
     timeout-minutes: 10
