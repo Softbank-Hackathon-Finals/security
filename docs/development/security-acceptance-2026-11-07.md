@@ -161,3 +161,16 @@ IMG-05의 `f333c56` CI에서는 격리 DB 다운로드와 scan/convert를 마친
 큰 DB를 1GiB로 가정했던 상한을 4GiB로 변경하고 실측 크기를 기록한다. JSON/SBOM 상한과
 symlink/hardlink 거부, 6GiB 시작 여유 조건, 취약점 판정 기준은 유지한다.
 파일 종류·link 수·크기 진단을 구분하며 재검증 전 결과는 UNKNOWN으로 유지한다.
+
+## 사용자 대상 확인과 추가 플랫폼 갱신
+
+사용자가 플랫폼은 `bravo-personal` SSO → 기존 SSM API 포워딩, namespace `platform-state`라고
+확인했다. `default`는 다른 계정이며 팀 접속 ZIP/`.local-tools` 설정은 온프렘 목적지용이다.
+앞선 ZIP의 DNS 실패를 플랫폼 결과로 취급하지 않는다. 실제 로그인·실환경 검증은 데모용 맥에서
+후속 진행하도록 사용자가 지정했다. 현재는 일괄 배포와 겹치는 공용 변경 없이 인계 준비만 한다.
+
+작업 중 develop이 42811da에서 `0795f65e24f58e43545b16b97757efcc0923fd4a`로 39개 커밋 진행됐다.
+새 T24 follow를 재사용하도록 인계를 수정했고, T10의 실행 직전 재평가·호스트 자체 주체·SHIFT
+분리와 reader v2의 같은 rollout 조건을 검토했다. 열한 번째 소비 기준과 최신 실제 이미지/T10
+시험을 추가한다. 새 T28의 platform-context 상태 조회 subprocess 우회와 initial_args 결속도
+별도로 보강한다. 두 이전/최신 driver의 원문 hash를 고정하고 이전 재시작 시험을 함께 유지한다.

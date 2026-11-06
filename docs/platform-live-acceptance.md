@@ -1,32 +1,36 @@
 # 실제 플랫폼 인수 실행안
 
-기준 platform `42811da4cf19ce941491d4794ab49790881dc409`, 2026-11-07 KST.
-현재 상태는 **접속 설정 확보 / 본인 tailnet 접속 대기**다. 개인 CI의 PASS를 아래 결과로 옮기지 않는다.
+기준 platform `0795f65e24f58e43545b16b97757efcc0923fd4a`, 2026-11-07 KST.
+현재 상태는 **데모용 맥에서 로그인·실환경 확인하도록 인계**다. 사용자가 실제 인수를 후속으로
+지정했고, 현재 플랫폼 일괄 배포와 겹치는 변경을 금지했다. 개인 CI의 PASS를 아래 결과로 옮기지 않는다.
 이번 작업은 기존 플랫폼의 배포·발급·승인·실행·감사·복원 도구를 소비한다.
 
 ## 먼저 고정할 대상
 
-사용자 다운로드의 기존 팀 접속 ZIP에서 실제 `team-test.json`을 확인했다. 자격 없이 두 HTTPS
-경로의 전송을 점검했지만 모두 DNS 해석이 불가능했고, Windows/WSL의 기존 Tailscale 도구도
-확인되지 않았다. 이 결과는 네트워크 정책의 정상 차단이나 인증 거부 PASS가 아니다.
-본인 Tailscale 접속 뒤 실제 시험 namespace 및 환경 등록을 확인한다.
-기존 AWS profile이 플랫폼 계정인지 확인되지 않아 그 계정의 권한을 확대하거나
-새 자원을 만들지 않았다. 키·토큰·관리자 kubeconfig를 저장소에 넣지 않는다.
+사용자 확인으로 대상과 경로를 구분했다.
 
-공식 [팀 진입점](https://github.com/Softbank-Hackathon-Finals/platform/blob/42811da4cf19ce941491d4794ab49790881dc409/docs/team-self-service.md)은
-다음 순서다. 아래는 명령 형식이며 이번 세션의 실행 결과가 아니다.
+- **플랫폼 AWS RKE2:** `bravo-personal` SSO profile, 기존 SSM API 포워딩 경로.
+  T10 호스트·Reader·등록 API의 namespace는 `platform-state`다. `default`는 다른 계정이므로 사용하지 않는다.
+- **온프렘 목적지:** `.local-tools`의 `team-test.json`·`bravo-target-test`와 팀 접속 ZIP은 이 대상용이다.
+  플랫폼 인수에 사용하지 않는다. 앞서 ZIP 경로의 DNS가 실패한 결과는 플랫폼 네트워크 시험이 아니다.
+- **현재 범위:** 공용 리소스 변경 없는 읽기 전용 확인. 류지환 님의 일괄 배포 종료와 시험 시점을
+  맞춘 뒤 데모용 맥의 실제 로그인으로 확인한다. 대신 연락하거나 배포를 시작하지 않았다.
+
+[최신 플랫폼 사전 점검](https://github.com/Softbank-Hackathon-Finals/platform/blob/0795f65e24f58e43545b16b97757efcc0923fd4a/docs/operations/happy-path-preflight.md)의
+등록된 SSM 경로를 먼저 확인한다. 아래는 후속 실행 형식이며 이번 세션의 성공 결과가 아니다.
 
 ```sh
-uv run --python 3.12 python scripts/team_runtime.py check --access /private/team-test.json
-uv run --python 3.12 python scripts/team_runtime.py run --suite isolation --access /private/team-test.json
-uv run --python 3.12 python scripts/team_runtime.py run --suite credentials --access /private/team-test.json
+AWS_PROFILE=bravo-personal ./workon target-check t10-db --route platform-rke2-ssm
 ```
 
-첫 `check`에서 본인 ServiceAccount 신원·클러스터 UID·환경 ConfigMap UID/resourceVersion/
-내용 해시·노드 아키텍처·현재 이미지 digest를 대조한다. 실패하면 쓰기 시험을 시작하지 않는다.
-생성한 실행 ID와 상태 디렉터리를 유지하고, 응답 유실 시 새 `run`을 실행하지 않는다.
-동일 ID에 `status`/`cleanup`을 사용하고 각 객체의 UID로 정리한다. `cleanup=CLEAN`은 원 시험
-PASS가 아니다. 이 두 suite는 기존 T3/T15 범위이며 보안 서비스 인수 다섯 항목 전체가 아니다.
+SSO 계정·클러스터 UID·SSM 대상·로컬 포워딩 포트가 등록된 플랫폼 대상과 일치해야 한다.
+맥의 기존 context 이름을 확인한 뒤 `platform-state`의 Deployment/Pod 신원·상태·이미지 digest,
+ServiceAccount UID, 관련 RBAC/NetworkPolicy와 ConfigMap의 참조·revision을 읽는다.
+Secret 값·전체 환경 변수·DSN은 출력하지 않는다. Reader 설정 v2와 이미지가 같은 rollout인지,
+호스트·등록 API가 준비됐는지 확인한다. rollout을 유도하는 patch·restart·apply·exec는 수행하지 않는다.
+
+아래 실제 거부·철회·복구 시험 중 자원 생성이나 상태 변경이 필요한 부분은 현재 읽기 전용
+확인으로 대체할 수 없다. 후속 전용 시험 창·소유 리소스가 정해진 뒤 시행하고 그전에는 UNKNOWN이다.
 
 ## 다섯 인수 항목과 필요한 원본
 
@@ -44,9 +48,10 @@ PASS가 아니다. 이 두 suite는 기존 T3/T15 범위이며 보안 서비스 
 
 ## 기존 운영 구현에서 먼저 확인할 차이
 
-**T24:** 기준 SHA의 [기존 서비스](https://github.com/Softbank-Hackathon-Finals/platform/blob/42811da4cf19ce941491d4794ab49790881dc409/services/audit-log/README.md)는
-실제 S3 시험을 완료했지만 T10 상시 연결은 아직 없다고 기록한다. 호스트의 커밋 이벤트와
-기존 writer를 연결하고 기존 origin ID 중복 제거·resume·readback을 재사용한다.
+**T24:** 최신 SHA의 [기존 서비스](https://github.com/Softbank-Hackathon-Finals/platform/blob/0795f65e24f58e43545b16b97757efcc0923fd4a/services/audit-log/README.md)는
+T10 SSE를 구독하는 `bravo-audit follow`와 실제 버킷 시험을 이미 제공한다. 이 경로를 재사용한다.
+저장소의 체인에서 재개하고 마지막 이벤트를 다시 대조하는 계약을 유지하며 별도 cursor/writer를 만들지 않는다.
+상시 배포와 런타임 writer 주체 등록은 아직 후속이라고 기록돼 있다. 현재 배포 상태를 읽어서 확인한다.
 보안 판정 서비스에 S3 writer 자격을 추가하지 않는다. writer 역할의 신뢰 주체가 실제
 런타임에 등록됐는지 먼저 확인한다. 버킷 정책/Lock 변경 거부 탐침은 호출자의 현재 신원과
 소유 시험 대상이 확인된 범위에서만 수행한다. 기존 실백업·감사 객체를 삭제 대상으로 쓰지 않는다.
@@ -56,6 +61,8 @@ PASS가 아니다. 이 두 suite는 기존 T3/T15 범위이며 보안 서비스 
 기록한다. 현재 환경을 읽어 이 조건부터 확인한다. 임의로 운영 DB를 patch하거나 단일
 인스턴스를 재시작하지 않는다. 실제 필요 변경은 정확한 대상·diff·영향 범위를 정한 뒤
 기존 플랫폼 변경 절차로 넘긴다. 개인 환경에서 만든 정상 결과로 이 선행 조건을 채우지 않는다.
+0795f65의 출발지 기록은 저장소/플러그인/WAL 경로 적용까지 진행됐지만 실제 백업·복원은 아직이며,
+Executor의 AWS 자격 부재로 일부 판정이 UNKNOWN임을 명시한다. 이 제한도 운영 결과에 보존한다.
 
 **T28:** 개인 `DurableT28Port`는 최신 고정 driver를 기존 effect journal에 연결한다.
 원본 `happy_path.py` 자체는 바뀌지 않았다. 플랫폼 조립 시 기존 T10 승인/잠금·영속 접수와
