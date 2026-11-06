@@ -1,0 +1,110 @@
+{
+  "kind": "local-platform-intake-qualification.v1",
+  "platform_sha": "c364e6284d2e635ff86001e2feac88560ed23ebc",
+  "package_version": "0.11.1",
+  "package_source": "27e6e85514a7cbb3e43d216464b72d9bd78f3fcf",
+  "contract_test_source": "3d46637f1347b039814d1476eb859216da3b227b",
+  "consumer_source": "1325a647f1439d126a263658abb4ca1a23e0fbcd",
+  "ci": {
+    "producer_images": 42291238009,
+    "contracts_and_package": 42291826766,
+    "consumer": 42291343841
+  },
+  "source_identity": {
+    "image_source": "1248a7bcad781f378a32c61ab2e78d23a11dfbf9",
+    "package_and_image_git_tree": "23b17844601a1c0bc1b65f07d6554e1f23479643",
+    "runtime_inputs_unchanged_after_package_source": [
+      "src",
+      "pyproject.toml",
+      "uv.lock",
+      "scripts"
+    ]
+  },
+  "tests": {
+    "platform_interop": {
+      "passed": 37,
+      "skipped": 0
+    },
+    "unchanged_t33_producer": {
+      "passed": 183,
+      "warnings": 1
+    },
+    "package_python314": {
+      "passed": 1117,
+      "skipped": 5
+    },
+    "package_python311": {
+      "passed": 1059,
+      "skipped": 63
+    },
+    "consumer_intake_and_module_boundary_each_runtime": {
+      "passed": 11
+    },
+    "consumer_process": {
+      "passed": 44
+    },
+    "consumer_container": {
+      "passed": 44
+    },
+    "t28_current": {
+      "passed": 36
+    },
+    "t28_previous": {
+      "passed": 32,
+      "skipped": 4
+    }
+  },
+  "images": [
+    {
+      "source_commit": "1248a7bcad781f378a32c61ab2e78d23a11dfbf9",
+      "platform": "linux/amd64",
+      "local_image_config_id": "sha256:27d1ff52208c4a6022e41505f9a0e352d266a0b9689d17569e50f7498a025359",
+      "archive_sha256": "1f024cb28f5aabd753070a92a3ea86a3dedd19b22ef69aaaa64830129c2e9f4e",
+      "registry_digest": null,
+      "release_authorized": false,
+      "signed_attestation": false,
+      "gate": "PASS",
+      "severity_counts": {
+        "CRITICAL": 0,
+        "HIGH": 0,
+        "LOW": 0,
+        "MEDIUM": 0,
+        "UNKNOWN": 0
+      },
+      "observed_at": "2026-11-06T20:52:07.081563+00:00",
+      "os_packages_verified": 38,
+      "runtime_python_packages_verified": 10
+    },
+    {
+      "source_commit": "1248a7bcad781f378a32c61ab2e78d23a11dfbf9",
+      "platform": "linux/arm64",
+      "local_image_config_id": "sha256:53b26bf4369adad8309baf87c147791890ad6fa358e9f154b2b113efa3330c97",
+      "archive_sha256": "685ac8e2f64e441fafb7765abeab62dd39dd25e667948c7a4a8d69ca6a3f9ae7",
+      "registry_digest": null,
+      "release_authorized": false,
+      "signed_attestation": false,
+      "gate": "PASS",
+      "severity_counts": {
+        "CRITICAL": 0,
+        "HIGH": 0,
+        "LOW": 0,
+        "MEDIUM": 0,
+        "UNKNOWN": 0
+      },
+      "observed_at": "2026-11-06T20:52:15.575565+00:00",
+      "os_packages_verified": 38,
+      "runtime_python_packages_verified": 10
+    }
+  ],
+  "live_verified": false,
+  "execution_authorized": false,
+  "remaining": [
+    "AWS positive collection and authenticated resource mapping",
+    "Live GCP SCC connection",
+    "Live onprem detection collection",
+    "T14 full ControlRun originals",
+    "T19 live authenticated consumption",
+    "T34 live audit",
+    "T35 live backup and restore"
+  ]
+}
