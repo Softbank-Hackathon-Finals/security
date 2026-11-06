@@ -6,6 +6,68 @@ on:
 permissions:
   contents: read
 jobs:
+  service-image:
+    needs: [package, platform-contract, secrets]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: bravo_test_admin
+          POSTGRES_PASSWORD: ci-test-only
+          POSTGRES_DB: sova_security_test
+          POSTGRES_INITDB_ARGS: '-c cluster_name=sova-security-test'
+        volumes: ['/tmp/security-image-pg:/var/run/postgresql']
+        options: >-
+          --health-cmd "pg_isready -U bravo_test_admin -d sova_security_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      SOVA_SECURITY_TEST_POSTGRES_DSN: 'host=/tmp/security-image-pg port=5432 user=bravo_test_admin password=ci-test-only dbname=sova_security_test'
+      UV_PYTHON_DOWNLOADS: 'never'
+      AWS_EC2_METADATA_DISABLED: 'true'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+      - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          version: '0.13.6'
+          enable-cache: false
+      - run: uv sync --locked --extra dev --extra platform-test --no-install-project --no-build --python '3.12'
+      - name: Prepare only committed wheel and hashed runtime dependencies
+        run: .venv/bin/python scripts/prepare_service_image.py --output "$RUNNER_TEMP/service-image-context"
+      - name: Build exact service image without publishing
+        run: |
+          docker build --platform linux/amd64 --iidfile "$RUNNER_TEMP/service-image-id" \
+            --label "org.opencontainers.image.revision=$GITHUB_SHA" \
+            --label "org.opencontainers.image.source=https://github.com/Softbank-Hackathon-Finals/security" \
+            "$RUNNER_TEMP/service-image-context"
+          echo "SOVA_TEST_REVIEW_IMAGE=$(cat "$RUNNER_TEMP/service-image-id")" >> "$GITHUB_ENV"
+          echo "SOVA_TEST_REVIEW_IMAGE_COMMIT=$GITHUB_SHA" >> "$GITHUB_ENV"
+      - name: Verify default UID, capabilities and read-only runtime without a network
+        run: |
+          docker run --rm --pull=never --network=none --read-only --cap-drop=ALL \
+            --security-opt=no-new-privileges:true --pids-limit=64 --memory=384m \
+            --mount "type=bind,source=$PWD/scripts/verify_service_image.py,target=/verify.py,readonly" \
+            --entrypoint python "$SOVA_TEST_REVIEW_IMAGE" /verify.py
+      - name: Verify actual TLS review and issuer revocation through container
+        run: >-
+          .venv/bin/python -m pytest -q
+          'tests/integration/test_review_host_runtime.py::test_standalone_review_runtime_reads_current_authority[issuer-revoked]'
+      - name: Preserve public build inputs and local image identifier
+        run: |
+          cp "$RUNNER_TEMP/service-image-id" "$RUNNER_TEMP/service-image-context/local-image-id.txt"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: sova-security-image-inputs-${{ github.sha }}
+          path: ${{ runner.temp }}/service-image-context/
+          if-no-files-found: error
+          retention-days: 14
+          include-hidden-files: false
   platform-contract:
     name: platform-contract (${{ matrix.name }})
     runs-on: ubuntu-latest
@@ -219,7 +281,7 @@ jobs:
               'dependency_lock_sha256': hashlib.sha256(Path('uv.lock').read_bytes()).hexdigest(),
               'dependency_inventory_sha256': dependency_digest,
               'uv_version': '0.13.6',
-              'required_workflow_checks': ['secrets', 'package (3.11)', 'package (3.14)', 'platform-contract (f602b39)', 'platform-contract (b19488e)', 'platform-contract (c225c86)'],
+              'required_workflow_checks': ['secrets', 'package (3.11)', 'package (3.14)', 'platform-contract (f602b39)', 'platform-contract (b19488e)', 'platform-contract (c225c86)', 'service-image'],
           }
           (directory / 'manifest.json').write_text(json.dumps(manifest, sort_keys=True, indent=2) + '\n')
           (directory / 'SHA256SUMS').write_text(

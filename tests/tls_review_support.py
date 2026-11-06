@@ -9,6 +9,7 @@ import time
 import subprocess
 import sys
 import ssl
+import os
 
 
 def certificates(directory, *, name="server", dns_only=False):
@@ -82,6 +83,11 @@ def tls_server(app, directory, *, name="server", dns_only=False):
 @contextmanager
 def review_process(config_path, directory):
     """Independent service process using the packaged entry module and direct TLS."""
+    if os.environ.get("SOVA_TEST_REVIEW_IMAGE"):
+        from container_review_support import container_review_process
+        with container_review_process(config_path, directory) as server:
+            yield server
+        return
     ca, certificate, key = certificates(directory, name="process")
     with socket.socket() as listener:
         listener.bind(("127.0.0.1", 0))

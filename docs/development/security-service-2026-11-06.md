@@ -219,3 +219,17 @@ Sova/bravo_gate 없이 import/CLI help와 pip check를 확인했다.
   64 PASS. 이후 실제 부모 철회 race 시험 3개를 추가했다.
 - 잠금 Python 3.14 + c225c86 + 실제 PG/OPA/Kubernetes 전체: **826 PASS, 123.68초**.
   모의 공급자와 실제 인프라의 구분은 기존 SVC-08~10을 따른다. 원격 CI도 변경 커밋으로 재검증한다.
+
+## SVC-12: 최소 입력의 서비스 이미지와 실제 컨테이너 검증
+
+- 기준 c225c86. 요구·설계 이유·인수 경계는 [ADR-0007](../adr/0007-commit-bound-service-image.md).
+- 코드: `deploy/security-review.Dockerfile`, `scripts/prepare_service_image.py`,
+  `scripts/verify_service_image.py`, `tests/container_review_support.py`, CI `service-image`.
+- source commit에서 wheel을 만들고 service extra만 해시 검증해 설치한다. 비밀이나 저장소 전체를
+  Docker build context에 넣지 않는다. 기본 UID와 실제 연결 시험의 범위를 명시했다.
+- 준비: 공식 base digest 조회, 잠금 runtime requirements 오프라인 export, 로컬 ruff/Git
+  whitespace 통과. 실제 CI image build/TLS/철회 결과는 실행 후 보충한다.
+- `a33863c` [전체 CI](https://github.com/Softbank-Hackathon-Finals/security/actions/runs/42203712045)
+  모든 작업 통과. `sova-test`의 실제 2개 DB/독립 서비스 연결 8개 시나리오도
+  [609d115 CI](https://github.com/Softbank-Hackathon-Finals/sova-test/actions/runs/42205726034) 통과.
+  전체 Sova 로컬 회귀는 1110 PASS / 3 SKIP이며 외부 컨테이너·collector·AWS 환경 인수는 별도다.
