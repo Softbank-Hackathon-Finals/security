@@ -670,3 +670,14 @@ push commit 메시지에 `[review-endurance]`가 있는 경우에만 10,800초 �
   일치한 새 관측이다. 이미 만료됐으며 운영 T10 신뢰 등록·전체 T19 PASS·데이터 행 검증으로 쓰지 않는다.
 - 아홉 기준 CI와 기본 image/T10 source를 갱신한다. 진행 중 68ec731 지속 시험과의 runtime 차이는
   platform_review 기준 목록/기본 SHA이며 실제 계약은 새 CI에서 별도 확인한다.
+
+### SVC-34 전체 CI의 정리 교착과 수정
+
+- `b859233` [CI](https://github.com/Softbank-Hackathon-Finals/security/actions/runs/42241165698)의
+  아홉 계약 job은 통과했지만 전체 3.14는 **1 FAIL / 1,024 PASS / 2 SKIP, 149.76초**였다.
+  실패는 workload 철회 시험 본문 이후 임시 reader의 `DROP OWNED`와 PostgreSQL
+  `autovacuum: ANALYZE sova_control.signed_security_evidence` 사이의 catalog 교착이다.
+- fixture 정리만 독립 transaction으로 묶고 DeadlockDetected일 때 최대 3회 재시도한다.
+  생성한 reader 이름 두 prefix/UUID 형태와 autocommit 연결만 허용하고 다른 오류는 즉시 실패한다.
+  앱 실행·판정·시험 본문을 재시도하지 않고 autovacuum도 끄지 않는다. 단위 **7 PASS / 0.24초**.
+- 제품 `src`는 변경하지 않았다. 같은 전체 회귀·PG18.4·실제 image/T10을 다시 확인한 뒤 Sova pin을 확정한다.

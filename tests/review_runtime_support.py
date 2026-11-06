@@ -13,6 +13,7 @@ import pytest
 
 from tokenreview_tls_support import LocalTokenReview
 from tls_review_support import review_process, tls_server
+from postgres_cleanup_support import drop_fixture_reader
 from sova_security.adapters.review_https import BearerCredential, HTTPSJSONTransport
 
 
@@ -105,5 +106,4 @@ def registered_review_runtime(database, directory, *, registration, evidence, pr
                     credential=BearerCredential(issuer.client_token, now + timedelta(minutes=2)) if identity is None else identity.client)
     finally:
         with psycopg.connect(dsn, autocommit=True) as admin:
-            admin.execute(sql.SQL("DROP OWNED BY {}").format(sql.Identifier(reader)))
-            admin.execute(sql.SQL("DROP ROLE {}").format(sql.Identifier(reader)))
+            drop_fixture_reader(admin, reader)
