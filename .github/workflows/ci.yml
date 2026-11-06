@@ -397,13 +397,14 @@ jobs:
       - run: python -m pytest -q
       - run: python -m pip wheel . --no-deps --no-build-isolation --no-index -w "$RUNNER_TEMP/security-dist"
       - name: Bind wheel manifest to this tested commit
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && matrix.python == '3.11'
+        if: matrix.python == '3.11'
         run: |
           python - <<'PY'
           from pathlib import Path
           from importlib.metadata import version, distributions
           import hashlib, json, os, zipfile
           from email.parser import BytesParser
+          from sova_security.adapters.platform_review import PLATFORM_BASELINES
           directory = Path(os.environ['RUNNER_TEMP']) / 'security-dist'
           wheels = list(directory.glob('sova_security-*-py3-none-any.whl'))
           assert len(wheels) == 1 and set(directory.iterdir()) == set(wheels)
@@ -434,7 +435,8 @@ jobs:
               'dependency_lock_sha256': hashlib.sha256(Path('uv.lock').read_bytes()).hexdigest(),
               'dependency_inventory_sha256': dependency_digest,
               'uv_version': '0.13.6',
-              'required_workflow_checks': ['secrets', 'package (3.11)', 'package (3.14)', 'platform-contract (f602b39)', 'platform-contract (b19488e)', 'platform-contract (c225c86)', 'platform-contract (9e0d6a5)', 'service-image'],
+              'required_workflow_checks': ['secrets', 'package (3.11)', 'package (3.14)',
+                  *(f'platform-contract ({sha[:7]})' for sha in PLATFORM_BASELINES), 'service-image'],
           }
           (directory / 'manifest.json').write_text(json.dumps(manifest, sort_keys=True, indent=2) + '\n')
           (directory / 'SHA256SUMS').write_text(

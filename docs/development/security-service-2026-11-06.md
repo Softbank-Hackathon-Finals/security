@@ -553,3 +553,11 @@ push commit 메시지에 `[review-endurance]`가 있는 경우에만 10,800초 �
 `[review-endurance-90m]` opt-in을 추가한다. 기존 `[review-endurance]`의 3시간 실행은 그대로 유지한다.
 명시적 marker가 없는 push/PR에서는 둘 다 실행하지 않는다. 같은 실제 PG18.4/TLS/별도 child 시험을
 5,400초 수행하고 공개 측정 report만 보존한다. 이전 10,800초 실행과 소스·시간·결과를 구분한다.
+
+## SVC-29: wheel 소비 근거의 최신 계약 목록 유지
+
+- main wheel manifest의 필수 검사 목록이 과거 네 플랫폼 기준에 머물러 있음을 확인했다.
+  `PLATFORM_BASELINES` 전체에서 생성하도록 바꾸고 3.11의 모든 브랜치에서 manifest 생성을 검증한다.
+  wheel artifact 업로드는 기존 main push 조건을 유지한다. 별도 레지스트리 게시나 main 병합은 하지 않는다.
+- 브랜치별 동명 0.11.0 wheel을 혼동하지 않도록 전체 source SHA·lock/wheel hash 인수를 안내한다.
+  이미지 수집 CI 성공과 취약점 BLOCK을 구분하며 README의 운영 사용을 암시하는 첫 문장도 정정했다.
