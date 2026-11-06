@@ -42,8 +42,9 @@ Trivy 0.76.2의 해당 DB·관측 시점에 대한 정책 판정이다. 모든 �
 ## 4511a43의 native 양쪽 원본과 이미지 보존
 
 [CI 42257525513](https://github.com/Softbank-Hackathon-Finals/security/actions/runs/42257525513)의
-이미지 검사·export·재로딩은 완료됐다. 이 기록 작성 시 같은 CI의 90분 지속 시험은 진행 중이며
-스캔 PASS를 전체 workflow 완료로 표시하지 않는다. 지속 결과는 별도 보고서로 보존한다.
+이미지 검사·export·재로딩과 두 native 컨테이너의 90분 지속 시험을 모두 완료했다.
+[지속 시험 원본](../review-container-endurance-2026-11-07/README.md)에 각각 5,400.001초의
+실측·회전/거부 횟수·자원·종료 결과를 별도로 보존한다. 전체 workflow도 성공했다.
 
 | 항목 | amd64 | arm64 |
 |---|---|---|
