@@ -174,3 +174,21 @@ symlink/hardlink 거부, 6GiB 시작 여유 조건, 취약점 판정 기준은 �
 분리와 reader v2의 같은 rollout 조건을 검토했다. 열한 번째 소비 기준과 최신 실제 이미지/T10
 시험을 추가한다. 새 T28의 platform-context 상태 조회 subprocess 우회와 initial_args 결속도
 별도로 보강한다. 두 이전/최신 driver의 원문 hash를 고정하고 이전 재시작 시험을 함께 유지한다.
+
+IMG-05 `0c17b82`, CI `42263097644`는 native 두 아키텍처 모두 성공했다. 실제 DB는
+**1,675,673,600 bytes**로 앞선 1GiB 상한을 넘었다. 전용 디스크 TMPDIR과 4GiB DB 한도로
+다운로드/검사/변환/정리와 export/reload를 완료했다. offline archive 검사에서 전체 심각도 0건이다.
+
+최신 T28 `0f032c0`, CI `42264289594`: 최신 0795f65에서 **36 PASS / 2.13초**, 이전 42811da에서
+**32 PASS / 4 SKIP / 2.02초**. skip은 이전 driver에 없는 AI start/collect 인자 시험 네 개다.
+양쪽 producer 소비 44 PASS는 아직 이전 고정 패키지 기준이며 최신 producer pin 검증은 후속이다.
+
+T10 재평가에는 별도 소비 시험 8개를 추가한다. 합성 저장 GATE report만 과거 시각으로 설정하고
+현재 원문 근거는 그대로 둔다. 새 T19 PASS에도 추가 보안 근거가 없으면 차단하고, 새 판정 BLOCK/
+readiness binding 변경은 원격 호출 전에 차단한다. 정상 시 과거 report와 새 reevaluation 원본을
+별도로 보존하며 단일 POST/이후 GET을 유지하는지 확인한다. 실제 근거의 만료를 갱신하는 시험이 아니다.
+
+공간 guard가 다시 충족돼 작업 전용 WSL checkout만 0795f65로 갱신하고 focused 검증을 수행했다.
+최신 플랫폼 소비·재평가 **34 PASS / 13.70초**, 최신 T28/SQLite 원장 **34 PASS / 4.71초**.
+Windows 팀 platform checkout은 505d451 그대로이며 수정하지 않았다. PostgreSQL 두 시험을 포함한
+T28 36개 결과는 앞선 원격 CI와 구분한다.

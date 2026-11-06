@@ -308,7 +308,7 @@ jobs:
           enable-cache: false
       - run: uv sync --locked --extra dev --extra platform-test --no-install-project --no-build --python '3.12'
       - run: .venv/bin/python -m pip install --no-deps --no-build-isolation --no-index -e .
-      - run: .venv/bin/python -m pytest tests/contracts/test_platform_review_bridge.py tests/contracts/test_platform_workflow_host_bridge.py tests/contracts/test_platform_current_key_bridge.py tests/contracts/test_platform_published_authority_bridge.py -q
+      - run: .venv/bin/python -m pytest tests/contracts/test_platform_review_bridge.py tests/contracts/test_platform_workflow_host_bridge.py tests/contracts/test_platform_current_key_bridge.py tests/contracts/test_platform_published_authority_bridge.py tests/contracts/test_platform_reevaluation_bridge.py -q
   secrets:
     runs-on: ubuntu-latest
     timeout-minutes: 5
