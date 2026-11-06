@@ -70,7 +70,7 @@ jobs:
             trivy_archive: trivy_0.76.2_Linux-ARM64.tar.gz
             trivy_sha: ab9d51f86e6a5fb936f605faff6b593ac51bc378fff4d3e8b9d58358b9c367c3
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 15
+    timeout-minutes: ${{ contains(github.event.head_commit.message, '[image-endurance-90m]') && 110 || 15 }}
     services:
       postgres:
         image: postgres:18.4@sha256:a02db8cac496f15b094798a38254f14d6e00741f709360e5e00bb6668ea31636
@@ -237,6 +237,21 @@ jobs:
           if-no-files-found: error
           retention-days: 14
           compression-level: 0
+      - name: Observe the exact container through credential rotation and expiry
+        if: github.event_name == 'push' && github.ref == 'refs/heads/feature/security-service-integration' && contains(github.event.head_commit.message, '[image-endurance-90m]')
+        env:
+          SOVA_REVIEW_ENDURANCE_KIND: container
+          SOVA_REVIEW_ENDURANCE_SECONDS: '5400'
+          SOVA_REVIEW_ENDURANCE_REPORT: '${{ runner.temp }}/image-endurance.json'
+        run: .venv/bin/python -m pytest -q tests/integration/test_review_endurance.py
+      - name: Preserve public container endurance measurements
+        if: always() && github.event_name == 'push' && github.ref == 'refs/heads/feature/security-service-integration' && contains(github.event.head_commit.message, '[image-endurance-90m]')
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: sova-security-image-endurance-${{ matrix.arch }}-${{ github.sha }}
+          path: ${{ runner.temp }}/image-endurance.json
+          if-no-files-found: error
+          retention-days: 14
   platform-contract:
     name: platform-contract (${{ matrix.name }})
     runs-on: ubuntu-latest

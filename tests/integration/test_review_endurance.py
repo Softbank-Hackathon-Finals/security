@@ -6,6 +6,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import platform
 import time
 from uuid import uuid4
 
@@ -41,13 +42,30 @@ def resources(pid):
                 descriptors=len(list((Path("/proc") / pid / "fd").iterdir())))
 
 
+def container_resources(identity):
+    from container_review_support import docker
+    actual, = json.loads(docker("container", "inspect", identity["container_id"]))
+    assert actual["Id"] == identity["container_id"] and actual["Name"] == "/" + identity["name"]
+    assert actual["Image"] == identity["image_id"] and actual["State"]["Running"] is True
+    script = """
+import json
+from pathlib import Path
+assert b'sova_security.interfaces.review_server' in Path('/proc/1/cmdline').read_bytes().split(b'\\0')
+status=dict(line.split(':',1) for line in Path('/proc/1/status').read_text().splitlines())
+print(json.dumps(dict(rss_kib=int(status['VmRSS'].split()[0]),threads=int(status['Threads']),
+    descriptors=len(list(Path('/proc/1/fd').iterdir())))))
+"""
+    return json.loads(docker("exec", identity["container_id"], "python", "-c", script))
+
+
 def test_live_process_rotation_expiry_revocation_and_resources(database, scope, tmp_path):
     configured = os.environ.get("SOVA_REVIEW_ENDURANCE_SECONDS")
     if configured is None:
         pytest.skip("Explicit 180..14400 second owned-process endurance run required")
     seconds = int(configured)
     assert 180 <= seconds <= 14400 and Path("/proc/self/status").is_file()
-    assert not os.environ.get("SOVA_TEST_REVIEW_IMAGE"), "Process PID/resource qualification only"
+    in_container = bool(os.environ.get("SOVA_TEST_REVIEW_IMAGE"))
+    assert os.environ.get("SOVA_REVIEW_ENDURANCE_KIND", "process") == ("container" if in_container else "process")
     report = Path(os.environ["SOVA_REVIEW_ENDURANCE_REPORT"])
     assert report.is_absolute() and report.parent.is_dir()
     with report.open("x") as stream:
@@ -68,10 +86,17 @@ def test_live_process_rotation_expiry_revocation_and_resources(database, scope, 
                     cycles=0, accepted=0, revoked_denials=0, grant_denials=0, expired_denials=0,
                     credential_rotations=0, execution_authorized=False,
                     evidence_source="synthetic signed originals", identity_source="local issuer simulator")
+    progress.update(runtime_kind="container" if in_container else "process", architecture=platform.machine())
+    if in_container:
+        progress.update(local_image_config_id=os.environ["SOVA_TEST_REVIEW_IMAGE"],
+                        image_source_commit=os.environ["SOVA_TEST_REVIEW_IMAGE_COMMIT"])
     source = Path(__file__).resolve().parents[2] / "src" / "sova_security"
     progress["source_files_sha256"] = {str(path.relative_to(source)): hashlib.sha256(path.read_bytes()).hexdigest()
                                        for path in sorted(source.rglob("*.py"))}
     progress["test_file_sha256"] = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
+    helpers = Path(__file__).resolve().parents[1]
+    progress["harness_files_sha256"] = {name: hashlib.sha256((helpers / name).read_bytes()).hexdigest()
+        for name in ("container_review_support.py", "review_runtime_support.py", "tls_review_support.py")}
 
     def record():
         progress["observed_at"] = datetime.now(UTC).isoformat()
@@ -85,7 +110,14 @@ def test_live_process_rotation_expiry_revocation_and_resources(database, scope, 
             assert len(owned) == 1, "Expected one owned service child"
             pid = owned.pop()
             command = (Path("/proc") / pid / "cmdline").read_bytes().split(b"\0")
-            assert b"sova_security.interfaces.review_server" in command
+            container_identity = None
+            if in_container:
+                container_identity = json.loads((tmp_path / "container-identity.json").read_text())
+                assert container_identity["image_id"] == os.environ["SOVA_TEST_REVIEW_IMAGE"]
+                assert command[0].endswith(b"docker")
+                container_resources(container_identity)
+            else:
+                assert b"sova_security.interfaces.review_server" in command
             grants = (tmp_path / "grants.json").read_bytes()
             expired_candidate = runtime.credential
             credential = runtime.credential
@@ -130,7 +162,7 @@ def test_live_process_rotation_expiry_revocation_and_resources(database, scope, 
                     invoke(expired_candidate, denied=True)
                     progress["expired_denials"] += 1
                 invoke(credential)
-                sample = resources(pid)
+                sample = container_resources(container_identity) if in_container else resources(pid)
                 if baseline is None:
                     baseline = sample
                     progress["baseline_resources"] = baseline
@@ -151,6 +183,10 @@ def test_live_process_rotation_expiry_revocation_and_resources(database, scope, 
             assert credential.token not in audit and expired_candidate.token not in audit
             progress.update(status="verifying-cleanup", elapsed_seconds=round(time.monotonic() - started, 3))
         assert not (Path("/proc") / pid).exists(), "Owned service did not exit"
+        if in_container:
+            from container_review_support import docker
+            assert not docker("ps", "--all", "--quiet", "--no-trunc", "--filter", "id=" + container_identity["container_id"]).strip()
+            progress["owned_container_removed"] = True
         progress.update(status="completed", owned_process_stopped=True)
     finally:
         if progress["status"] != "completed":

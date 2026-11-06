@@ -78,6 +78,14 @@ def container_review_process(config_path, directory):
                     time.sleep(0.02)
             else:
                 raise AssertionError("Owned container startup deadline exceeded")
+            actual, = json.loads(docker("container", "inspect", name))
+            assert actual["Image"] == image and actual["State"]["Running"] is True
+            # Public-only identity receipt for optional resource/endurance checks.
+            # No credentials, mounts or inspect document are persisted.
+            identity = directory / "container-identity.json"
+            with identity.open("x") as stream:
+                os.chmod(identity, 0o600)
+                json.dump(dict(name=name, container_id=actual["Id"], image_id=image), stream)
             yield f"https://127.0.0.1:{port}", ca
         finally:
             docker("rm", "--force", name)

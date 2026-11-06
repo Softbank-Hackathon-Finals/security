@@ -99,3 +99,16 @@ archive SHA-256·scan decision hash를 붙이고 arch별로 구분한다. regist
 archive export 뒤에는 Docker load와 network-none/read-only 컨테이너 재검증을 실행해
 원래 runtime inventory와 바이트 단위로 대조한다. 큰 이미지 artifact를 받지 않고도 검토할 수 있도록
 작은 입력 artifact에 archive provenance를 함께 보존한다. CI 외부 registry나 운영 환경은 변경하지 않는다.
+
+## libc 변경 후 컨테이너 지속 검증 (IMG-04)
+
+기존 3시간 시험은 호스트 Python 프로세스였다. 새 Alpine/musl 이미지의 지속 동작 증거로
+대체할 수 없으므로 native amd64·arm64 컨테이너 각각 90분 시험을 추가한다.
+기존 PG/TLS/합성 issuer·서명 원본 fixture와 회전/철회/만료 시나리오를 재사용한다.
+컨테이너 안의 PID 1이 실제 review_server인지 확인하고 그 프로세스의 RSS/FD/thread를 측정한다.
+Docker CLI 프로세스의 자원을 서비스 자원으로 잘못 기록하지 않는다.
+종료 후 소유 컨테이너 부재와 CLI child 종료를 모두 확인한다.
+
+`[image-endurance-90m]`가 포함된 개인 브랜치 push만 90분 시험을 실행한다.
+일반 push/PR은 장시간 실행하지 않는다. 원본 보고서에 image config ID, source, architecture,
+시험·harness hash, 실제 경과 시간과 자원 범위를 남긴다. 운영 부하·CNI 검증은 아니다.
