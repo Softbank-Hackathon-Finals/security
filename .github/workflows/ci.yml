@@ -58,7 +58,7 @@ jobs:
               assert connection.execute("SHOW server_version_num").fetchone() == ('180004',)
           print('Verified isolated PostgreSQL 18.4')
           PY
-          .venv/bin/python -m pytest -q tests/integration/test_review_database_escape.py tests/integration/test_postgres_boundary.py
+          .venv/bin/python -m pytest -q tests/integration/test_review_database_escape.py tests/integration/test_review_database_admin_functions.py tests/integration/test_postgres_boundary.py
       - name: Prepare only committed wheel and hashed runtime dependencies
         run: .venv/bin/python scripts/prepare_service_image.py --output "$RUNNER_TEMP/service-image-context"
       - name: Build exact service image without publishing

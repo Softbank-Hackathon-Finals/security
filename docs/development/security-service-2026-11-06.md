@@ -315,3 +315,13 @@ process/container 모두 통과. 실제 컨테이너 소비 **39 PASS, 31.89초*
 - 잠금 Python 3.14 + 실제 PG/OPA/Kubernetes + 최신 플랫폼 전체 회귀 **879 PASS, 117.93초**.
   앞선 current-collection 생산자 [CI](https://github.com/Softbank-Hackathon-Finals/security/actions/runs/42212375242)도
   Python 두 버전·플랫폼 네 기준·PG18 실제 이미지·secrets 모두 통과했다.
+
+## SVC-17: 초기 제한된 DB 관리 함수 실행 권한
+
+- [ADR-0012](../adr/0012-restricted-database-routines.md): 직접/PUBLIC grant 두 경우에 공개
+  `PG_VERSION` 파일 읽기와 guard 누락을 실제로 재현했다. 변경 전 **2 FAIL**.
+- `review_database.py`는 초기 ACL에서 PUBLIC 실행이 제한됐던 함수의 현재 EXECUTE를 거부한다.
+  별도 관리자 REVOKE 후 직접 SQL도 거부된다. schema/wire 변경 없음.
+- `test_review_database_admin_functions.py` 및 PG18 CI에 시험을 추가했다.
+  실제 PG17 경계와 TLS 서비스 **49 PASS, 16.91초**. 전체/PG18 결과는 후속 기록한다.
+- 잠금 Python 3.14 + 실제 PG/OPA/Kubernetes + 9e0d6a5 전체 회귀 **881 PASS, 117.78초**.

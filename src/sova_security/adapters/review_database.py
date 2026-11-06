@@ -79,7 +79,11 @@ def require_reader(connection, *, tenant_id):
         EXISTS(SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
             JOIN pg_language l ON l.oid=p.prolang
             WHERE has_schema_privilege(current_user,n.oid,'USAGE') AND has_function_privilege(current_user,p.oid,'EXECUTE')
-              AND (p.prosecdef OR (NOT l.lanpltrusted AND n.nspname !~ '^pg_' AND n.nspname <> 'information_schema'))),
+              AND (p.prosecdef OR (NOT l.lanpltrusted AND n.nspname !~ '^pg_' AND n.nspname <> 'information_schema')
+                OR EXISTS(SELECT 1 FROM pg_init_privs i
+                    WHERE i.classoid='pg_catalog.pg_proc'::regclass AND i.objoid=p.oid AND i.objsubid=0
+                      AND NOT EXISTS(SELECT 1 FROM aclexplode(i.initprivs) a
+                          WHERE a.grantee=0 AND a.privilege_type='EXECUTE')))),
         EXISTS(SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
             WHERE n.nspname !~ '^pg_' AND n.nspname <> 'information_schema'
               AND c.relkind IN ('r','p','v','m','f') AND has_schema_privilege(current_user,n.oid,'USAGE')
