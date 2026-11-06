@@ -78,7 +78,7 @@ def producers(scope, now, request):
     return authority, state, signer
 
 
-@pytest.mark.parametrize("batch", [False, True])
+@pytest.mark.parametrize("batch", ["individual", "batch", "current-batch"])
 def test_original_signatures_drive_existing_program_service(producers, scope, batch):
     authority, state, _ = producers
     service = SecurityProgramService(
@@ -89,7 +89,8 @@ def test_original_signatures_drive_existing_program_service(producers, scope, ba
         authorize=lambda *_: True,
         require_no_holds=lambda _: True,
         clock=lambda: state["at"],
-        authenticate_evidence_batch=authority.authenticate_batch if batch else None,
+        authenticate_evidence_batch=authority.authenticate_batch if batch == "batch" else None,
+        authenticate_current_evidence_batch=authority.authenticate_batch if batch == "current-batch" else None,
     )
     for phase in ProgramPhase:
         report = service.review(
@@ -102,7 +103,42 @@ def test_original_signatures_drive_existing_program_service(producers, scope, ba
     proof = authority.evidence_for(state["program"], ProgramPhase.PREFLIGHT)[0]
     state["trust"] = replace(state["trust"], revoked=True)
     with pytest.raises(ContractError):
+        service.review("operator", scope=scope, subject_digest=state["program"].subject_digest, phase=ProgramPhase.PREFLIGHT)
+    with pytest.raises(ContractError):
         authority.authenticate_evidence(proof)
+
+
+@pytest.mark.parametrize("fault", ["revoked-key", "removed-last-route", "changed-original"])
+def test_current_collection_is_checked_after_final_host_program_lookup(producers, scope, fault):
+    authority, state, _ = producers
+    calls = []
+    def program_for(*_):
+        calls.append(True)
+        if len(calls) == 3:
+            if fault == "revoked-key":
+                state["trust"] = replace(state["trust"], revoked=True)
+            elif fault == "removed-last-route":
+                state["routes"] = ()
+            else:
+                state["envelopes"] = {}
+        return state["program"]
+    service = SecurityProgramService(program_for=program_for, evidence_for=authority.evidence_for,
+        authenticate_program=lambda _: True, authenticate_evidence=authority.authenticate_evidence,
+        authenticate_current_evidence_batch=authority.authenticate_batch, authorize=lambda *_: True,
+        require_no_holds=lambda _: True, clock=lambda: state["at"])
+    with pytest.raises(ContractError):
+        service.review("operator", scope=scope, subject_digest=state["program"].subject_digest, phase=ProgramPhase.PREFLIGHT)
+
+
+@pytest.mark.parametrize("result", [None, False, 1, "true", (), []])
+def test_current_collection_callback_requires_explicit_true(producers, scope, result):
+    authority, state, _ = producers
+    service = SecurityProgramService(program_for=lambda *_: state["program"], evidence_for=authority.evidence_for,
+        authenticate_program=lambda _: True, authenticate_evidence=authority.authenticate_evidence,
+        authenticate_current_evidence_batch=lambda _: result, authorize=lambda *_: True,
+        require_no_holds=lambda _: True, clock=lambda: state["at"])
+    with pytest.raises(ContractError):
+        service.review("operator", scope=scope, subject_digest=state["program"].subject_digest, phase=ProgramPhase.PREFLIGHT)
 
 
 @pytest.mark.parametrize("fault", ["missing", "tampered", "revoked", "changes-during-read"])

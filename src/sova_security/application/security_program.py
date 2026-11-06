@@ -19,6 +19,7 @@ class SecurityProgramService:
         require_no_holds,
         clock,
         authenticate_evidence_batch=None,
+        authenticate_current_evidence_batch=None,
     ):
         self.program_for = program_for
         self.evidence_for = evidence_for
@@ -30,6 +31,11 @@ class SecurityProgramService:
         if authenticate_evidence_batch is not None and not callable(authenticate_evidence_batch):
             raise ContractError("Explicit batch evidence authenticator required")
         self.authenticate_evidence_batch = authenticate_evidence_batch
+        if authenticate_current_evidence_batch is not None and (
+            not callable(authenticate_current_evidence_batch) or authenticate_evidence_batch is not None
+        ):
+            raise ContractError("One explicit current-collection authenticator required")
+        self.authenticate_current_evidence_batch = authenticate_current_evidence_batch
 
     def review(self, actor, *, scope, subject_digest, phase, not_before=None):
         require_accept(self.authorize, actor, scope, "security:review-program")
@@ -58,6 +64,16 @@ class SecurityProgramService:
                 )
                 require_accept(self.require_no_holds, current_scope)
             require_authentication(self.authenticate_program, program)
+            if self.authenticate_current_evidence_batch is not None:
+                # This stronger optional contract re-reads AND authenticates the
+                # exact complete current collection, including removals. Do host
+                # program I/O first, so the collection check is not followed by
+                # another callback capable of changing its originals.
+                if self.program_for(scope, subject_digest) != program:
+                    raise ContractError("Security program changed during review")
+                if self.authenticate_current_evidence_batch((program, phase, evidence)) is not True:
+                    raise ContractError("Current authenticated evidence collection required")
+                return
             if self.authenticate_evidence_batch is None:
                 for record in evidence:
                     require_authentication(self.authenticate_evidence, record)

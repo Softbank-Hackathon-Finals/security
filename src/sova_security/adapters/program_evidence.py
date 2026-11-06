@@ -131,6 +131,9 @@ class SignedProgramEvidence:
 
         This uses the same live route/key/envelope checks as individual admission.
         No collection is shared between calls and no historical proof is cached.
+        True asserts both authenticity and equality with the complete current
+        collection, including a revoked or removed final route. This satisfies
+        SecurityProgramService's optional current-collection contract.
         """
         if type(bundle) is not tuple or len(bundle) != 3:
             raise ContractError("Exact program/phase/evidence bundle required")

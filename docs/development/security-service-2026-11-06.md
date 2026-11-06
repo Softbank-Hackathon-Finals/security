@@ -277,3 +277,23 @@ Sova/bravo_gate 없이 import/CLI help와 pip check를 확인했다.
   최신 플랫폼 initial/post_apply를 포함한 실제 컨테이너 연결 **11 PASS, 37.31초**였다.
 - 잠금 Python 3.14 + 최신 플랫폼 + 실제 PostgreSQL/OPA/Kubernetes 전체 회귀:
   **847 PASS, 120.58초**. 새로운 간접 권한 검사와 토큰 수명 제한을 모두 포함한다.
+
+### SVC-14 원격 결과
+
+`269e1e5` [CI](https://github.com/Softbank-Hackathon-Finals/security/actions/runs/42209971176) 전체 통과.
+PostgreSQL 18.4를 실제 버전 값으로 확인하고 DB 경계 **40 PASS, 11.07초**, 실제 이미지/T10
+연결 **11 PASS, 36.04초**를 확인했다. 기존 PG17 package 및 네 플랫폼 계약도 통과했다.
+
+## SVC-15: 소비 컨테이너의 permit 만료와 중복 원본 수집
+
+- `sova-test d1865f3`의 process 소비는 통과했으나 container 소비는 4 FAIL / 35 PASS였다.
+  모든 실패는 효과 실행 전 permit 만료 거부다. 원래 만료 시각을 29~92ms 넘겼으며 이를
+  정상 효과나 인수 성공으로 기록하지 않는다.
+- [ADR-0010](../adr/0010-current-collection-authentication.md)의 명시적 current-collection
+  callback을 도입했다. 기존 callback 의미를 바꾸지 않고 현재 원본 재조회·서명 검증·전체
+  collection 일치가 하나의 검증에서 보장될 때만 중복 수집을 제거한다. 정확한 True만 허용한다.
+- 수정: `application/security_program.py`, `adapters/registered_program.py`, `program_evidence.py`.
+  단위 시험 **98 PASS**, 실제 PG/TLS/계측 **17 PASS, 11.24초**.
+- 계측에서 원본 수집은 5회에서 3회로 감소했다. 현재 함수 호출 약 713만/1.956초는 계측값이며
+  운영 SLA가 아니다. 기존 permit/결과 5초 기한과 접수 직전 재검사를 유지한다.
+- 잠금 Python 3.14 + 기준 플랫폼 + 실제 PG/OPA/Kubernetes 전체 회귀: **867 PASS, 115.02초**.
