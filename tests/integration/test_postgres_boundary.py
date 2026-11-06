@@ -16,6 +16,108 @@ from sova_security.migrations import MIGRATIONS, migration_sql
 pytestmark = pytest.mark.postgres
 
 
+@pytest.mark.parametrize("fault", ["write-grant", "policy-removed", "tenant-changed", "membership"])
+def test_fixed_tenant_review_reader_resists_direct_sql_scope_switch(database, scope, fault):
+    import psycopg
+    from psycopg import sql
+    from sova_security.adapters.review_database import reader_statements, require_reader, policy_name
+    from sova_security.adapters.postgres_governance import PostgresSecurityHolds
+
+    dsn, registrar, password = database
+    role, reader_password = "review_fixed_" + uuid4().hex, secrets.token_urlsafe(32)
+    other = replace(scope, tenant_id="other-" + uuid4().hex)
+    for target in (scope, other):
+        PostgresSecurityHolds(lambda: psycopg.connect(dsn, user=registrar, password=password), tenant_id=target.tenant_id).open_hold(
+            SecurityHold(uuid4().hex, target, "tester", "isolation", datetime.now(UTC)))
+    with psycopg.connect(dsn, autocommit=True) as admin:
+        for statement in reader_statements(role=role, tenant_id=scope.tenant_id):
+            admin.execute(statement)
+        admin.execute(sql.SQL("ALTER ROLE {} PASSWORD {}").format(sql.Identifier(role), sql.Literal(reader_password)))
+    try:
+        with psycopg.connect(dsn, user=role, password=reader_password) as connection:
+            require_reader(connection, tenant_id=scope.tenant_id)
+            for chosen, visible in ((scope.tenant_id, True), (other.tenant_id, False)):
+                connection.execute("SELECT set_config('sova.tenant_id',%s,true)", (chosen,))
+                assert bool(connection.execute("SELECT tenant_id FROM sova_control.security_hold_events").fetchall()) is visible
+            with pytest.raises(ContractError):
+                require_reader(connection, tenant_id=other.tenant_id)
+        with psycopg.connect(dsn, autocommit=True) as admin:
+            if fault == "write-grant":
+                admin.execute(sql.SQL("GRANT INSERT ON sova_control.security_hold_events TO {}").format(sql.Identifier(role)))
+            elif fault == "membership":
+                admin.execute(sql.SQL("GRANT {} TO {}").format(sql.Identifier(registrar), sql.Identifier(role)))
+            else:
+                policy = sql.Identifier(policy_name(role))
+                admin.execute(sql.SQL("DROP POLICY {} ON sova_control.security_hold_events").format(policy))
+                if fault == "tenant-changed":
+                    admin.execute(sql.SQL("CREATE POLICY {} ON sova_control.security_hold_events AS RESTRICTIVE FOR ALL TO {} USING (tenant_id={}) WITH CHECK(false)").format(policy, sql.Identifier(role), sql.Literal(other.tenant_id)))
+        with psycopg.connect(dsn, user=role, password=reader_password) as connection:
+            with pytest.raises(ContractError):
+                require_reader(connection, tenant_id=scope.tenant_id)
+    finally:
+        with psycopg.connect(dsn, autocommit=True) as admin:
+            admin.execute(sql.SQL("DROP OWNED BY {}").format(sql.Identifier(role)))
+            admin.execute(sql.SQL("DROP ROLE {}").format(sql.Identifier(role)))
+
+
+@pytest.mark.parametrize("fault", ["registration", "program", "hold", "foreign-tenant"])
+def test_review_host_select_only_and_live_revocations(database, scope, fault):
+    import psycopg
+    from psycopg import sql
+    from review_service_support import service_bundle
+    from sova_security.adapters.postgres_modernization import PostgresSecurityArtifacts
+    from sova_security.adapters.postgres_review import PostgresReviewHost
+    from sova_security.adapters.postgres_governance import PostgresSecurityHolds
+    from sova_security.application.review_service import SecurityReviewEndpoint, ReviewServiceError
+
+    dsn, registrar, password = database
+    reader = "security_reader_" + uuid4().hex
+    reader_password = secrets.token_urlsafe(32)
+    now = datetime.now(UTC)
+    scope = replace(scope, application_id="review-" + uuid4().hex)
+    state, _endpoint, request = service_bundle(scope, now)
+    def write():
+        return psycopg.connect(dsn, user=registrar, password=password)
+    def read():
+        return psycopg.connect(dsn, user=reader, password=reader_password, options="-c statement_timeout=2000 -c default_transaction_read_only=on")
+    artifacts = PostgresSecurityArtifacts(write, tenant_id=scope.tenant_id)
+    artifacts.register(scope, state.registration.program, actor_id="registrar")
+    artifacts.register(scope, state.registration, actor_id="registrar")
+    with psycopg.connect(dsn, autocommit=True) as admin:
+        admin.execute(sql.SQL("CREATE ROLE {} LOGIN NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE NOINHERIT PASSWORD {}").format(sql.Identifier(reader), sql.Literal(reader_password)))
+        admin.execute(sql.SQL("GRANT USAGE ON SCHEMA sova_control TO {}").format(sql.Identifier(reader)))
+        admin.execute(sql.SQL("GRANT SELECT ON ALL TABLES IN SCHEMA sova_control TO {}").format(sql.Identifier(reader)))
+    try:
+        host = PostgresReviewHost(read, clock=lambda: datetime.now(UTC))
+        endpoint = SecurityReviewEndpoint(authenticate=lambda _: state.principal, registration_for=host.registration_for,
+            service_for=host.service_for, audit=lambda event: state.audit.append(event) or True, clock=lambda: datetime.now(UTC))
+        response = endpoint.review("test-local-token", request)
+        assert not response.review.passed  # No signed producer proofs have been installed.
+        assert all(row.result.value == "unknown" for row in response.review.results)
+        with pytest.raises((psycopg.errors.InsufficientPrivilege, psycopg.errors.ReadOnlySqlTransaction)):
+            PostgresSecurityArtifacts(read, tenant_id=scope.tenant_id).revoke(scope, state.registration.fingerprint,
+                expected_revision=1, actor_id="read-only-service", reason="must-be-denied")
+        with read() as connection:
+            with pytest.raises((psycopg.errors.InsufficientPrivilege, psycopg.errors.ReadOnlySqlTransaction)):
+                connection.execute("DELETE FROM sova_control.security_artifacts_v1")
+        if fault in {"registration", "program"}:
+            value = state.registration if fault == "registration" else state.registration.program
+            artifacts.revoke(scope, value.fingerprint, expected_revision=1, actor_id="registrar", reason="test-revocation")
+        elif fault == "hold":
+            PostgresSecurityHolds(write, tenant_id=scope.tenant_id).open_hold(SecurityHold(
+                "hold-" + uuid4().hex, scope, "operator", "controlled-test", datetime.now(UTC)))
+        else:
+            foreign = replace(scope, tenant_id="foreign-tenant")
+            state.principal = replace(state.principal, tenant_id=foreign.tenant_id, scopes=(foreign,))
+            request = replace(request, scope=foreign)
+        with pytest.raises(ReviewServiceError):
+            endpoint.review("test-local-token", request)
+    finally:
+        with psycopg.connect(dsn, autocommit=True) as admin:
+            admin.execute(sql.SQL("DROP OWNED BY {}").format(sql.Identifier(reader)))
+            admin.execute(sql.SQL("DROP ROLE {}").format(sql.Identifier(reader)))
+
+
 @pytest.mark.parametrize("revocation", ["route", "program", "producer-key", "producer-updated", "ambiguous-producer"])
 def test_registered_program_rechecks_real_pg_routes_and_signed_producers(database, scope, revocation):
     import psycopg

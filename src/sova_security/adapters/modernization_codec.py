@@ -25,9 +25,13 @@ from sova_security.domain import exploitation_intelligence as intel
 from sova_security.domain import detection as detection
 from sova_security.domain import security_program as program
 from sova_security.domain import program_evidence as program_evidence
+from sova_security.domain import review_service as review_service
 
 KINDS = MappingProxyType(
     {
+        "security-review-registration.v1": review_service.ReviewRegistration,
+        "security-review-request.v1": review_service.ReviewRequest,
+        "security-review-response.v1": review_service.RemoteProgramReview,
         "security-program.v1": program.SecurityProgram,
         "security-program-input.v1": program.ProgramInput,
         "program-evidence-route.v1": program_evidence.ProgramEvidenceRoute,
