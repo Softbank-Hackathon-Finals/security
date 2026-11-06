@@ -4,6 +4,13 @@
 
 ## 기준 계약
 
+2026-11-06에는 platform `505d451fd8c374de755b160fca24f1a481820a50`의 강화된 schema를
+추가로 대조했다. 새 등록은 `schema_digest=CURRENT_SCHEMA_DIGEST`를 명시하여
+`team-control-result-20261106.json`을 선택할 수 있다. 출처는
+`schemas/provenance-20261106.json`에 있다. 아래 기존 snapshot과 기본값은 이미 발행한
+등록 fingerprint 호환성을 위해 유지한다. 두 schema를 자동 추측하거나 실패 시 다른
+schema로 재시도하지 않는다. [프로그램 증거 연결](program-evidence-integration.md)을 참고한다.
+
 팀 `platform`의 커밋 `fc5a25e46904f55908da8bdee7122e4ad1574c5f`에 있는 `docs/controls/control-result.schema.json`을 수정 없이 패키지에 포함한다. SHA-256은 `7c9728028af9c9d8bc45f5e8a8ba2b3ba0e38c96b7373b7338b49c8f37adfeb9`이다. 출처와 원본 해시는 패키지 `schemas/provenance.json`에 기록한다.
 
 JSON Schema 2020-12 검증은 기존 `jsonschema` 라이브러리를 사용한다. 날짜 형식 검증만 필요하므로 `team` extra는 `jsonschema`와 `rfc3339-validator`를 설치한다. 새 스키마 엔진이나 명령 실행기를 만들지 않는다. 스키마의 로컬 `$defs`만 사용하며 외부 참조를 가져오지 않는다.
