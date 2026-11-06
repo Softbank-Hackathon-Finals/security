@@ -1,0 +1,51 @@
+{
+  "observed_at": "2026-11-06T18:58:48.105013+00:00",
+  "development_sha": "c364e6284d2e635ff86001e2feac88560ed23ebc",
+  "handoff_development_sha": "0795f65e24f58e43545b16b97757efcc0923fd4a",
+  "new_commit_count": 11,
+  "tree_comparisons": [
+    {
+      "path": "services/platform-events",
+      "handoff_git_object": "c30ae6bd87d10a3e76cbd0ef5793ffdc372c520b",
+      "current_git_object": "c30ae6bd87d10a3e76cbd0ef5793ffdc372c520b",
+      "equal": true
+    },
+    {
+      "path": "services/control-gate",
+      "handoff_git_object": "00f6b445e9482a886524fa69ea0d61b2292caf2b",
+      "current_git_object": "00f6b445e9482a886524fa69ea0d61b2292caf2b",
+      "equal": true
+    },
+    {
+      "path": "scripts/happy_path.py",
+      "handoff_git_object": "8a3e3993682f31ce262e1a82e21c4f11d60e75c5",
+      "current_git_object": "8a3e3993682f31ce262e1a82e21c4f11d60e75c5",
+      "equal": true
+    }
+  ],
+  "declared_images": {
+    "registration": {
+      "image": {
+        "repository": "ghcr.io/softbank-hackathon-finals/platform-registration",
+        "digest": "sha256:2243e1b690a1c5bc513b1eff91d3e8d61eca9a5951870e696718e384e1d37733"
+      },
+      "sourceRevision": "445848d2ed9878e31eb6f5aabad0575c61739b47"
+    },
+    "product-reader": {
+      "image": {
+        "repository": "ghcr.io/softbank-hackathon-finals/platform-product-reader",
+        "digest": "sha256:6fd9fe9242dad0c57cfa359f95c3040ec039ec8545a3cf37f75073736c53426e"
+      },
+      "sourceRevision": "445848d2ed9878e31eb6f5aabad0575c61739b47"
+    },
+    "rehearsal-host": {
+      "image": {
+        "repository": "ghcr.io/softbank-hackathon-finals/platform-rehearsal-host",
+        "digest": "sha256:56cd42d3d5213bab93b046e23e7dfb6433d19d2c2d12bb065b37be983f41d988"
+      },
+      "sourceRevision": "445848d2ed9878e31eb6f5aabad0575c61739b47"
+    }
+  },
+  "runtime_observed": false,
+  "t28_sha256": "e4bc607112512361d4bde4c6022bc59eb21191fdc139ade77b52f50bb013a355"
+}
