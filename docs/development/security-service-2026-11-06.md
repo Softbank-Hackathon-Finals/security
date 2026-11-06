@@ -640,3 +640,14 @@ push commit 메시지에 `[review-endurance]`가 있는 경우에만 10,800초 �
   실제 image/T10 **11 PASS / 32.81초**가 통과했다. 같은 run의 30분 지속 job은 아직 관찰 중이다.
 - 이미지 전체 재고는 OS 87/Python 10이며 **CRITICAL 0 / HIGH 49 / MEDIUM 75 / LOW 62,
   BLOCK, release_authorized=false**다. 원격 CI 성공을 운영 배포 허가로 쓰지 않는다.
+
+## SVC-33: 직접 DB 로그인에도 연결 수 예산 적용
+
+- HTTP/worker 제한과 탈취한 DB 자격의 직접 연결은 다른 경계다. 기본 무제한 역할 대신
+  reader 생성 SQL에 기본 16/명시적 1~64 상한을 두고 runtime에서 무제한·차단·초과 drift를 거부한다.
+  기존 발급·역할 생성 helper와 현재 권한 검사를 확장하며 새 네트워크 프록시는 만들지 않는다.
+- Windows 단위 **9 PASS / 0.23초**, 실제 격리 PG17.11에서 연결 상한/회복·drift·기존 storage
+  회귀 **25 PASS / 1.34초**. 기존 사용자 DB/프로세스를 사용하지 않았으며 owned PG를 종료했다.
+  자세한 선택·근사 상한·공유 역할의 운영 예산은 ADR-0020에 기록했다.
+- PG18.4 경계 CI에 네 실제 연결 시험을 추가한다. 최신 source의 별도 30분 지속 시험을 접수하며
+  진행 중인 세 실행은 그대로 유지한다. 이전 source의 결과와 새 source의 검증은 분리한다.

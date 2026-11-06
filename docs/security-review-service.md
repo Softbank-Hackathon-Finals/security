@@ -126,6 +126,9 @@ mounted DSN에는 host·port·dbname·user를 명시한다. TCP는 `sslmode=veri
 `sslrootcert`도 필요하다. 여러 host·service profile·환경의 숨은 hostaddr는 연결 전에 거부한다.
 연결 후 실제 TLS 검사와 매 요청 자격 회전도 유지한다. [ADR-0018](adr/0018-validate-database-routing-before-connect.md).
 `review_database.reader_statements(role=..., tenant_id=...)`가 비밀 없는 DDL을 반환한다.
+전용 reader는 기본 `CONNECTION LIMIT 16`이며 운영자에게 정수 1~64의 명시적 조정을 허용한다.
+상한 해제/범위 이탈은 기존 세션의 현재 권한 검사에서도 거부한다. 공유 역할의 여러 프로세스는
+같은 예산을 소비하며 운영 역할을 자동 변경하지 않는다. [ADR-0020](adr/0020-reader-connection-budget.md)을 따른다.
 새 역할을 별도 관리자 트랜잭션에서 만들고, 로그인 자격은 기존 비밀 관리 경로에서 설정한다.
 
 DB 안의 RLS는 같은 로그인으로 다른 DB에 접속하는 경로까지 제한하지 않는다. 직접 TCP 배포에는

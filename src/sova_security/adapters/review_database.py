@@ -40,7 +40,7 @@ def policy_name(role):
     return "review_tenant_" + hashlib.sha256(role.encode()).hexdigest()[:16]
 
 
-def reader_statements(*, role, tenant_id):
+def reader_statements(*, role, tenant_id, connection_limit=16):
     """New dedicated role only; duplicates fail instead of changing existing roles.
 
     Login credentials/rotation are provisioned through the host's secret manager.
@@ -48,9 +48,11 @@ def reader_statements(*, role, tenant_id):
     """
     from psycopg import sql
     identifier(tenant_id)
+    if type(connection_limit) is not int or not 1 <= connection_limit <= 64:
+        raise ContractError("Reader connection limit must be between 1 and 64")
     policy = policy_name(role)
     user = sql.Identifier(role)
-    statements = [sql.SQL("CREATE ROLE {} LOGIN NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE NOINHERIT").format(user),
+    statements = [sql.SQL("CREATE ROLE {} LOGIN NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE NOINHERIT CONNECTION LIMIT {}").format(user, sql.Literal(connection_limit)),
                   sql.SQL("GRANT USAGE ON SCHEMA sova_control TO {}").format(user)]
     for name in REVIEW_TABLES:
         table = sql.Identifier("sova_control", name)
@@ -66,7 +68,7 @@ def require_reader(connection, *, tenant_id):
     """Reject drift before any service store query, including inherited privileges."""
     identifier(tenant_id)
     role = connection.execute("""SELECT current_user, session_user, rolsuper, rolbypassrls, rolcreatedb, rolcreaterole,
-        rolreplication,
+        rolreplication, (rolconnlimit < 1 OR rolconnlimit > 64),
         EXISTS(SELECT 1 FROM pg_auth_members m WHERE m.member=r.oid),
         has_schema_privilege(current_user,'sova_control','CREATE'),
         has_database_privilege(current_user,current_database(),'CREATE'),
