@@ -90,11 +90,12 @@ jobs:
           POSTGRES_DB: sova_security_test
           POSTGRES_INITDB_ARGS: '-c cluster_name=sova-security-test'
         ports: ['5432:5432']
+        volumes: ['/tmp/sova-security-pg:/var/run/postgresql']
         options: >-
           --health-cmd "pg_isready -U bravo_test_admin -d sova_security_test"
           --health-interval 5s --health-timeout 5s --health-retries 10
     env:
-      SOVA_SECURITY_TEST_POSTGRES_DSN: 'postgresql://bravo_test_admin:ci-test-only@localhost:5432/sova_security_test'
+      SOVA_SECURITY_TEST_POSTGRES_DSN: 'host=/tmp/sova-security-pg port=5432 user=bravo_test_admin password=ci-test-only dbname=sova_security_test'
       AWS_EC2_METADATA_DISABLED: 'true'
       UV_PYTHON_DOWNLOADS: 'never'
       SOVA_TEST_OPA_SHA256: '791790254c598a942eb140959bcec9a47f844535a632fd01d11d870ba2a47047'
@@ -105,6 +106,21 @@ jobs:
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: ${{ matrix.python }}
+      - name: Read current qualified platform for the complete service chain
+        if: matrix.python == '3.14'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          repository: Softbank-Hackathon-Finals/platform
+          ref: b19488e2debbee8bbe120f1309eadbe19df85b6f
+          path: .local-notes/platform-contract-source
+          persist-credentials: false
+          sparse-checkout: |
+            services/control-gate
+            services/platform-events
+            docs/controls
+      - name: Enable actual platform runtime qualification
+        if: matrix.python == '3.14'
+        run: echo "SOVA_PLATFORM_SOURCE=$PWD/.local-notes/platform-contract-source" >> "$GITHUB_ENV"
       - name: Install pinned dependency manager
         uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
         with:
@@ -112,7 +128,7 @@ jobs:
           enable-cache: false
       - name: Install locked test and build dependencies
         run: |
-          uv sync --locked --extra dev --no-install-project --no-build --python '${{ matrix.python }}'
+          uv sync --locked --extra dev --extra platform-test --no-install-project --no-build --python '${{ matrix.python }}'
           echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
       - run: python -m pip install --no-deps --no-build-isolation --no-index -e .
       - run: python -m pip check

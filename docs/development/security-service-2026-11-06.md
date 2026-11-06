@@ -129,3 +129,31 @@
 - 수정: `tests/tls_review_support.py`의 일회용 CA/leaf를 올바른 X.509 확장으로 발급한다.
   생산 코드의 TLS 검증은 바꾸지 않는다. TLS wire 시험은 구버전 Python에서도 strict flag를 켠다.
 - 상태: 로컬 TLS 회귀 후 원격 CI 재검증. 최초 실패는 통과로 집계하지 않는다.
+
+### SVC-07 재검증 결과
+
+`606623dd66bddbb64e8bfb0f96f62ab42dd92d96`의
+[CI 실행](https://github.com/Softbank-Hackathon-Finals/security/actions/runs/42196071522)은
+Python 3.11/3.14, 두 플랫폼 기준, secrets 모두 통과했다. Sova의
+[고정 패키지 소비 CI](https://github.com/Softbank-Hackathon-Finals/sova-test/actions/runs/42195818784)도 통과했다.
+같은 security commit을 git archive한 별도 잠금 환경에서 wheel을 빌드·설치하고
+Sova/bravo_gate 없이 import/CLI help와 pip check를 확인했다.
+로컬 wheel SHA-256은 `86259bf30834cd0c7a41beb014db687d55b010efa71368d7fb4dbcd3006dc4ce`다.
+이는 개인 빌드이며 정식 발행/서명된 릴리스가 아니다.
+
+## SVC-08: 플랫폼부터 독립 보안 프로세스까지 연결
+
+- 요구: SEC-PATCH-05·06·10, CTRL-01·02, POL-09·11. 기준 f602b39와 b19488e.
+- 코드: `tests/platform_review_support.py`, `tests/review_runtime_support.py`,
+  `tests/integration/test_platform_review_runtime.py`. 기존 fixture를 공유하도록 정리했다.
+- 실제 T10/T19·SQLite 승인 → TLS 독립 프로세스 → SELECT-only PostgreSQL → 원본 Ed25519
+  증거를 연결했다. T13/T14 측정과 TokenReview API, 외부 컷오버 실행기는 여전히 모형이다.
+  시험 등록 행은 호스트의 동일 plan transaction에서 읽고 변경하는 시험 어댑터다.
+  운영 플랫폼에 새 table을 설치한 것이 아니다.
+- f602b39 연결 시험 10 PASS(58.65초), b19488e 연결+기존 실행 시험 17 PASS(63.05초).
+  initial/post_apply 각각에서 승인 후 원본 issuer·서비스 등록·호스트 등록·workload 철회는
+  외부 실행 0회이며 SHIFT를 유지했다. 정상 실행 후 응답 유실은 SAFE_HOLD와 POST 1회/GET 1회다.
+- 최초 반복 실행은 같은 resource의 프로그램을 새 시각으로 재등록해서 anti-rebinding 검사가
+  거부했다. 각 시험 resource ID를 분리했고 생산 코드의 보호를 바꾸지 않았다.
+- GitHub CI의 격리 PostgreSQL socket과 Python 3.14의 고정 platform source를 연결해
+  이 경로를 지속 시험한다. 클러스터/CNI/업무 데이터 인수 상태는 별개다.
