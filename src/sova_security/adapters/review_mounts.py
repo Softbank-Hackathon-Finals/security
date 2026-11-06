@@ -102,7 +102,7 @@ class LocalReviewAudit:
         if type(event) is not dict or event.get("kind") != "security-review.v1" or event.get("stage") not in {"computed", "rejected"}:
             raise ContractError("Fixed review audit event required")
         raw = canonical_json(event, limit=8192).encode() + b"\n"
-        flags = os.O_WRONLY | os.O_APPEND | os.O_CREAT | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0)
+        flags = os.O_RDWR | os.O_APPEND | os.O_CREAT | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0) | getattr(os, "O_BINARY", 0)
         with self.lock:
             fd = os.open(self.path, flags, 0o600)
             try:
@@ -112,6 +112,12 @@ class LocalReviewAudit:
                     raise ContractError("Private regular audit file required")
                 if info.st_size + len(raw) > self.maximum_bytes:
                     raise ContractError("Local audit capacity exhausted")
+                if info.st_size:
+                    # A crash/full disk can persist only a prefix of a record.
+                    # Never merge a new successful event into that torn line.
+                    os.lseek(fd, -1, os.SEEK_END)
+                    if os.read(fd, 1) != b"\n":
+                        raise ContractError("Local audit contains an incomplete record")
                 offset = 0
                 while offset < len(raw):
                     written = os.write(fd, raw[offset:])

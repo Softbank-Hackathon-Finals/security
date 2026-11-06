@@ -3,6 +3,7 @@ from dataclasses import asdict
 from datetime import timedelta
 import json
 import os
+import errno
 
 import pytest
 
@@ -85,6 +86,38 @@ def test_local_audit_capacity_stops_growth_without_overwriting_history(tmp_path)
     with pytest.raises(ContractError, match="capacity"):
         audit(dict(kind="security-review.v1", stage="rejected"))
     assert path.read_bytes() == original
+
+
+def test_partial_disk_write_prevents_later_success_until_operator_recovery(tmp_path, monkeypatch):
+    path = tmp_path / "torn-audit.jsonl"
+    audit = LocalReviewAudit(path)
+    event = dict(kind="security-review.v1", stage="computed")
+    assert audit(event) is True
+    previous = path.read_bytes()
+    real_write = os.write
+    calls = []
+
+    def partial_then_full(fd, raw):
+        calls.append(1)
+        if len(calls) == 1:
+            return real_write(fd, raw[:10])
+        raise OSError(errno.ENOSPC, "Injected isolated disk capacity failure")
+
+    with monkeypatch.context() as injected:
+        injected.setattr(os, "write", partial_then_full)
+        with pytest.raises(OSError):
+            audit(event)
+    damaged = path.read_bytes()
+    assert damaged.startswith(previous) and not damaged.endswith(b"\n")
+    # A new process/object must also detect the persisted partial record.
+    with pytest.raises(ContractError, match="incomplete"):
+        LocalReviewAudit(path)(event)
+    assert path.read_bytes() == damaged
+    # Recovery is an explicit operator choice of a new protected destination;
+    # the damaged evidence is retained, never automatically truncated/repaired.
+    recovered = tmp_path / "operator-replacement.jsonl"
+    assert LocalReviewAudit(recovered)(event) is True
+    assert json.loads(recovered.read_text()) == event
 
 
 @pytest.mark.skipif(os.name == "nt", reason="POSIX projected symlink and FIFO behavior")

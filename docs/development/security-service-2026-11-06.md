@@ -384,3 +384,14 @@ process/container 모두 통과. 실제 컨테이너 소비 **39 PASS, 31.89초*
 push commit 메시지에 `[review-endurance]`가 있는 경우에만 10,800초 실행한다. 일반 push/PR은
 장시간 작업을 생략한다. runner/DB는 격리되어 있고 보고서만 artifact로 올리며 fixture 자격은 제외한다.
 실행 접수나 시작을 통과로 취급하지 않는다. 완료된 테스트와 보고서, 프로세스 종료를 확인해 후속 기록한다.
+
+## SVC-21: 부분 감사 기록 이후의 신규 판정 보류
+
+- [ADR-0015](../adr/0015-torn-local-audit-records.md): 저장 공간 장애에서 파생된 실제 결함이다.
+  10 bytes 쓰기 후 ENOSPC를 주입했을 때 다음 감사 기록이 성공하는 조건을 **변경 전 1 FAIL**로 확인했다.
+- `review_mounts.py`는 같은 fd의 마지막 줄바꿈을 확인하고 미완성 파일을 보존한 채 거부한다.
+  전체 로그 재파싱이나 자동 삭제/절단을 추가하지 않는다. wire와 플랫폼 실행 계약은 유지한다.
+- 시작된 3시간 CI는 `163111e` 소스의 관측이다. 이후 수정이 그 실행에 들어간 것으로 주장하지 않는다.
+  이번 변경의 별도 단위/전체 CI 결과를 연결한다.
+- Windows의 감사/서비스/ASGI 단위 시험 **52 PASS, 1 SKIP**. SKIP은 POSIX symlink/FIFO 시험이며
+  Linux CI에서 별도 실행한다. Ruff와 diff 공백 검사를 통과했다.
