@@ -117,3 +117,15 @@
 - [22개 검사 대응표](../platform-control-traceability.md)를 추가했다. 6개 범주/하위 시험과
   추가 요구를 분리하고 부분적인 T14/T19 PASS를 전체 프로그램 인수로 확대하지 않는다.
 - 상태: 로컬 실제 DB/TLS + 모의 권한/측정 검증. 운영 TokenReview·CNI·T24 인수는 남아 있다.
+
+## SVC-07: 원격 CI의 엄격한 TLS 검증
+
+- 최초 push `b3cbbe6`의 두 platform-contract 작업과 secrets 작업은 통과했다.
+  Python 3.14 package에서 TLS 시험 8개가 실패했고 3.11 작업은 matrix fail-fast로 취소됐다.
+- 원인: 시험용 인증서에 Authority Key Identifier와 엄격한 CA key usage가 없었다.
+  Python 3.12에서 VERIFY_X509_STRICT를 켜 `Missing Authority Key Identifier`를 재현했다.
+  [Python 공식 변경 설명](https://docs.python.org/3/library/ssl.html#ssl.create_default_context)에
+  따르면 3.13부터 엄격한 검증이 기본이다.
+- 수정: `tests/tls_review_support.py`의 일회용 CA/leaf를 올바른 X.509 확장으로 발급한다.
+  생산 코드의 TLS 검증은 바꾸지 않는다. TLS wire 시험은 구버전 Python에서도 strict flag를 켠다.
+- 상태: 로컬 TLS 회귀 후 원격 CI 재검증. 최초 실패는 통과로 집계하지 않는다.

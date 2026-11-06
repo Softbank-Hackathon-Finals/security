@@ -84,7 +84,10 @@ def test_actual_http_response_rejection_never_retries_or_follows_redirect(scope,
 def test_wire_output_has_no_authorization_capability(scope, now, tmp_path):
     state, endpoint, request = service_bundle(scope, now)
     with tls_server(SecurityReviewApp(endpoint), tmp_path) as (origin, ca):
-        transport = HTTPSJSONTransport(origin, tls_context=ssl.create_default_context(cafile=str(ca)))
+        context = ssl.create_default_context(cafile=str(ca))
+        # Python 3.13+ enables this by default. Exercise it on older CI runtimes too.
+        context.verify_flags |= ssl.VERIFY_X509_STRICT
+        transport = HTTPSJSONTransport(origin, tls_context=context)
         raw = transport.post("/v1/program-reviews", encode(request).encode(), BearerCredential(state.token, now + timedelta(minutes=1)))
     assert decode(raw).execution_authorized is False
     assert json.loads(raw)["value"]["execution_authorized"] is False
