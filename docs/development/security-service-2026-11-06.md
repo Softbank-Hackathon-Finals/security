@@ -297,3 +297,21 @@ PostgreSQL 18.4를 실제 버전 값으로 확인하고 DB 경계 **40 PASS, 11.
 - 계측에서 원본 수집은 5회에서 3회로 감소했다. 현재 함수 호출 약 713만/1.956초는 계측값이며
   운영 SLA가 아니다. 기존 permit/결과 5초 기한과 접수 직전 재검사를 유지한다.
 - 잠금 Python 3.14 + 기준 플랫폼 + 실제 PG/OPA/Kubernetes 전체 회귀: **867 PASS, 115.02초**.
+
+### SVC-15 소비 CI 결과
+
+생산자 `2898f54`를 고정한 Sova `4987c24` [CI](https://github.com/Softbank-Hackathon-Finals/sova-test/actions/runs/42212461099)
+process/container 모두 통과. 실제 컨테이너 소비 **39 PASS, 31.89초**이며 앞선 네 만료 실패를 해소했다.
+부하가 더 크거나 원본이 바뀔 때의 만료/철회 거부 조건은 그대로 유지한다.
+
+## SVC-16: 느린 TLS 응답의 공통 기한과 부가 정보 제한
+
+- 요구/설계/한계: [ADR-0011](../adr/0011-shared-http-network-deadline.md).
+  변경 전 실제 응답 지연 및 큰 헤더 시험 4 FAIL을 확인했다.
+- 수정: `adapters/deadline_http.py`, `review_https.py`, `tests/integration/test_review_deadlines.py`.
+  DNS 반환 뒤 TCP/TLS/send/read 전체의 남은 시간을 공유하고 HTTP metadata 누적 한도를 적용한다.
+  DNS 자체 취소나 운영 전체 기한을 보장한다고 주장하지 않는다.
+- 실제 TLS 정상/거부 및 identity 관련 **58 PASS, 8.16초**. 전체 잠금 런타임과 원격 소비를 이어간다.
+- 잠금 Python 3.14 + 실제 PG/OPA/Kubernetes + 최신 플랫폼 전체 회귀 **879 PASS, 117.93초**.
+  앞선 current-collection 생산자 [CI](https://github.com/Softbank-Hackathon-Finals/security/actions/runs/42212375242)도
+  Python 두 버전·플랫폼 네 기준·PG18 실제 이미지·secrets 모두 통과했다.

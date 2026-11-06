@@ -2,12 +2,12 @@
 
 from dataclasses import dataclass, field
 from datetime import datetime
-import http.client
 import ssl
 import time
 from urllib.parse import urlsplit
 
 from sova_security.contracts.commands import ContractError, utc
+from sova_security.adapters.deadline_http import DeadlineHTTPSConnection
 
 
 class ReviewTransportError(ContractError):
@@ -61,8 +61,9 @@ class HTTPSJSONTransport:
         if type(raw) is not bytes or not 0 < len(raw) <= 1048576 or type(credential) is not BearerCredential:
             raise ContractError("Bounded request and credential required")
         self._require_tls()
-        connection = http.client.HTTPSConnection(self.hostname, self.port, context=self.context, timeout=self.timeout)
         started = time.monotonic()
+        connection = DeadlineHTTPSConnection(self.hostname, self.port, context=self.context, deadline=started + self.timeout)
+        response = None
         try:
             connection.request("POST", path, body=raw, headers={
                 "Authorization": "Bearer " + credential.token, "Content-Type": "application/json",
@@ -86,8 +87,6 @@ class HTTPSJSONTransport:
                 remaining = self.timeout - (time.monotonic() - started)
                 if remaining <= 0:
                     raise ReviewTransportError("SERVICE_DEADLINE_EXCEEDED")
-                if connection.sock is not None:
-                    connection.sock.settimeout(remaining)
                 chunk = response.read1(min(16384, self.max_response + 1 - len(result)))
                 if not chunk:
                     break
@@ -104,4 +103,6 @@ class HTTPSJSONTransport:
         except Exception:
             raise ReviewTransportError("SERVICE_TRANSPORT_UNAVAILABLE") from None
         finally:
+            if response is not None:
+                response.close()
             connection.close()
