@@ -18,7 +18,7 @@ import tomllib
 import zipfile
 
 
-BASE = "python:3.12.16-slim-trixie@sha256:4840d514c583a4d3d8cad3940e68dee6f0f6f3635c12fcd0a3d74c21a5b93a54"
+BASE = "python:3.12.16-alpine3.24@sha256:e064671ca452259bab50e8e2c7bd896e39e9a343bb06ca25234adf6fe18d0fc7"
 UV_VERSION = "0.13.6"
 INSTALLER_VERSION = "26.2.2"
 

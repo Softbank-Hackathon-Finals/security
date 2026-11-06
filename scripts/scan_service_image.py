@@ -93,8 +93,15 @@ def assess(report, database, inventory, *, image_id, commit, started_at, finishe
     if not started_at <= timestamp(database.get("DownloadedAt")) <= finished_at:
         raise ValueError("Fresh isolated vulnerability database download required")
     os_info = report["Metadata"].get("OS", {})
-    if os_info.get("Family") != "debian" or not re.fullmatch(r"13(?:\.[0-9]+)?", os_info.get("Name", "")):
-        raise ValueError("Expected Debian 13 image coverage required")
+    family = os_info.get("Family")
+    supported = {"debian": (r"13(?:\.[0-9]+)?", {"amd64", "all"}),
+                 "alpine": (r"3\.24(?:\.[0-9]+)?", {"x86_64", "noarch"})}
+    if family not in supported or not re.fullmatch(supported[family][0], os_info.get("Name", "")):
+        raise ValueError("Qualified OS release coverage required")
+    if family == "alpine" and inventory.get("os_family") != family:
+        raise ValueError("Explicit Alpine runtime inventory required")
+    if inventory.get("os_family", family) != family:
+        raise ValueError("Runtime and scanner OS families disagree")
     results = report.get("Results")
     if type(results) is not list or not results or len(results) > 512 or report.get("Errors"):
         raise ValueError("Explicit successful scanner result coverage required")
@@ -113,7 +120,7 @@ def assess(report, database, inventory, *, image_id, commit, started_at, finishe
     for item in installed_os:
         if type(item) not in {list, tuple} or len(item) != 3 or any(type(x) is not str or not x for x in item):
             raise ValueError("Typed installed OS package identity required")
-        if item[2] not in {"amd64", "all"}:
+        if item[2] not in supported[family][1]:
             raise ValueError("Qualified OS package architecture required")
         expected_os.add(tuple(item))
     if len(expected_os) != len(installed_os) or inventory.get("package_installers_absent") is not True or inventory.get("global_python_packages") != []:
@@ -134,8 +141,10 @@ def assess(report, database, inventory, *, image_id, commit, started_at, finishe
             name = normalized(entry.get("Name"))
             if category == ("lang-pkgs", "python-pkg"):
                 detected.add((name, entry["Version"]))
-            elif category == ("os-pkgs", "debian"):
+            elif category == ("os-pkgs", family):
                 detected_os.add((entry["Name"], debian_package_version(entry), entry.get("Arch")))
+            else:
+                raise ValueError("Unqualified package category cannot be ignored")
         vulnerabilities = result.get("Vulnerabilities", [])
         if type(vulnerabilities) is not list:
             raise ValueError("Typed scanner findings required")
@@ -150,13 +159,13 @@ def assess(report, database, inventory, *, image_id, commit, started_at, finishe
             if level in {"HIGH", "CRITICAL", "UNKNOWN"}:
                 findings.append({key: finding.get(key) for key in
                                  ("VulnerabilityID", "PkgName", "InstalledVersion", "FixedVersion", "Severity", "Status")})
-    if not packages[("os-pkgs", "debian")] or expected != detected or expected_os != detected_os:
+    if not packages[("os-pkgs", family)] or expected != detected or expected_os != detected_os:
         raise ValueError("Scanner coverage differs from the actual OS or Python inventory")
     gate = "BLOCK" if counts["HIGH"] or counts["CRITICAL"] or os_info.get("EOSL") else "UNKNOWN" if counts["UNKNOWN"] else "PASS"
-    return dict(schema_version=1, policy="service-image-high-critical.v2", gate=gate,
+    return dict(schema_version=1, policy="service-image-high-critical.v3", gate=gate, os_family=family,
                 source_commit=commit, local_image_config_id=image_id, registry_digest=None,
                 scanner_version=TRIVY_VERSION, database_updated_at=updated.isoformat(), observed_at=finished_at.isoformat(),
-                severity_counts={key: counts[key] for key in sorted(LEVELS)}, os_package_count=packages[("os-pkgs", "debian")],
+                severity_counts={key: counts[key] for key in sorted(LEVELS)}, os_package_count=packages[("os-pkgs", family)],
                 os_packages_verified=len(expected_os),
                 runtime_python_packages_verified=len(expected), blocking_or_unknown_findings=findings,
                 execution_authorized=False, release_authorized=False, signed_attestation=False)

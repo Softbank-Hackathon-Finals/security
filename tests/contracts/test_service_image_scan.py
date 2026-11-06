@@ -130,6 +130,37 @@ def test_debian_epoch_is_not_coerced(epoch):
         scanner.debian_package_version(dict(Version="1.0", Epoch=epoch))
 
 
+@pytest.mark.parametrize("fault", [None, "high", "release", "architecture", "family", "missing-family", "version", "category"])
+def test_alpine_runtime_coverage_remains_exact_and_unfixed_high_blocks(now, fault):
+    values = fixture(now)
+    report, _, inventory = values
+    report["Metadata"]["OS"].update(Family="alpine", Name="3.24.2")
+    report["Results"][0].update(Type="alpine", Packages=[dict(Name="musl", Version="1.2.6-r1", Arch="x86_64")])
+    inventory.update(os_family="alpine", os_packages=[["musl", "1.2.6-r1", "x86_64"]])
+    if fault == "high":
+        report["Results"][0]["Vulnerabilities"] = [dict(VulnerabilityID="CVE-2026-12345", PkgName="musl",
+            InstalledVersion="1.2.6-r1", Severity="HIGH", Status="will_not_fix")]
+    elif fault == "release":
+        report["Metadata"]["OS"]["Name"] = "3.23.0"
+    elif fault == "architecture":
+        inventory["os_packages"][0][2] = "amd64"
+    elif fault == "family":
+        inventory["os_family"] = "debian"
+    elif fault == "missing-family":
+        inventory.pop("os_family")
+    elif fault == "version":
+        inventory["os_packages"][0][1] = "1.2.6-r2"
+    elif fault == "category":
+        report["Results"].append(dict(Class="lang-pkgs", Type="gobinary", Packages=[dict(Name="unqualified", Version="1")]))
+    if fault in {None, "high"}:
+        result = assess(values, now)
+        assert result["gate"] == ("BLOCK" if fault else "PASS")
+        assert result["os_family"] == "alpine" and result["os_packages_verified"] == 1
+    else:
+        with pytest.raises(ValueError):
+            assess(values, now)
+
+
 @pytest.mark.parametrize("system,release,free,allowed", [
     ("Linux", "6.8.0", 6 * 1024 ** 3, True),
     ("Linux", "6.8.0", 6 * 1024 ** 3 - 1, False),
