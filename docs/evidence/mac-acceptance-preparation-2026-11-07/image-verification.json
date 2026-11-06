@@ -1,0 +1,10 @@
+{
+  "archive_sha256": "26c9a4cf3f41f2e938ff0c3a35798eb4f98cda0bef607d2950f2cdb5c2c929d6",
+  "image_config_id": "sha256:be377e9a625ebd4620bb284a95a3848132775c775288daa4a263f65416b61bb2",
+  "source": "546f6e0482cc06fa32f00ea8d554522551a84beb",
+  "platform": "linux/arm64",
+  "provenance_matches": true,
+  "loaded": false,
+  "executed": false,
+  "registry_digest": null
+}

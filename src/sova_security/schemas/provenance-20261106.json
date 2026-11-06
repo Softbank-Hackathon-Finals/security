@@ -1,0 +1,12 @@
+{
+  "source_repository": "Softbank-Hackathon-Finals/platform",
+  "source_commit": "505d451fd8c374de755b160fca24f1a481820a50",
+  "source_path": "docs/controls/control-result.schema.json",
+  "vendored_file": "team-control-result-20261106.json",
+  "source_sha256": "f1273e751b31288c6d2ed927d888032474ce05f132dde7545bc12e2d9b38b654",
+  "modified": false,
+  "example_source_path": "docs/controls/examples/source-run.json",
+  "example_sha256": "553fb44544d1a395f8e2f8791b7aff4c9f07e84bcc4082bb0d0c5df1bb87ed98",
+  "attribution": "Team Bravo T5 control-result contract; schema authoring remains in platform",
+  "selection": "Explicit TeamControlRegistration.schema_digest; preserves prior registration hashes"
+}

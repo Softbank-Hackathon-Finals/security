@@ -1,0 +1,54 @@
+[
+  {
+    "source": "c4730bba8bba94a4cbdb0acbfe53eb2b72bda2d7",
+    "file": "ci-90m.json",
+    "seconds": 5400,
+    "run_id": 42229083403,
+    "job_id": 127930010176,
+    "artifact_id": 13516901761,
+    "artifact_name": "sova-security-endurance-c4730bba8bba94a4cbdb0acbfe53eb2b72bda2d7",
+    "zip_sha256": "11822e56cb0a02ff7ed5ea4975995e980577886c6c5b215464a556767502eea2",
+    "report_sha256": "42c75a55d5610157c1e35c3590cd4c5a8ab815a9fd74b53c3f68ff8930d25c1e",
+    "source_file_count": 114,
+    "test_sha256": "d46c9ddf3edbd47166bb7ad90c412e169c0e161801fda2083bd0c3639d443a1a"
+  },
+  {
+    "source": "5ddf281b31568e49cdd1a2c993e8d8172cdc7b1e",
+    "file": "ci-storage-30m.json",
+    "seconds": 1800,
+    "run_id": 42238259304,
+    "job_id": 127961479160,
+    "artifact_id": 13516377295,
+    "artifact_name": "sova-security-endurance-5ddf281b31568e49cdd1a2c993e8d8172cdc7b1e",
+    "zip_sha256": "ca86ccb7a74561146b67315b66993a1986b1ea0288e3bb6742a62beffd1ab0d8",
+    "report_sha256": "c77d4b3ea1b3655638c7e0bccc8d30fe8fda347eaba0b2f4d5c4af172d52586c",
+    "source_file_count": 114,
+    "test_sha256": "d46c9ddf3edbd47166bb7ad90c412e169c0e161801fda2083bd0c3639d443a1a"
+  },
+  {
+    "source": "163111eee50f26ebe1f5cc3d5a50cbc0870ec85c",
+    "file": "ci-3h.json",
+    "seconds": 10800,
+    "run_id": 42217767600,
+    "job_id": 127891954930,
+    "artifact_id": 13516502514,
+    "artifact_name": "sova-security-endurance-163111eee50f26ebe1f5cc3d5a50cbc0870ec85c",
+    "zip_sha256": "d583b5c4b1f28b55f029a8a792c2a0b914d3f61bc877fcd830ba72989915a8a5",
+    "report_sha256": "ef504a935df06c28a5e3e9990a285677ec28b18128c136c86e22a95608a58cde",
+    "source_file_count": 113,
+    "test_sha256": "d46c9ddf3edbd47166bb7ad90c412e169c0e161801fda2083bd0c3639d443a1a"
+  },
+  {
+    "source": "68ec7316cdd9855f1977ddb0edcb93c12267e324",
+    "file": "ci-budget-30m.json",
+    "seconds": 1800,
+    "run_id": 42240519877,
+    "job_id": 127969272579,
+    "artifact_id": 13516389547,
+    "artifact_name": "sova-security-endurance-68ec7316cdd9855f1977ddb0edcb93c12267e324",
+    "zip_sha256": "f3c70b31a3247c0452e9b94196355ea2ae2947c53523f5bfd8e334b19b04e8c4",
+    "report_sha256": "1796dcf6d2c7c92b4465c576ff5ebb17508090e4d1ee8255d36cda78d946dac5",
+    "source_file_count": 114,
+    "test_sha256": "d46c9ddf3edbd47166bb7ad90c412e169c0e161801fda2083bd0c3639d443a1a"
+  }
+]

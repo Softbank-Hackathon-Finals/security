@@ -2,10 +2,315 @@ name: security-package
 on:
   pull_request:
   push:
-    branches: [main]
+    branches: [main, feature/security-service-integration]
 permissions:
   contents: read
 jobs:
+  review-endurance:
+    # Explicit opt-in on this private-validation branch. Ordinary pushes/PRs
+    # never run endurance; markers are data, never shell interpolation.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/feature/security-service-integration' && (contains(github.event.head_commit.message, '[review-endurance]') || contains(github.event.head_commit.message, '[review-endurance-90m]') || contains(github.event.head_commit.message, '[review-endurance-30m]'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 195
+    services:
+      postgres:
+        image: postgres:18.4@sha256:a02db8cac496f15b094798a38254f14d6e00741f709360e5e00bb6668ea31636
+        env:
+          POSTGRES_USER: bravo_test_admin
+          POSTGRES_PASSWORD: ci-test-only
+          POSTGRES_DB: sova_security_test
+          POSTGRES_INITDB_ARGS: '-c cluster_name=sova-security-test'
+        volumes: ['/tmp/security-endurance-pg:/var/run/postgresql']
+        options: >-
+          --health-cmd "pg_isready -U bravo_test_admin -d sova_security_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      SOVA_SECURITY_TEST_POSTGRES_DSN: 'host=/tmp/security-endurance-pg port=5432 user=bravo_test_admin password=ci-test-only dbname=sova_security_test'
+      SOVA_REVIEW_ENDURANCE_SECONDS: ${{ contains(github.event.head_commit.message, '[review-endurance-90m]') && '5400' || contains(github.event.head_commit.message, '[review-endurance-30m]') && '1800' || '10800' }}
+      AWS_EC2_METADATA_DISABLED: 'true'
+      UV_PYTHON_DOWNLOADS: 'never'
+      PYTHONPATH: '${{ github.workspace }}/src'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.14'
+      - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          version: '0.13.6'
+          enable-cache: false
+      - run: uv sync --locked --extra dev --extra platform-test --no-install-project --no-build --python '3.14'
+      - name: Observe actual service process for the explicit duration
+        env:
+          SOVA_REVIEW_ENDURANCE_REPORT: '${{ runner.temp }}/review-endurance.json'
+        run: .venv/bin/python -m pytest -q tests/integration/test_review_endurance.py
+      - name: Preserve only public measurements, never fixture credentials
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: sova-security-endurance-${{ github.sha }}
+          path: ${{ runner.temp }}/review-endurance.json
+          if-no-files-found: error
+          retention-days: 14
+  service-image:
+    name: service-image (${{ matrix.arch }})
+    needs: [package, platform-contract, secrets]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-latest
+            trivy_archive: trivy_0.76.2_Linux-64bit.tar.gz
+            trivy_sha: bc0fc726e017b8927a62b2d3531d7a84ee01769daf5c99ed866dced54089fdbf
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+            trivy_archive: trivy_0.76.2_Linux-ARM64.tar.gz
+            trivy_sha: ab9d51f86e6a5fb936f605faff6b593ac51bc378fff4d3e8b9d58358b9c367c3
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: ${{ contains(github.event.head_commit.message, '[image-endurance-90m]') && 110 || 15 }}
+    services:
+      postgres:
+        image: postgres:18.4@sha256:a02db8cac496f15b094798a38254f14d6e00741f709360e5e00bb6668ea31636
+        env:
+          POSTGRES_USER: bravo_test_admin
+          POSTGRES_PASSWORD: ci-test-only
+          POSTGRES_DB: sova_security_test
+          POSTGRES_INITDB_ARGS: '-c cluster_name=sova-security-test'
+        volumes: ['/tmp/security-image-pg:/var/run/postgresql']
+        options: >-
+          --health-cmd "pg_isready -U bravo_test_admin -d sova_security_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      SOVA_SECURITY_TEST_POSTGRES_DSN: 'host=/tmp/security-image-pg port=5432 user=bravo_test_admin password=ci-test-only dbname=sova_security_test'
+      UV_PYTHON_DOWNLOADS: 'never'
+      AWS_EC2_METADATA_DISABLED: 'true'
+      IMAGE_PLATFORM: linux/${{ matrix.arch }}
+      TRIVY_ARCHIVE: ${{ matrix.trivy_archive }}
+      TRIVY_ARCHIVE_SHA: ${{ matrix.trivy_sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+      - name: Read qualified platform for image admission checks
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          repository: Softbank-Hackathon-Finals/platform
+          ref: 0795f65e24f58e43545b16b97757efcc0923fd4a
+          path: .local-notes/platform-image-source
+          persist-credentials: false
+          sparse-checkout: |
+            services/control-gate
+            services/platform-events
+            docs/controls
+      - run: echo "SOVA_PLATFORM_SOURCE=$PWD/.local-notes/platform-image-source" >> "$GITHUB_ENV"
+      - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          version: '0.13.6'
+          enable-cache: false
+      - run: uv sync --locked --extra dev --extra platform-test --no-install-project --no-build --python '3.12'
+      - name: Qualify database boundary on the platform PostgreSQL version
+        run: |
+          .venv/bin/python - <<'PY'
+          import os, psycopg
+          with psycopg.connect(os.environ['SOVA_SECURITY_TEST_POSTGRES_DSN']) as connection:
+              assert connection.execute("SHOW server_version_num").fetchone() == ('180004',)
+          print('Verified isolated PostgreSQL 18.4')
+          PY
+          .venv/bin/python -m pytest -q -rx tests/integration/test_review_database_escape.py tests/integration/test_review_database_admin_functions.py tests/integration/test_postgres_boundary.py tests/integration/test_review_reader_storage.py tests/integration/test_review_reader_connection_budget.py
+      - name: Prepare TLS only in the disposable PostgreSQL service container
+        env:
+          TEST_DATABASE_CONTAINER: ${{ job.services.postgres.id }}
+        run: |
+          .venv/bin/python - <<'PY'
+          import os, sys
+          from pathlib import Path
+          sys.path.insert(0, 'tests')
+          from tls_review_support import certificates
+          root = Path(os.environ['RUNNER_TEMP']) / 'review-database-tls'
+          root.mkdir()
+          certificates(root, name='db')
+          PY
+          docker cp "$RUNNER_TEMP/review-database-tls/db.pem" "$TEST_DATABASE_CONTAINER:/tmp/review-db-test.pem"
+          docker cp "$RUNNER_TEMP/review-database-tls/db.key" "$TEST_DATABASE_CONTAINER:/tmp/review-db-test.key"
+          docker exec "$TEST_DATABASE_CONTAINER" chown postgres:postgres /tmp/review-db-test.pem /tmp/review-db-test.key
+          docker exec "$TEST_DATABASE_CONTAINER" chmod 600 /tmp/review-db-test.key
+          .venv/bin/python - <<'PY'
+          import os, time, psycopg
+          with psycopg.connect(os.environ['SOVA_SECURITY_TEST_POSTGRES_DSN'], autocommit=True) as connection:
+              assert connection.info.host.startswith('/')
+              assert connection.execute("SELECT current_setting('cluster_name'),current_database()").fetchone() == ('sova-security-test', 'sova_security_test')
+              connection.execute("ALTER SYSTEM SET ssl_cert_file='/tmp/review-db-test.pem'")
+              connection.execute("ALTER SYSTEM SET ssl_key_file='/tmp/review-db-test.key'")
+              connection.execute("ALTER SYSTEM SET ssl='on'")
+              assert connection.execute('SELECT pg_reload_conf()').fetchone() == (True,)
+              deadline = time.monotonic() + 5
+              while connection.execute('SHOW ssl').fetchone() != ('on',):
+                  assert time.monotonic() < deadline, 'Disposable PostgreSQL TLS startup failed'
+                  time.sleep(0.05)
+          PY
+          echo "SOVA_TEST_REVIEW_DB_CA=$RUNNER_TEMP/review-database-tls/db-ca.pem" >> "$GITHUB_ENV"
+          echo "SOVA_TEST_REVIEW_DB_HOSTADDR=$(docker inspect --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "$TEST_DATABASE_CONTAINER")" >> "$GITHUB_ENV"
+      - name: Verify direct database ingress and cross-database denial
+        run: .venv/bin/python -m pytest -q tests/integration/test_review_database_network.py
+      - name: Prepare only committed wheel and hashed runtime dependencies
+        run: .venv/bin/python scripts/prepare_service_image.py --platform "$IMAGE_PLATFORM" --output "$RUNNER_TEMP/service-image-context"
+      - name: Build exact service image without publishing
+        run: |
+          docker build --platform "$IMAGE_PLATFORM" --iidfile "$RUNNER_TEMP/service-image-id" \
+            --label "org.opencontainers.image.revision=$GITHUB_SHA" \
+            --label "org.opencontainers.image.source=https://github.com/Softbank-Hackathon-Finals/security" \
+            "$RUNNER_TEMP/service-image-context"
+          echo "SOVA_TEST_REVIEW_IMAGE=$(cat "$RUNNER_TEMP/service-image-id")" >> "$GITHUB_ENV"
+          echo "SOVA_TEST_REVIEW_IMAGE_COMMIT=$GITHUB_SHA" >> "$GITHUB_ENV"
+      - name: Verify default UID, capabilities and read-only runtime without a network
+        run: |
+          docker run --rm --pull=never --network=none --read-only --cap-drop=ALL \
+            --security-opt=no-new-privileges:true --pids-limit=64 --memory=384m \
+            --mount "type=bind,source=$PWD/scripts/verify_service_image.py,target=/verify.py,readonly" \
+            --entrypoint python "$SOVA_TEST_REVIEW_IMAGE" /verify.py > "$RUNNER_TEMP/service-image-context/runtime-inventory.json"
+      - name: Verify actual TLS review and issuer revocation through container
+        run: >-
+          .venv/bin/python -m pytest -q
+          'tests/integration/test_review_host_runtime.py::test_standalone_review_runtime_reads_current_authority[issuer-revoked]'
+          tests/integration/test_platform_review_runtime.py::test_real_platform_runtime_enforces_current_service_authority
+      - name: Preserve public build inputs and local image identifier
+        run: |
+          cp "$RUNNER_TEMP/service-image-id" "$RUNNER_TEMP/service-image-context/local-image-id.txt"
+      - name: Collect OS and Python image vulnerability evidence without publishing
+        run: |
+          mkdir "$RUNNER_TEMP/service-scanner"
+          curl --fail --location --proto '=https' --tlsv1.2 --max-time 120 \
+            "https://github.com/aquasecurity/trivy/releases/download/v0.76.2/$TRIVY_ARCHIVE" \
+            --output "$RUNNER_TEMP/service-scanner/trivy.tar.gz"
+          printf '%s  %s\n' "$TRIVY_ARCHIVE_SHA" \
+            "$RUNNER_TEMP/service-scanner/trivy.tar.gz" | sha256sum --check
+          tar -xzf "$RUNNER_TEMP/service-scanner/trivy.tar.gz" -C "$RUNNER_TEMP/service-scanner" trivy
+          PYTHONPATH=src .venv/bin/python scripts/scan_service_image.py \
+            --trivy "$RUNNER_TEMP/service-scanner/trivy" --image-id "$SOVA_TEST_REVIEW_IMAGE" --commit "$GITHUB_SHA" \
+            --runtime-inventory "$RUNNER_TEMP/service-image-context/runtime-inventory.json" \
+            --output "$RUNNER_TEMP/service-image-context/scan"
+          .venv/bin/python - <<'PY'
+          import json, os
+          from pathlib import Path
+          result = json.loads((Path(os.environ['RUNNER_TEMP']) / 'service-image-context/scan/decision.json').read_text())
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as summary:
+              summary.write('### Service image policy: **' + result['gate'] + '**\n\n')
+              summary.write('Collection completed. This result is not a release authorization.\n\n')
+              summary.write('| Severity | Package findings |\n|---|---:|\n')
+              for level in ('CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'UNKNOWN'):
+                  summary.write('| ' + level + ' | ' + str(result['severity_counts'][level]) + ' |\n')
+              summary.write('\nActual OS packages verified: ' + str(result['os_packages_verified']) + '.\n')
+              summary.write('Actual service Python packages verified: ' + str(result['runtime_python_packages_verified']) + '.\n')
+              summary.write('No image was published; registry digest and signed attestation are absent.\n')
+          PY
+      - name: Preserve the exact scanned PASS image for controlled handoff
+        run: |
+          .venv/bin/python scripts/export_qualified_image.py \
+            --context "$RUNNER_TEMP/service-image-context" --output "$RUNNER_TEMP/qualified-image-export"
+          cp "$RUNNER_TEMP/qualified-image-export/archive-provenance.json" "$RUNNER_TEMP/service-image-context/archive-provenance.json"
+      - name: Verify exported archive loads and preserves the actual runtime inventory
+        run: |
+          docker image load --input "$RUNNER_TEMP/qualified-image-export/image.tar.gz"
+          docker run --rm --pull=never --network=none --read-only --cap-drop=ALL \
+            --security-opt=no-new-privileges:true --pids-limit=64 --memory=384m \
+            --mount "type=bind,source=$PWD/scripts/verify_service_image.py,target=/verify.py,readonly" \
+            --entrypoint python "$SOVA_TEST_REVIEW_IMAGE" /verify.py > "$RUNNER_TEMP/reloaded-runtime-inventory.json"
+          cmp "$RUNNER_TEMP/service-image-context/runtime-inventory.json" "$RUNNER_TEMP/reloaded-runtime-inventory.json"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: sova-security-image-inputs-${{ matrix.arch }}-${{ github.sha }}
+          path: ${{ runner.temp }}/service-image-context/
+          if-no-files-found: error
+          retention-days: 14
+          include-hidden-files: false
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: sova-security-qualified-image-${{ matrix.arch }}-${{ github.sha }}
+          path: ${{ runner.temp }}/qualified-image-export/
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0
+      - name: Observe the exact container through credential rotation and expiry
+        if: github.event_name == 'push' && github.ref == 'refs/heads/feature/security-service-integration' && contains(github.event.head_commit.message, '[image-endurance-90m]')
+        env:
+          SOVA_REVIEW_ENDURANCE_KIND: container
+          SOVA_REVIEW_ENDURANCE_SECONDS: '5400'
+          SOVA_REVIEW_ENDURANCE_REPORT: '${{ runner.temp }}/image-endurance.json'
+        run: .venv/bin/python -m pytest -q tests/integration/test_review_endurance.py
+      - name: Preserve public container endurance measurements
+        if: always() && github.event_name == 'push' && github.ref == 'refs/heads/feature/security-service-integration' && contains(github.event.head_commit.message, '[image-endurance-90m]')
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: sova-security-image-endurance-${{ matrix.arch }}-${{ github.sha }}
+          path: ${{ runner.temp }}/image-endurance.json
+          if-no-files-found: error
+          retention-days: 14
+  platform-contract:
+    name: platform-contract (${{ matrix.name }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      matrix:
+        include:
+          - name: f602b39
+            ref: f602b39a949b99f3e2e7be901103063e78a52a70
+          - name: b19488e
+            ref: b19488e2debbee8bbe120f1309eadbe19df85b6f
+          - name: c225c86
+            ref: c225c86cf5e408b5fcd016b0e367d3672d1bac44
+          - name: 9e0d6a5
+            ref: 9e0d6a59d7a00925ddafc50cfa2ccad00c5ba768
+          - name: a610bbf
+            ref: a610bbfb60d3a633597d75dc6e070addd3c3b559
+          - name: 8b12236
+            ref: 8b12236ae4277de16cebdf1391f87721e5851d47
+          - name: bb17486
+            ref: bb174860bedf100de3970c3e8e410f02f23994e2
+          - name: 98885a6
+            ref: 98885a69999398bfe3f49fbc8324a7b19aae3e16
+          - name: 7edab53
+            ref: 7edab5312f965bd683a7738e74d49b883190e8da
+          - name: 42811da
+            ref: 42811da4cf19ce941491d4794ab49790881dc409
+          - name: 0795f65
+            ref: 0795f65e24f58e43545b16b97757efcc0923fd4a
+          - name: 445848d
+            ref: 445848d2ed9878e31eb6f5aabad0575c61739b47
+    env:
+      SOVA_PLATFORM_SOURCE: '${{ github.workspace }}/.local-notes/platform-contract-source'
+      UV_PYTHON_DOWNLOADS: 'never'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Read the exact public platform baseline without changing it
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          repository: Softbank-Hackathon-Finals/platform
+          ref: ${{ matrix.ref }}
+          path: .local-notes/platform-contract-source
+          persist-credentials: false
+          sparse-checkout: |
+            services/control-gate
+            services/platform-events
+            docs/controls
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+      - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          version: '0.13.6'
+          enable-cache: false
+      - run: uv sync --locked --extra dev --extra platform-test --no-install-project --no-build --python '3.12'
+      - run: .venv/bin/python -m pip install --no-deps --no-build-isolation --no-index -e .
+      - run: .venv/bin/python -m pytest tests/contracts/test_platform_review_bridge.py tests/contracts/test_platform_workflow_host_bridge.py tests/contracts/test_platform_current_key_bridge.py tests/contracts/test_platform_published_authority_bridge.py tests/contracts/test_platform_reevaluation_bridge.py -q
   secrets:
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -36,6 +341,18 @@ jobs:
           "$RUNNER_TEMP/gitleaks" git --redact=100 --no-banner
           --log-opts=--all --report-format=json
           --report-path="$RUNNER_TEMP/gitleaks-report.json" .
+      - name: Locate rejected records without printing their content
+        if: failure()
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import json, os
+          path = Path(os.environ['RUNNER_TEMP']) / 'gitleaks-report.json'
+          if path.is_file():
+              records = json.loads(path.read_text())
+              for record in records[:20]:
+                  print(json.dumps({key: record.get(key) for key in ('RuleID', 'File', 'StartLine', 'Commit')}))
+          PY
   package:
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -51,11 +368,12 @@ jobs:
           POSTGRES_DB: sova_security_test
           POSTGRES_INITDB_ARGS: '-c cluster_name=sova-security-test'
         ports: ['5432:5432']
+        volumes: ['/tmp/sova-security-pg:/var/run/postgresql']
         options: >-
           --health-cmd "pg_isready -U bravo_test_admin -d sova_security_test"
           --health-interval 5s --health-timeout 5s --health-retries 10
     env:
-      SOVA_SECURITY_TEST_POSTGRES_DSN: 'postgresql://bravo_test_admin:ci-test-only@localhost:5432/sova_security_test'
+      SOVA_SECURITY_TEST_POSTGRES_DSN: 'host=/tmp/sova-security-pg port=5432 user=bravo_test_admin password=ci-test-only dbname=sova_security_test'
       AWS_EC2_METADATA_DISABLED: 'true'
       UV_PYTHON_DOWNLOADS: 'never'
       SOVA_TEST_OPA_SHA256: '791790254c598a942eb140959bcec9a47f844535a632fd01d11d870ba2a47047'
@@ -66,6 +384,22 @@ jobs:
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: ${{ matrix.python }}
+      - name: Read current qualified platform for the complete service chain
+        if: matrix.python == '3.14'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          repository: Softbank-Hackathon-Finals/platform
+          ref: 0795f65e24f58e43545b16b97757efcc0923fd4a
+          path: .local-notes/platform-contract-source
+          persist-credentials: false
+          sparse-checkout: |
+            services/control-gate
+            services/platform-events
+            docs/controls
+            infra/envs/rehearsal-access
+      - name: Enable actual platform runtime qualification
+        if: matrix.python == '3.14'
+        run: echo "SOVA_PLATFORM_SOURCE=$PWD/.local-notes/platform-contract-source" >> "$GITHUB_ENV"
       - name: Install pinned dependency manager
         uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
         with:
@@ -73,7 +407,7 @@ jobs:
           enable-cache: false
       - name: Install locked test and build dependencies
         run: |
-          uv sync --locked --extra dev --no-install-project --no-build --python '${{ matrix.python }}'
+          uv sync --locked --extra dev --extra platform-test --no-install-project --no-build --python '${{ matrix.python }}'
           echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
       - run: python -m pip install --no-deps --no-build-isolation --no-index -e .
       - run: python -m pip check
@@ -97,16 +431,41 @@ jobs:
           print('Pinned official OPA 1.22.0 verified')
           PY
       - run: ruff check src tests
+      - name: Install verified local Kubernetes API test binaries
+        if: matrix.python == '3.14'
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib, io, os, tarfile, urllib.request
+          url = 'https://github.com/kubernetes-sigs/controller-tools/releases/download/envtest-v1.35.0/envtest-v1.35.0-linux-amd64.tar.gz'
+          expected = '130369c16f076e724d089189afaede960316f5f5dea6cf57be7a4fc6f09c77342893192509790e4056e116e232dff832ed863f5bd55dcb55d38f3ab834828a11'
+          with urllib.request.urlopen(url, timeout=60) as response:
+              raw = response.read(150_000_001)
+          assert len(raw) <= 150_000_000 and hashlib.sha512(raw).hexdigest() == expected
+          target = Path(os.environ['RUNNER_TEMP']) / 'security-envtest'
+          target.mkdir()
+          with tarfile.open(fileobj=io.BytesIO(raw), mode='r:gz') as archive:
+              for name in ('etcd', 'kube-apiserver'):
+                  entries = [m for m in archive.getmembers() if Path(m.name).name == name and m.isfile()]
+                  assert len(entries) == 1 and entries[0].size < 200_000_000
+                  path = target / name
+                  path.write_bytes(archive.extractfile(entries[0]).read())
+                  path.chmod(0o700)
+          with open(os.environ['GITHUB_ENV'], 'a') as export:
+              export.write('SOVA_TEST_ENVTEST_DIRECTORY=' + str(target) + '\n')
+          print('Verified local Kubernetes API test tools installed')
+          PY
       - run: python -m pytest -q
       - run: python -m pip wheel . --no-deps --no-build-isolation --no-index -w "$RUNNER_TEMP/security-dist"
       - name: Bind wheel manifest to this tested commit
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && matrix.python == '3.11'
+        if: matrix.python == '3.11'
         run: |
           python - <<'PY'
           from pathlib import Path
           from importlib.metadata import version, distributions
           import hashlib, json, os, zipfile
           from email.parser import BytesParser
+          from sova_security.adapters.platform_review import PLATFORM_BASELINES
           directory = Path(os.environ['RUNNER_TEMP']) / 'security-dist'
           wheels = list(directory.glob('sova_security-*-py3-none-any.whl'))
           assert len(wheels) == 1 and set(directory.iterdir()) == set(wheels)
@@ -137,7 +496,9 @@ jobs:
               'dependency_lock_sha256': hashlib.sha256(Path('uv.lock').read_bytes()).hexdigest(),
               'dependency_inventory_sha256': dependency_digest,
               'uv_version': '0.13.6',
-              'required_workflow_checks': ['secrets', 'package (3.11)', 'package (3.14)'],
+              'required_workflow_checks': ['secrets', 'package (3.11)', 'package (3.14)',
+                  *(f'platform-contract ({sha[:7]})' for sha in PLATFORM_BASELINES),
+                  'service-image (amd64)', 'service-image (arm64)'],
           }
           (directory / 'manifest.json').write_text(json.dumps(manifest, sort_keys=True, indent=2) + '\n')
           (directory / 'SHA256SUMS').write_text(

@@ -173,7 +173,7 @@ def test_partial_scans_never_claim_complete_assessment(scope, now, case):
         b'{"\\udfff":1}',
         b"[]",
         b"\xff",
-        b"{}" * (1024 * 1024 + 1),
+        pytest.param(b"{}" * (1024 * 1024 + 1), id="oversized-report"),
         b'{"x":' + b"[" * 25 + b"0" + b"]" * 25 + b"}",
     ],
 )

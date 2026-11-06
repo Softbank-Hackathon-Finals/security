@@ -20,6 +20,9 @@ OUTCOMES = {
     "failure",
 }
 
+CURRENT_SCHEMA_DIGEST = "f1273e751b31288c6d2ed927d888032474ce05f132dde7545bc12e2d9b38b654"
+LEGACY_SCHEMA_DIGEST = "7c9728028af9c9d8bc45f5e8a8ba2b3ba0e38c96b7373b7338b49c8f37adfeb9"
+
 
 @dataclass(frozen=True, slots=True)
 class TeamControlBinding(Document):
@@ -70,10 +73,7 @@ class TeamControlRegistration(Document):
     )
 
     def __post_init__(self):
-        if (
-            self.schema_digest
-            != "7c9728028af9c9d8bc45f5e8a8ba2b3ba0e38c96b7373b7338b49c8f37adfeb9"
-        ):
+        if self.schema_digest not in {LEGACY_SCHEMA_DIGEST, CURRENT_SCHEMA_DIGEST}:
             raise ContractError("Pinned team control schema required")
         if not isinstance(self.scope, ResourceScope) or not isinstance(
             self.revisions, RevisionSet

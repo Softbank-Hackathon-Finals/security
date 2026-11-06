@@ -1,0 +1,62 @@
+[
+  {
+    "architecture": "amd64",
+    "run_id": 42257525513,
+    "job_id": 128030178953,
+    "artifact_id": 13531390560,
+    "zip_sha256": "eba07922352ff9a95cb26ae438a82f53f94738fe83659e9b5f2a28467d3de6d1",
+    "report_sha256": "3e5ef2cfc3882b589f326817e4ba7f1450bc4fcad1d3ad0b52f3ddb5586ff858",
+    "source_commit": "4511a433d9a8af8bab7426cb934842a96bca5290",
+    "source_files_verified": 114,
+    "test_sha256": "197e2e1f42bbe490f5ba23dda4822782dc089128c4667c37ae93ab67ef04e6b8",
+    "harness_sha256": {
+      "container_review_support.py": "3b7ff199791be66c966df1d09e128349eec4a7a1ea862c52aadd2ea9420a3a22",
+      "review_runtime_support.py": "4c51a57e69ce4f444037f9331d4e2d91ee40ee3ef398cf79d0ee02cda36032db",
+      "tls_review_support.py": "183091c2d0aaa43cb3dc933687cf364828f0680414531e0af82a7860754c2068"
+    },
+    "consumer_commit": "546f6e0482cc06fa32f00ea8d554522551a84beb",
+    "consumer_src_differences": [
+      "src/sova_security/adapters/platform_review.py"
+    ],
+    "identical_build_and_harness_files": [
+      "deploy/security-review.Dockerfile",
+      "uv.lock",
+      "pyproject.toml",
+      "scripts/prepare_service_image.py",
+      "tests/integration/test_review_endurance.py",
+      "tests/container_review_support.py",
+      "tests/review_runtime_support.py",
+      "tests/tls_review_support.py"
+    ]
+  },
+  {
+    "architecture": "arm64",
+    "run_id": 42257525513,
+    "job_id": 128030178728,
+    "artifact_id": 13528189941,
+    "zip_sha256": "00c0f64138146bd0f8f2c0a2b739b71d89543ab9c7d3adfa2dedb270a8dab9cb",
+    "report_sha256": "abda3481429fdb55900578b9cfa1171686b4ba601669af176dd40fbf8fafd3cb",
+    "source_commit": "4511a433d9a8af8bab7426cb934842a96bca5290",
+    "source_files_verified": 114,
+    "test_sha256": "197e2e1f42bbe490f5ba23dda4822782dc089128c4667c37ae93ab67ef04e6b8",
+    "harness_sha256": {
+      "container_review_support.py": "3b7ff199791be66c966df1d09e128349eec4a7a1ea862c52aadd2ea9420a3a22",
+      "review_runtime_support.py": "4c51a57e69ce4f444037f9331d4e2d91ee40ee3ef398cf79d0ee02cda36032db",
+      "tls_review_support.py": "183091c2d0aaa43cb3dc933687cf364828f0680414531e0af82a7860754c2068"
+    },
+    "consumer_commit": "546f6e0482cc06fa32f00ea8d554522551a84beb",
+    "consumer_src_differences": [
+      "src/sova_security/adapters/platform_review.py"
+    ],
+    "identical_build_and_harness_files": [
+      "deploy/security-review.Dockerfile",
+      "uv.lock",
+      "pyproject.toml",
+      "scripts/prepare_service_image.py",
+      "tests/integration/test_review_endurance.py",
+      "tests/container_review_support.py",
+      "tests/review_runtime_support.py",
+      "tests/tls_review_support.py"
+    ]
+  }
+]

@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "source_commit": "546f6e0482cc06fa32f00ea8d554522551a84beb",
+  "run_id": 42265872242,
+  "job_id": 128058915751,
+  "artifact_id": 13525814893,
+  "zip_sha256": "39eace67723fd969d33a3313bde1aeea51f10fac9eb2af97ee8b2f4b60c85cfc",
+  "files_sha256": {
+    "Dockerfile": "4e53ac43a6794f5b186165452fb053271a2a4c0a0b5ee0562fdc53e35faa7acd",
+    "manifest.json": "cc414d1c1b845ee90eb7c141464642aa112641f2ad90788649c64c8151c8fa68",
+    "installer-requirements.txt": "f409e9c999da22f4920b4724c68adadb416a515f38d760dfd34ae6382d43df04",
+    "requirements.txt": "70963ddb5ad3d2dfcf75bee44216e2a2d2123dde119da8ba8a68ef671c9fb20d",
+    "local-image-id.txt": "e8149dc2d0f4617088a7c2be385472f9a7cc6b3aa77eb8fc26cf9623537a99df",
+    "runtime-inventory.json": "8f2d4e873f08d04bbe1aae5b4dae1e23c3dfe78b783124c9cd853dbc0e483477",
+    "database-metadata.json": "b486413335df44b02cbca829ee135e6c66681bda7edbae1a2a71f536c17e0775",
+    "decision.json": "7771610c080e683cb1d56e1f186b5230b99202ee4b4a7497f7c1565091878705",
+    "scan.json": "9a488e410890e8c73940be9a532edf240a55205b59c0f79083778cc1fb5b1703",
+    "sbom.cdx.json": "6d0398221fbcabe09620f9dfbc3955954e596b7fd73af80e341007f4825fdcf5",
+    "scanner-version.json": "3fb54aa2b21f0cb798950ace48bd226e388b49f75af4e8f19392bf09267bdcb5",
+    "archive-provenance.json": "088c0dd9d7e67dd221ffb941b9b2d23a45734d0d191275553edd8e7cbc482bfd"
+  },
+  "wheel_sha256": "c31dbfbcc41d77e96fda159ba0ef62900ed7183bb4b3ef8c7fb6f646fddfa431",
+  "wheel_binary_preserved_in_git": false
+}

@@ -1,0 +1,28 @@
+{
+  "recorded_at": "2026-11-06T19:02:51.789568+00:00",
+  "scope": "local-preparation-only",
+  "runtime_observed": false,
+  "files": {
+    "image-verification.json": {
+      "sha256": "6a8c09f81c5c0668dd8747626ffb7f796d56530b704139a2e76cb23cb8d37c9c",
+      "bytes": 369
+    },
+    "platform-source-comparison.json": {
+      "sha256": "9057919a5b8b275314d1f1ae25ce3d0fcc17d96306ff5c1e54116338168cf2fc",
+      "bytes": 1932
+    },
+    "platform-contract.log": {
+      "sha256": "cbf67ae8a5a072e8068d5de08f595fefad1171954e9a47bdf0c22a2240a34658",
+      "bytes": 100
+    },
+    "t28-local.log": {
+      "sha256": "3000ec70a2c1ea5a4fba2541c46c2c4bd6be621c3cabed05040411e58a540217",
+      "bytes": 99
+    },
+    "t28-source-guard.jsonl": {
+      "sha256": "8859b8a58da8192ee8e2f6bc5760cbfbb0cda04e6e1c8d4a595c32786c4a5450",
+      "bytes": 324
+    }
+  },
+  "shared_resource_mutations": 0
+}

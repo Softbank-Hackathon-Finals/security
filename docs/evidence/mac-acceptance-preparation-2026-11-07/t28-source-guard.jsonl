@@ -1,0 +1,3 @@
+{"name": "platform-security-contract-baseline", "accepted": true, "sha": "0795f65e24f58e43545b16b97757efcc0923fd4a"}
+{"name": "platform-security-qualified", "accepted": false, "reason": "Unqualified T28 platform commit"}
+{"name": "platform-security-readonly", "accepted": false, "reason": "Unqualified T28 platform commit"}

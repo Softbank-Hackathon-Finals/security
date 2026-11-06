@@ -8,6 +8,7 @@ from datetime import datetime, timedelta
 import hashlib
 from importlib.resources import files
 import json
+from types import MappingProxyType
 
 from sova_security.adapters.vulnerability_reports import bounded_report
 from sova_security.contracts.commands import ContractError, utc
@@ -15,23 +16,34 @@ from sova_security.contracts.evidence import EvidenceRecord, VerificationResult
 from sova_security.domain.team_controls import (
     TeamControlRegistration,
     ImportedControlRun,
+    CURRENT_SCHEMA_DIGEST,
+    LEGACY_SCHEMA_DIGEST,
 )
 
 SCHEMA_SHA256 = "7c9728028af9c9d8bc45f5e8a8ba2b3ba0e38c96b7373b7338b49c8f37adfeb9"
 SOURCE_COMMIT = "fc5a25e46904f55908da8bdee7122e4ad1574c5f"
+CURRENT_SOURCE_COMMIT = "505d451fd8c374de755b160fca24f1a481820a50"
+SCHEMA_FILES = MappingProxyType(
+    {
+        LEGACY_SCHEMA_DIGEST: "team-control-result-v1.json",
+        CURRENT_SCHEMA_DIGEST: "team-control-result-20261106.json",
+    }
+)
 
 
-def _validator():
+def _validator(schema_digest=SCHEMA_SHA256):
     from jsonschema import Draft202012Validator, FormatChecker
     from referencing import Registry
     from referencing.exceptions import NoSuchResource
 
+    if schema_digest not in SCHEMA_FILES:
+        raise ContractError("Registered team schema snapshot required")
     raw = (
         files("sova_security")
-        .joinpath("schemas/team-control-result-v1.json")
+        .joinpath("schemas/" + SCHEMA_FILES[schema_digest])
         .read_bytes()
     )
-    if hashlib.sha256(raw).hexdigest() != SCHEMA_SHA256:
+    if hashlib.sha256(raw).hexdigest() != schema_digest:
         raise ContractError("Pinned team control schema changed")
     schema = json.loads(raw)
     Draft202012Validator.check_schema(schema)
@@ -70,7 +82,7 @@ def import_control_run(raw, *, registration, now):
     from jsonschema.exceptions import ValidationError
 
     try:
-        _validator().validate(data)
+        _validator(registration.schema_digest).validate(data)
     except ValidationError:
         # The library's message contains values, possibly secrets. Do not expose it.
         raise ContractError(

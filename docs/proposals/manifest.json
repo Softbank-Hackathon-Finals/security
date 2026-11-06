@@ -1,0 +1,15 @@
+{
+  "source": "User-provided architecture proposals, preserved verbatim",
+  "received_at": "2026-11-06",
+  "historical_claims_independently_verified": false,
+  "documents": [
+    {
+      "file": "incident-security-architecture.txt",
+      "sha256": "19a28db5896b82b2ab35906b39d2c0c9b8788fe06cbd63867ba18eb5925b215d"
+    },
+    {
+      "file": "patching-as-a-service.txt",
+      "sha256": "c03ca1006d942127d6b5869f811e54ae7dc5b64071ec794113eba1d31466da1b"
+    }
+  ]
+}

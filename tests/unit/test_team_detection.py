@@ -189,6 +189,30 @@ def test_fresh_heartbeat_observes_coverage_but_does_not_assert_security(detectio
     assert result.signal == "coverage-observed" and not result.requires_hold
 
 
+@pytest.mark.parametrize("kind", ["source_status", "finding"])
+def test_recollection_does_not_extend_original_detection_or_heartbeat_lifetime(detection, now, kind):
+    r, doc, parse = detection
+    original = now - timedelta(seconds=r.maximum_age_seconds - 1)
+    if kind == "source_status":
+        doc = dict(kind=kind, source=r.source, environment_id=r.scope.environment_id, state="OK",
+                   checked_time=int(now.timestamp() * 1000), last_success_time=int(original.timestamp() * 1000))
+    else:
+        doc["time"] = int(original.timestamp() * 1000)
+    observed = parse(doc)
+    assert observed.valid_until == now + timedelta(seconds=1)
+    later = now + timedelta(seconds=2)
+    if kind == "source_status":
+        doc["checked_time"] = int(later.timestamp() * 1000)
+        result = import_detection(json.dumps(doc).encode(), registration=r,
+            collected_resource_uid=r.resource_uid, collected_resource_revision=r.resource_revision, now=later)
+        assert result.signal == "coverage-unavailable" and result.requires_hold
+    else:
+        doc["bravo"]["collected_time"] = int(later.timestamp() * 1000)
+        with pytest.raises(ContractError):
+            import_detection(json.dumps(doc).encode(), registration=r,
+                collected_resource_uid=r.resource_uid, collected_resource_revision=r.resource_revision, now=later)
+
+
 def test_duplicate_keys_and_boolean_integer_confusion_rejected(detection, now):
     r, doc, parse = detection
     doc["severity_id"] = True

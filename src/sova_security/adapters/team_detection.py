@@ -75,6 +75,7 @@ def import_detection(
     except ValidationError:
         raise ContractError("Detection does not match pinned team schema") from None
     report_digest = hashlib.sha256(raw).hexdigest()
+    producer_deadline = r.valid_until
     kind = "source_status" if data.get("kind") == "source_status" else "finding"
     if kind == "source_status":
         if (data["source"], data["environment_id"]) != (
@@ -90,6 +91,7 @@ def import_detection(
                 raise ContractError("Source heartbeat follows collection time")
             if now - timedelta(seconds=r.maximum_age_seconds) < success <= observed:
                 signal = "coverage-observed"
+                producer_deadline = success + timedelta(seconds=r.maximum_age_seconds)
         key = hashlib.sha256(
             (r.source + ":" + r.scope.environment_id + ":source_status").encode()
         ).hexdigest()
@@ -121,6 +123,7 @@ def import_detection(
             seconds=r.maximum_age_seconds
         ):
             raise ContractError("Detection stale/future event time")
+        producer_deadline = occurred + timedelta(seconds=r.maximum_age_seconds)
         sample = bravo.get("sample", False)
         key = hashlib.sha256(
             (
@@ -161,5 +164,5 @@ def import_detection(
         signal,
         sample,
         observed,
-        min(r.valid_until, observed + timedelta(seconds=r.maximum_age_seconds)),
+        min(r.valid_until, observed + timedelta(seconds=r.maximum_age_seconds), producer_deadline),
     )

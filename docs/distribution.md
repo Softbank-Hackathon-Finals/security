@@ -4,14 +4,24 @@
 
 ## CI 산출물
 
-main push의 Python 3.11 작업은 시험·정적 검사 후 wheel을 빌드하고 다음 네 파일을 업로드한다. PR에서는 소비용 산출물을 게시하지 않는다. Python 3.14 작업도 별도로 같은 코드의 호환성을 시험한다.
+Python 3.11 작업은 시험·정적 검사 후 wheel과 다음 메타데이터를 만들어 모든 브랜치에서 생성 경로를 검증한다. 업로드는 main push에만 수행한다. PR에서는 소비용 산출물을 게시하지 않는다. Python 3.14 작업도 별도로 같은 코드의 호환성을 시험한다.
 
 - `sova_security-<version>-py3-none-any.whl`
 - `manifest.json`: 저장소·전체 commit SHA·workflow·run·버전·wheel 해시
 - `dependencies.json`: 시험 환경에서 실제 설치된 패키지명·버전
 - `SHA256SUMS`: wheel과 dependencies.json의 해시
 
-산출물 이름은 `sova-security-wheel-<전체 commit SHA>`이며 보존 기간은 30일이다. 설치 전에 **전체 워크플로의 두 Python 작업과 secrets 작업이 모두 성공했는지** 확인한다. 3.11 산출물이 존재한다는 사실만으로 아직 실행 중이거나 실패한 3.14 작업이 통과한 것은 아니다.
+산출물 이름은 `sova-security-wheel-<전체 commit SHA>`이며 보존 기간은 30일이다. 설치 전에 **두 Python 작업, secrets, platform-contract가 모두 성공했는지** 확인한다. 3.11 산출물이 존재한다는 사실만으로 다른 작업이 통과한 것은 아니다. platform-contract는 Python 3.12에서 고정한 공개 platform 소스를 읽고 실제 T10/T19 모듈과의 소비 시험을 수행한다. 운영 배포 인수를 뜻하지 않는다.
+
+`required_workflow_checks`는 코드의 `PLATFORM_BASELINES` 전체에서 생성하며 현재 열두 기준을 포함한다.
+`service-image (amd64)`와 `service-image (arm64)`를 각각 확인한다. 기존 CI의 이미지 job 성공은
+검사 **수집** 성공만 뜻했지만, 새 export 단계는 별도 `decision.json`의 PASS를 요구한다.
+BLOCK/UNKNOWN의 수집 원본은 보존하고 export/job은 실패한다. wheel 설치와 운영 배포는 다른 결정이다.
+기존 Debian HIGH 49건은 [당시 원본](evidence/service-image-scan-2026-11-06/README.md)에 보존했고,
+Alpine 후보는 [양쪽 native 아키텍처의 전체 대조와 0건 PASS](evidence/service-image-scan-2026-11-07/README.md)를 확인했다.
+후속 scanner는 Docker 소켓·checkout·호스트 HOME 없이 전용 컨테이너에서 archive를 읽는다.
+DB 다운로드만 bridge network이며 실제 검사와 SBOM 변환은 network none이다. DB 해시·크기와
+격리 방식을 decision에 남긴다. 이는 CI 자격 노출 범위 제한이며 scanner의 진실성 보증은 아니다.
 
 ```sh
 gh run view RUN_ID --repo Softbank-Hackathon-Finals/security
@@ -38,12 +48,25 @@ python -m pip install './sova_security-<version>-py3-none-any.whl[postgres,signi
 검토한 commit을 checkout한 `security` 저장소에서 다음 명령으로 빌드할 수 있다.
 
 ```sh
-python -m pip wheel . --no-deps --no-build-isolation -w ./dist
+uv sync --locked --extra dev --no-install-project --no-build --python 3.12
+.venv/bin/python -m pip wheel . --no-deps --no-build-isolation --no-index -w ./dist
 ```
 
-이 명령에는 프로젝트의 build-system 요구를 만족하는 setuptools가 필요하다. 로컬 산출물과 CI 산출물은 별개로 식별하고 해시를 기록한다. 서로 다른 빌드 환경에서 wheel 바이트가 항상 같다고 가정하지 않는다.
+uv 0.13.6과 검토한 `uv.lock`을 사용한다. Windows에서는 `.venv/Scripts/python.exe`를 사용한다.
+로컬 산출물과 CI 산출물은 별개로 식별하고 해시를 기록한다. 서로 다른 빌드 환경에서 wheel 바이트가 항상 같다고 가정하지 않는다.
+
+현재 개인 검증 브랜치의 wheel은 이 방식으로 정확한 commit에서 만들거나 해당 `service-image` artifact의
+`dist/`와 source/lock/wheel manifest를 함께 검증해 사용한다. main의 이전 동명 0.11.0을 최신 브랜치
+구현으로 간주하지 않는다. Sova는 `integration/security/manifest.json`의 전체 producer SHA를 별도로 고정한다.
 
 ## 보증의 범위
+
+검사한 서비스 이미지 자체는 `sova-security-qualified-image-<amd64|arm64>-<FULL_SHA>` artifact의
+`image.tar.gz`와 `archive-provenance.json`으로 보존한다 (14일). 같은 run의
+`sova-security-image-inputs-<arch>-<FULL_SHA>`에서 원본 판정·SBOM·빌드 입력을 함께 확인한다.
+archive는 docker-save 형식이며 OCI registry manifest가 아니다. archive hash, 실제 load 뒤
+config ID/아키텍처/commit label, scanner decision hash를 대조하고 기존 플랫폼 발행 경로에서
+registry digest를 새로 확인한다. artifact 보관만으로 배포하지 않는다.
 
 체크섬은 전송 중 변경을 확인한다. manifest 단독으로 발행자의 진위를 증명하지 않는다. 신뢰 경계는 선택한 저장소·검토한 commit·성공한 GitHub Actions 실행 및 그 실행에 묶인 산출물이다. 이 경로를 Sigstore 서명, SLSA 인증 또는 장기 지원용 정식 릴리스라고 부르지 않는다. 장기 배포에는 별도 패키지 저장소·발행 정책·보존 및 서명 검증을 연결해야 한다.
 

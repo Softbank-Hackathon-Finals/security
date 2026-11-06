@@ -1,6 +1,7 @@
 """Controlled child processes exercise quotas; these are not OPA binaries."""
 
 import hashlib
+import os
 import sys
 
 import pytest
@@ -8,6 +9,9 @@ import pytest
 from opa_support import opa_bundle
 from sova_security.adapters.opa_local import PinnedLocalOPA
 from sova_security.contracts.commands import ContractError
+
+
+pytestmark = pytest.mark.skipif(os.name != "posix", reason="Pinned OPA process profile requires POSIX")
 
 
 def child(tmp_path, source):
