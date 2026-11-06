@@ -423,3 +423,26 @@ push commit 메시지에 `[review-endurance]`가 있는 경우에만 10,800초 �
 - Windows 단위 전체 **740 PASS, 6 SKIP, 10.02초**. SKIP은 POSIX OPA 프로세스 5개와 symlink/FIFO 1개다.
   실제 PG/TLS에서 독립 writer의 verifier 철회/hold commit 시나리오를 추가했다.
   전체 Linux CI와 T10/Sova 소비 결과는 후속 기록한다.
+
+## SVC-24: 여섯 번째 플랫폼 기준과 운영 결과의 의미
+
+- 2026-11-06T12:51Z 원격 develop은 `8b12236ae4277de16cebdf1391f87721e5851d47`이다.
+  a610bbf 이후 24개 commit을 비교했고 T10/T19 집행 코드는 바뀌지 않았다.
+  기본 기준·전체 서비스 CI·실제 이미지 소비를 갱신하고 이전 다섯 기준의 계약 시험도 유지한다.
+- T7 object operations는 API audience와 별도 서비스 audience를 사용하며 기존 인증 경로를 재사용한다.
+  새 issuer를 만들 이유가 줄었다. 다만 이 서비스의 audience/owner/권한을 보안 서비스와 공유하지 않는다.
+  기존 T7 acquire의 SelfSubjectReview 제약은 그대로이고 외부 보안 소비자 연결은 별도 인수다.
+- object `open`은 개발용 익명 읽기를 명시적 close까지 유지한다. **작업 FINISHED/PASS/CLEAN이
+  security PASS 또는 닫힘을 뜻하지 않는다.** final_state=open/security_state=PUBLIC_READ는
+  보안 통제에서 별도로 다뤄야 하며 이 운영 API의 결과를 22개 검사 PASS로 변환하지 않는다.
+- T15 host chart는 기존 저장 제안·T10 intake·T7 manager/runner를 연결하며 기본 비활성이다.
+  manager admission 정책과 runtime 네트워크/Secret/PVC 공급을 보안 서비스가 대신 설치하지 않는다.
+  record_key의 임시 Secret은 T9/OpenBao 인계 대상이며 우리 쪽 별도 키 발급기를 추가하지 않는다.
+- 새 T14 소스/배포 명세 실측은 양쪽 **SEC-01.2 1 PASS / 나머지 19 UNKNOWN**이다.
+  이전 TLS 실행과 합쳐 단일 통과 결과를 만들지 않는다. T21 출처 유효기간 표시도 원본 기한을 보존한다.
+- 현재 기준의 계약/T10/T7/컨테이너 CI를 실행하고 결과를 후속 기록한다. 운영 클러스터에는 접속하지 않았다.
+
+근거: [변경 비교](https://github.com/Softbank-Hackathon-Finals/platform/compare/a610bbfb60d3a633597d75dc6e070addd3c3b559...8b12236ae4277de16cebdf1391f87721e5851d47),
+[object API](https://github.com/Softbank-Hackathon-Finals/platform/blob/8b12236ae4277de16cebdf1391f87721e5851d47/docs/object-operations.md),
+[T15 host](https://github.com/Softbank-Hackathon-Finals/platform/blob/8b12236ae4277de16cebdf1391f87721e5851d47/infra/charts/rehearsal-host/README.md),
+[T14 실측](https://github.com/Softbank-Hackathon-Finals/platform/blob/8b12236ae4277de16cebdf1391f87721e5851d47/docs/evidence/t14-dual-source-scan-2026-11-06/README.md).

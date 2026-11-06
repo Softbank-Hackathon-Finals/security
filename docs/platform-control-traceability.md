@@ -3,6 +3,8 @@
 기준: platform `b19488e2debbee8bbe120f1309eadbe19df85b6f`, security catalog
 `security-modernization.v1`. 원문 요구 ID는 `domain/security_program.py`의 CHECKS가
 정본이며 [원문 요구사항 연결](architecture-integration.md)과 함께 읽는다.
+T5 원문 기준은 위 SHA를 유지한다. 후속 platform `8b12236ae4277de16cebdf1391f87721e5851d47`까지
+T10/T19 계약 차이를 재검토했으며, 새 T14 SEC-01.2 실측을 나머지 검사 PASS로 합산하지 않는다.
 
 플랫폼 T5의 **6개 범주**는 비밀 저장(SEC-01/ENC-02), 전송 암호화(ENC-01), 감사(AUD-01),
 네트워크(NET-01), 최소 권한(IAM-01/ISO-01), 복구(DR-01)다. 범주 수와 하위 시험 수를
