@@ -146,3 +146,18 @@ CI `42261162591`의 고정 진단은 `storage-full`이었다. DB 압축 해제�
 일반 /tmp를 마운트하지 않고 native Linux 6GiB 여유 조건을 유지한다. scanner CLI가 timeout으로
 끝나도 컨테이너 종료를 추정하지 않는다. 무작위 실행 label·정확한 ID/name/image를 대조한
 소유 컨테이너만 정리하는 finally 경로도 추가한다. 잘못된 identity에서는 삭제하지 않는다.
+
+- T28 추가 결과: sova-test `a8a51cc`, CI `42260455022` 성공. process/container 소비 각각
+  44 PASS, T28/원장/PG **30 PASS / 1.99초**. 별도 HTTP 프로세스가 호출자 사망 후 늦게 효과를
+  만드는 경우도 재호출하지 않았다. terminal 확인 전 reconcile은 거부했다. 합성 효과이며
+  실제 공급자 fencing/운영 인수를 대신하지 않는다.
+- OPS-01 접속 자료 보완: 사용자 다운로드의 기존 팀 ZIP에서 실제 비공개 `team-test.json`을
+  발견했다. 주소·사용자 매핑은 출력하거나 Git에 보존하지 않았다. 인증 없는 두 경로의 GET
+  전송 점검은 DNS 해석 단계에서 중단됐다. Windows/WSL 기존 Tailscale 도구가 확인되지 않아
+  본인 tailnet 로그인/접속이 남는다. 플랫폼 변경·토큰 발급·자원 생성은 수행하지 않았다.
+  [기존 도구별 실제 인수 실행안](../platform-live-acceptance.md)에 선행 조건과 근거를 정리했다.
+
+IMG-05의 `f333c56` CI에서는 격리 DB 다운로드와 scan/convert를 마친 뒤 파일 제한에서 중단됐다.
+큰 DB를 1GiB로 가정했던 상한을 4GiB로 변경하고 실측 크기를 기록한다. JSON/SBOM 상한과
+symlink/hardlink 거부, 6GiB 시작 여유 조건, 취약점 판정 기준은 유지한다.
+파일 종류·link 수·크기 진단을 구분하며 재검증 전 결과는 UNKNOWN으로 유지한다.

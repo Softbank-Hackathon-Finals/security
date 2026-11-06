@@ -231,8 +231,12 @@ def scanner_file(root, relative, limit):
         info = current.lstat()
         if stat.S_ISLNK(info.st_mode):
             raise ValueError("Scanner artifact symlinks are forbidden")
-    if not stat.S_ISREG(info.st_mode) or info.st_nlink != 1 or not 0 < info.st_size <= limit:
-        raise ValueError("Bounded regular scanner artifact required")
+    if not stat.S_ISREG(info.st_mode):
+        raise ValueError("Scanner artifact must be a regular file")
+    if info.st_nlink != 1:
+        raise ValueError("Scanner artifact must have exactly one link")
+    if not 0 < info.st_size <= limit:
+        raise ValueError("Scanner artifact size outside bound: " + str(info.st_size) + "/" + str(limit))
     return path
 
 
@@ -317,7 +321,9 @@ def collect(*, trivy, image_id, commit, inventory_path, output):
         finished = datetime.now(UTC)
         result = assess(document(output / "scan.json"), document(output / "database-metadata.json", 16384), document(inventory_path, 65536),
                         image_id=image_id, commit=commit, started_at=started, finished_at=finished)
-        result.update(scanner_binary_sha256=scanner_digest, database_sha256=sha_file(scanner_file(cache, "db/trivy.db", 1024 ** 3)),
+        database_path = scanner_file(cache, "db/trivy.db", 4 * 1024 ** 3)
+        result.update(scanner_binary_sha256=scanner_digest, database_sha256=sha_file(database_path),
+                      database_bytes=database_path.stat().st_size,
                       report_sha256=sha_file(output / "scan.json"), runtime_inventory_sha256=sha_file(inventory_path),
                       scanner_isolation="nonroot-container-offline-archive.v1", scanner_docker_socket=False,
                       scan_network="none", database_download_network="bridge",
