@@ -9,7 +9,7 @@ jobs:
   review-endurance:
     # Explicit opt-in on this private-validation branch. Ordinary pushes/PRs
     # never run endurance; markers are data, never shell interpolation.
-    if: github.event_name == 'push' && github.ref == 'refs/heads/feature/security-service-integration' && (contains(github.event.head_commit.message, '[review-endurance]') || contains(github.event.head_commit.message, '[review-endurance-90m]'))
+    if: github.event_name == 'push' && github.ref == 'refs/heads/feature/security-service-integration' && (contains(github.event.head_commit.message, '[review-endurance]') || contains(github.event.head_commit.message, '[review-endurance-90m]') || contains(github.event.head_commit.message, '[review-endurance-30m]'))
     runs-on: ubuntu-latest
     timeout-minutes: 195
     services:
@@ -26,7 +26,7 @@ jobs:
           --health-interval 5s --health-timeout 5s --health-retries 10
     env:
       SOVA_SECURITY_TEST_POSTGRES_DSN: 'host=/tmp/security-endurance-pg port=5432 user=bravo_test_admin password=ci-test-only dbname=sova_security_test'
-      SOVA_REVIEW_ENDURANCE_SECONDS: ${{ contains(github.event.head_commit.message, '[review-endurance-90m]') && '5400' || '10800' }}
+      SOVA_REVIEW_ENDURANCE_SECONDS: ${{ contains(github.event.head_commit.message, '[review-endurance-90m]') && '5400' || contains(github.event.head_commit.message, '[review-endurance-30m]') && '1800' || '10800' }}
       AWS_EC2_METADATA_DISABLED: 'true'
       UV_PYTHON_DOWNLOADS: 'never'
       PYTHONPATH: '${{ github.workspace }}/src'

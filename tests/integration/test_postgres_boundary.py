@@ -240,6 +240,7 @@ def database():
         pytest.skip("Explicit isolated SOVA_SECURITY_TEST_POSTGRES_DSN required")
     psycopg = pytest.importorskip("psycopg")
     from psycopg import sql
+    from sova_security.adapters.review_database import STORAGE_CREATORS, reader_database_statements
 
     role = "security_test_" + uuid4().hex
     password = secrets.token_urlsafe(32)
@@ -247,6 +248,14 @@ def database():
         assert admin.execute(
             "SELECT current_setting('cluster_name'),current_database()"
         ).fetchone() == ("sova-security-test", "sova_security_test")
+        public_temp = admin.execute("""SELECT EXISTS(SELECT 1 FROM pg_database d,
+            LATERAL aclexplode(COALESCE(d.datacl,acldefault('d',d.datdba))) a
+            WHERE d.datname=current_database() AND a.grantee=0 AND a.privilege_type='TEMPORARY')""").fetchone()[0]
+        public_creators = {
+            signature: admin.execute("""SELECT EXISTS(SELECT 1 FROM pg_proc p,
+                LATERAL aclexplode(COALESCE(p.proacl,acldefault('f',p.proowner))) a
+                WHERE p.oid=%s::regprocedure AND a.grantee=0 AND a.privilege_type='EXECUTE')""",
+                ("pg_catalog." + signature,)).fetchone()[0] for signature in STORAGE_CREATORS}
         admin.execute("CREATE SCHEMA IF NOT EXISTS sova_control")
         for name in MIGRATIONS:
             admin.execute(migration_sql(name))
@@ -265,12 +274,19 @@ def database():
                 "GRANT SELECT,INSERT ON ALL TABLES IN SCHEMA sova_control TO {}"
             ).format(sql.Identifier(role))
         )
+        for statement in reader_database_statements(database="sova_security_test"):
+            admin.execute(statement)
     try:
         yield dsn, role, password
     finally:
         with psycopg.connect(dsn, autocommit=True) as admin:
             admin.execute(sql.SQL("DROP OWNED BY {}").format(sql.Identifier(role)))
             admin.execute(sql.SQL("DROP ROLE {}").format(sql.Identifier(role)))
+            if public_temp:
+                admin.execute("GRANT TEMPORARY ON DATABASE sova_security_test TO PUBLIC")
+            for signature, was_public in public_creators.items():
+                if was_public:
+                    admin.execute(sql.SQL("GRANT EXECUTE ON FUNCTION pg_catalog.{} TO PUBLIC").format(sql.SQL(signature)))
 
 
 def test_runtime_tenant_visibility_and_append_only_rights(database, scope):

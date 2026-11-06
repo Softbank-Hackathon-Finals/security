@@ -11,7 +11,6 @@ database = isolated_database
 pytestmark = pytest.mark.postgres
 
 
-@pytest.mark.xfail(strict=True, reason="Reproduction: PUBLIC TEMP/large-object creators remain available to SELECT reader")
 @pytest.mark.parametrize("operation", [
     "CREATE TEMP TABLE owned_storage_probe(value integer)",
     "SELECT pg_catalog.lo_create(0)",
@@ -38,5 +37,37 @@ def test_select_reader_cannot_allocate_temp_or_large_objects(database, scope, op
                 connection.execute(operation)
     finally:
         with psycopg.connect(dsn, autocommit=True) as admin:
+            admin.execute(sql.SQL("DROP OWNED BY {}").format(sql.Identifier(role)))
+            admin.execute(sql.SQL("DROP ROLE {}").format(sql.Identifier(role)))
+
+
+@pytest.mark.parametrize("privilege", ["TEMPORARY", "lo_create(oid)", "lo_creat(integer)", "lo_from_bytea(oid,bytea)"])
+@pytest.mark.parametrize("recipient", ["reader", "public"])
+def test_reader_rejects_storage_creation_grant_drift(database, scope, privilege, recipient):
+    import psycopg
+    from psycopg import sql
+    from sova_security.adapters.review_database import reader_statements, require_reader
+    from sova_security.contracts.commands import ContractError
+
+    dsn, _, _ = database
+    role, password = "drift_reader_" + uuid4().hex, secrets.token_urlsafe(32)
+    selected = sql.SQL("PUBLIC") if recipient == "public" else sql.Identifier(role)
+    target = sql.SQL("TEMPORARY ON DATABASE sova_security_test") if privilege == "TEMPORARY" else (
+        sql.SQL("EXECUTE ON FUNCTION pg_catalog.{}").format(sql.SQL(privilege)))
+    with psycopg.connect(dsn, autocommit=True) as admin:
+        for statement in reader_statements(role=role, tenant_id=scope.tenant_id):
+            admin.execute(statement)
+        admin.execute(sql.SQL("ALTER ROLE {} PASSWORD {}").format(sql.Identifier(role), sql.Literal(password)))
+    try:
+        with psycopg.connect(dsn, user=role, password=password) as connection:
+            require_reader(connection, tenant_id=scope.tenant_id)
+        with psycopg.connect(dsn, autocommit=True) as admin:
+            admin.execute(sql.SQL("GRANT {} TO {}").format(target, selected))
+        with psycopg.connect(dsn, user=role, password=password) as connection:
+            with pytest.raises(ContractError):
+                require_reader(connection, tenant_id=scope.tenant_id)
+    finally:
+        with psycopg.connect(dsn, autocommit=True) as admin:
+            admin.execute(sql.SQL("REVOKE {} FROM {}").format(target, selected))
             admin.execute(sql.SQL("DROP OWNED BY {}").format(sql.Identifier(role)))
             admin.execute(sql.SQL("DROP ROLE {}").format(sql.Identifier(role)))

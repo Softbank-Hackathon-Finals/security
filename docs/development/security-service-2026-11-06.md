@@ -607,3 +607,17 @@ push commit 메시지에 `[review-endurance]`가 있는 경우에만 10,800초 �
   기대하는 거부가 현재 구현에서는 실패할 것으로 예상하여 **strict xfail**로 명시했다. XFAIL은 보안 통과가 아니다.
   원격 결과를 확인한 뒤 전용 DB의 운영자 준비 조건과 runtime drift 검사를 함께 보강한다.
 - 로컬 C: 여유가 다시 약 0.81GiB여서 DB 재현은 원격 CI에서 수행한다. 큰 로컬 회귀·DB 다운로드를 재개하지 않는다.
+
+### SVC-32 구현 및 검증 접수
+
+- 재현 source `a399357a1e8c9a553df22abaa1974319775fa2c8`의
+  [CI](https://github.com/Softbank-Hackathon-Finals/security/actions/runs/42236129303)는
+  Python 3.14 **987 PASS / 2 SKIP / 4 XFAIL**, PG18.4 **42 PASS / 4 XFAIL**이다.
+  `-rx` 로그는 예상 실패 이유만 표시하므로 네 경우의 정확한 예외를 입증하는 traceback으로 해석하지 않는다.
+  수정 후에는 xfail을 제거하여 실제 권한 거부 및 정상 서비스 동작을 모두 요구한다.
+- ADR-0019에 전용 DB의 운영자 준비 SQL과 공유 DB에 대한 적용 조건을 기록했다.
+  PUBLIC TEMPORARY와 세 대형 객체 생성 함수 권한을 회수하고 runtime 시작/종료에서 재검사한다.
+  직접 및 PUBLIC 재부여 8가지와 실제 작업 거부 4가지를 검증한다. 운영 DB에는 적용하지 않았다.
+- SQL 렌더링/시스템 DB 거부 단위 **9 PASS, 0.23초** 및 변경 Python ruff 통과.
+  실제 DB 전체 회귀는 다음 원격 CI 결과로 판정한다. 신규 `[review-endurance-30m]`은 같은 실제 서비스
+  시험을 1,800초 실행하며 진행 중 3시간/90분 결과를 대체하거나 취소하지 않는다.
