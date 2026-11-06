@@ -1,6 +1,6 @@
 # ADR-0019: 전용 보안 DB의 임시 테이블·대형 객체 생성 제한
 
-- 상태: 구현·단위 검증, 실제 사설 DB 재현/수정 CI 확인 중.
+- 상태: 구현·단위 및 실제 사설 PG17.11/18.4 검증 완료. 운영 DB 적용/인수는 별도.
 - 요구: CTRL-01·02·07, SEC-PATCH-08, identity-boundary, resource-budget.
 - 플랫폼 기준: `98885a69999398bfe3f49fbc8324a7b19aae3e16`.
 
@@ -38,6 +38,11 @@ PUBLIC 생성 권한을 유지하면 새 서비스 검사가 거부한다. 환�
 REVOKE는 기존 객체를 제거하거나 세션을 종료하지 않는다. 침해 대응은 host hold와 별도 세션/자격 철회를
 유지한다. CPU가 큰 SELECT, 서버 연결 수, spill/WAL/DB 전체 용량은 별도 운영 자원 통제와 경보가 필요하다.
 이 제한을 DB 가용성 전체나 관리자 침해 방어로 확대하지 않는다.
+
+[수정 전후 원본](../evidence/reader-storage-2026-11-06/README.md)은 이전 source의 실제 네 생성 허용과
+수정 source의 12 PASS를 보존한다. [수정 CI](https://github.com/Softbank-Hackathon-Finals/security/actions/runs/42238259304)는
+Python 3.14 전체 1,008 PASS/2 SKIP, PG18.4 권한 54 PASS, HBA 1 PASS, image/T10 11 PASS다.
+별도 30분 지속 시험의 완료 여부는 해당 evidence에 기록한다.
 
 근거: [PostgreSQL 18 권한과 PUBLIC/TEMPORARY](https://www.postgresql.org/docs/18/ddl-priv.html),
 [대형 객체 서버 함수](https://www.postgresql.org/docs/18/lo-funcs.html).

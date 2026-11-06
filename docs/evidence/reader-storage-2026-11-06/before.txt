@@ -1,0 +1,28 @@
+FFFF                                                                     [100%]
+=================================== FAILURES ===================================
+_ test_select_reader_cannot_allocate_temp_or_large_objects[CREATE TEMP TABLE owned_storage_probe(value integer)] _
+tests/integration/test_review_reader_storage.py:37: in test_select_reader_cannot_allocate_temp_or_large_objects
+    with pytest.raises(psycopg.errors.InsufficientPrivilege):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   Failed: DID NOT RAISE InsufficientPrivilege
+_ test_select_reader_cannot_allocate_temp_or_large_objects[SELECT pg_catalog.lo_create(0)] _
+tests/integration/test_review_reader_storage.py:37: in test_select_reader_cannot_allocate_temp_or_large_objects
+    with pytest.raises(psycopg.errors.InsufficientPrivilege):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   Failed: DID NOT RAISE InsufficientPrivilege
+_ test_select_reader_cannot_allocate_temp_or_large_objects[SELECT pg_catalog.lo_creat(-1)] _
+tests/integration/test_review_reader_storage.py:37: in test_select_reader_cannot_allocate_temp_or_large_objects
+    with pytest.raises(psycopg.errors.InsufficientPrivilege):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   Failed: DID NOT RAISE InsufficientPrivilege
+_ test_select_reader_cannot_allocate_temp_or_large_objects[SELECT pg_catalog.lo_from_bytea(0, decode('01','hex'))] _
+tests/integration/test_review_reader_storage.py:37: in test_select_reader_cannot_allocate_temp_or_large_objects
+    with pytest.raises(psycopg.errors.InsufficientPrivilege):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   Failed: DID NOT RAISE InsufficientPrivilege
+=========================== short test summary info ============================
+FAILED tests/integration/test_review_reader_storage.py::test_select_reader_cannot_allocate_temp_or_large_objects[CREATE TEMP TABLE owned_storage_probe(value integer)]
+FAILED tests/integration/test_review_reader_storage.py::test_select_reader_cannot_allocate_temp_or_large_objects[SELECT pg_catalog.lo_create(0)]
+FAILED tests/integration/test_review_reader_storage.py::test_select_reader_cannot_allocate_temp_or_large_objects[SELECT pg_catalog.lo_creat(-1)]
+FAILED tests/integration/test_review_reader_storage.py::test_select_reader_cannot_allocate_temp_or_large_objects[SELECT pg_catalog.lo_from_bytea(0, decode('01','hex'))]
+4 failed in 0.35s

@@ -621,3 +621,22 @@ push commit 메시지에 `[review-endurance]`가 있는 경우에만 10,800초 �
 - SQL 렌더링/시스템 DB 거부 단위 **9 PASS, 0.23초** 및 변경 Python ruff 통과.
   실제 DB 전체 회귀는 다음 원격 CI 결과로 판정한다. 신규 `[review-endurance-30m]`은 같은 실제 서비스
   시험을 1,800초 실행하며 진행 중 3시간/90분 결과를 대체하거나 취소하지 않는다.
+
+### SVC-32 실제 수정 전후 대조
+
+- C: 공간이 약 4.07GiB로 회복된 것을 확인하고 하나의 본인 소유 PG17.11만 잠시 시작했다.
+  두 고정 Git source를 따로 추출한 `--runxfail` 결과는 수정 전 **4 FAIL / 0.35초**이며
+  모두 `DID NOT RAISE InsufficientPrivilege`다. 설정 오류가 아니라 생성이 거부되지 않은 경우다.
+- 수정 후 **12 PASS / 0.66초**, 임시 클러스터 종료를 확인했다. 실제 출력·source·해시는
+  [수정 전후 근거](../evidence/reader-storage-2026-11-06/README.md)에 보존한다.
+  기존 사용자 프로세스·DB에는 접근하지 않았고 일반 패키지 설치도 바꾸지 않았다.
+
+### SVC-32 원격 회귀 결과
+
+- `5ddf281` [CI](https://github.com/Softbank-Hackathon-Finals/security/actions/runs/42238259304)의
+  Python 3.14 **1,008 PASS / 2 SKIP, 160.59초**, 3.11 **962 PASS / 48 SKIP, 56.00초**.
+  3.11은 기본 호환성 실행이며 실제 플랫폼/외부 등록 fixture는 3.14 및 별도 job에서 검증한다.
+- 여덟 플랫폼 계약, PG18.4 권한 **54 PASS / 11.34초**, TLS/HBA **1 PASS / 0.45초**,
+  실제 image/T10 **11 PASS / 32.81초**가 통과했다. 같은 run의 30분 지속 job은 아직 관찰 중이다.
+- 이미지 전체 재고는 OS 87/Python 10이며 **CRITICAL 0 / HIGH 49 / MEDIUM 75 / LOW 62,
+  BLOCK, release_authorized=false**다. 원격 CI 성공을 운영 배포 허가로 쓰지 않는다.
