@@ -19,6 +19,8 @@ Team Bravo 플랫폼에 설치하는 Python 보안 패키지다. 보호 수준 �
 - 고정 OPA 실행기·Rego 정책과 기존 실행 전 검증의 교집합
 - 팀 T5 ControlRun 계약의 등록·서명 수용, 기존 보호 수준 비교 연결
 - 테넌트 제한 PostgreSQL 어댑터와 보안 소유 SQL 7개
+- 두 보안 설계 문서의 CTRL-01~09 · POL-01~12 · SEC-PATCH-01~10을 연결한 패치/이전 검사 프로필과 사전·사후 검증
+- 기존 생산자 원본 서명·최신 관측과 프로그램 증거 연결, PostgreSQL 등록·철회 및 Sova 패치 실행 조합
 
 Sova의 실행 원장·승인 서비스·작업 큐·격리 실행 조정기·시험용 클러스터 어댑터·전체 콘솔·데모 앱은 포함하지 않는다. Sova는 이 패키지를 사용하는 첫 통합 시험 환경이다. 팀 platform 연결과 일반 고객 환경의 운영 자격은 별도 검증 대상이다.
 
@@ -27,7 +29,7 @@ Sova의 실행 원장·승인 서비스·작업 큐·격리 실행 조정기·�
 Python 3.11 이상을 사용한다. 기본 설치에는 클라우드 SDK나 DB 연결이 필요 없다.
 
 ```sh
-python -m pip install /path/to/sova_security-0.9.0-py3-none-any.whl
+python -m pip install /path/to/sova_security-0.10.0-py3-none-any.whl
 # 개발 시 이 저장소에서
 python -m pip install -e '.[dev]'
 python -m pytest -q
@@ -43,7 +45,11 @@ cd /path/to/sova
 .local-notes/venv/bin/python -m pip install -e '../team-bravo/security[postgres,signing,aws]'
 ```
 
-릴리스 소비 환경은 검증한 wheel과 해시를 고정한다. [CI 산출물 소비 방법](docs/distribution.md)을 따른다. 현재 0.9.0은 최초 추출 이후 보안 개선 계약을 추가한 버전이며 PyPI 배포를 뜻하지 않는다.
+릴리스 소비 환경은 검증한 wheel과 해시를 고정한다. [CI 산출물 소비 방법](docs/distribution.md)을 따른다. 현재 0.10.0은 두 설계 문서의 통합 검사 계약을 추가한 버전이며 PyPI 배포를 뜻하지 않는다.
+
+두 문서의 원문·요구사항 추적·구현 경계는 [보안 설계 통합](docs/architecture-integration.md), 실제 `platform` 연결 순서는 Sova의 [인계 문서](../sova-test/docs/platform-security-handoff.md)를 참고한다. 카탈로그에 검사가 있다는 사실은 해당 환경의 통과 근거가 아니다.
+
+현재 저장소·서명 증거·실행기를 연결하는 코드는 [생산자 연결과 호스트 조합](docs/program-evidence-integration.md)에 있다. 기존 팀 ControlRun과 강화된 2026-11-06 schema snapshot을 명시적으로 선택할 수 있다.
 
 ## 통합 계약
 
