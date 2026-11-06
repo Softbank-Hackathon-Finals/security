@@ -3,6 +3,7 @@
 import importlib.util
 import os
 from pathlib import Path
+import subprocess
 
 import pytest
 
@@ -77,3 +78,14 @@ def test_scanner_cannot_export_host_files_through_special_files(tmp_path, fault)
         os.mkfifo(result)
     with pytest.raises(ValueError):
         scanner.scanner_file(owned, relative, 4096)
+
+
+@pytest.mark.parametrize("stderr,code,expected", [
+    (b"private fixture permission denied https://private.invalid/path", 1, "permission-denied"),
+    (b"private fixture x509 unknown authority", 1, "tls-authority"),
+    (b"private fixture no space left on device", 1, "storage-full"),
+    (b"private fixture", 137, "resource-limit"),
+    (b"private fixture", 1, "unclassified"),
+])
+def test_failure_diagnostics_never_include_subprocess_details(stderr, code, expected):
+    assert scanner.failure_category(subprocess.CompletedProcess([], code, b"", stderr)) == expected

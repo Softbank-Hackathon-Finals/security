@@ -216,6 +216,27 @@ def scanner_file(root, relative, limit):
     return path
 
 
+def failure_category(result):
+    """Expose fixed diagnostics only, never a subprocess error or URL."""
+    raw = result.stderr[:65536].lower()
+    categories = ((b"no space left on device", "storage-full"),
+                  (b"read-only file system", "readonly-write"),
+                  (b"permission denied", "permission-denied"),
+                  (b"unknown authority", "tls-authority"),
+                  (b"certificate", "tls-certificate"),
+                  (b"unknown flag", "unsupported-flag"),
+                  (b"network is unreachable", "network-unreachable"),
+                  (b"no such host", "dns"),
+                  (b"connection refused", "connection-refused"),
+                  (b"timeout", "timeout"),
+                  (b"too many requests", "public-registry-rate-limit"),
+                  (b"unauthorized", "public-registry-unauthorized"))
+    for needle, label in categories:
+        if needle in raw:
+            return label
+    return "resource-limit" if result.returncode in {137, -9} else "unclassified"
+
+
 def collect(*, trivy, image_id, commit, inventory_path, output):
     require_scan_capacity(output.parent)
     scanner_digest = {"x86_64": TRIVY_SHA256, "aarch64": TRIVY_ARM64_SHA256}.get(platform.machine())
@@ -236,7 +257,7 @@ def collect(*, trivy, image_id, commit, inventory_path, output):
         def run(args, *, stage, timeout=360):
             result = subprocess.run(args, cwd=work, env=environment, capture_output=True, timeout=timeout, check=False)
             if result.returncode:
-                raise RuntimeError("Public image scan failed at " + stage)
+                raise RuntimeError("Public image scan failed at " + stage + " [" + failure_category(result) + "]")
             return result.stdout
         inspected = json.loads(run(["docker", "image", "inspect", image_id], stage="image inspection", timeout=20))
         if len(inspected) != 1 or inspected[0].get("Id") != image_id or inspected[0].get("Config", {}).get("Labels", {}).get("org.opencontainers.image.revision") != commit:
