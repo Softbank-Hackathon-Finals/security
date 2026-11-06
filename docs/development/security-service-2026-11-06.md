@@ -377,3 +377,10 @@ process/container 모두 통과. 실제 컨테이너 소비 **39 PASS, 31.89초*
   파일시스템 수리는 수행하지 않았다. 새 대용량 로컬 다운로드를 중단하고 원격 CI로 검증을 옮긴다.
 - 수집기에 native Linux/6 GiB 여유 공간 사전 조건을 추가했다. WSL VHD의 호스트 용량 오인을 피하며,
   이 조건도 실행 중 외부 공간 사용까지 보장하는 quota는 아니다. 계약 시험 **25 PASS**.
+
+### 원격 endurance 재시도
+
+기존 CI에 별도의 PostgreSQL 18.4 / Python 3.14 endurance job을 추가했다. 개인 검증 브랜치의
+push commit 메시지에 `[review-endurance]`가 있는 경우에만 10,800초 실행한다. 일반 push/PR은
+장시간 작업을 생략한다. runner/DB는 격리되어 있고 보고서만 artifact로 올리며 fixture 자격은 제외한다.
+실행 접수나 시작을 통과로 취급하지 않는다. 완료된 테스트와 보고서, 프로세스 종료를 확인해 후속 기록한다.
