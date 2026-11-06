@@ -204,3 +204,18 @@ Sova/bravo_gate 없이 import/CLI help와 pip check를 확인했다.
 - `baba9ba` CI의 secrets 및 이전 두 계약/3.11은 통과했으나 3.14에서 서명 증거 전체 경로
   15개 시험이 실패했다(779 PASS). 로컬 통과로 덮지 않고 성능 계측을 이어간다. 공개 digest
   예외 추가는 서비스 동작을 바꾸지 않았다. 최종 원격 인수는 이 실패를 해결한 뒤 판정한다.
+
+## SVC-11: 제한 시간 안의 현재 증거 검증
+
+- 요구/설계/수정 코드는 [ADR-0006](../adr/0006-bounded-live-route-reads.md)에 기록했다.
+  기준 c225c86, wire·DB schema 변경 없음. 고정 타입 정보만 재사용하고 현재 증거 경로를
+  묶어서 조회한다. 5초 기한, 원본 서명, 조회 전후 철회·변경 검사는 유지한다.
+- `5abc729` [원격 CI](https://github.com/Softbank-Hackathon-Finals/security/actions/runs/42202409928)는
+  세 플랫폼 계약, Python 3.11/3.14, secrets 모두 통과했다. 이전 실패가 간헐적이라는 점과
+  실제 반복 비용을 모두 기록하며 특정 CI 호스트 원인으로 단정하지 않는다.
+- 같은 잠금 Python 3.14 계측에서 함수 호출 약 3,598만→1,122만, 계측 시간 9.618→2.967초.
+  이는 프로파일러를 켠 수치다. 계측+PG 경계 묶음 32 PASS, 14.77초.
+- `pytest tests/contracts/test_modernization_codec.py tests/unit/test_program_evidence.py -q`:
+  64 PASS. 이후 실제 부모 철회 race 시험 3개를 추가했다.
+- 잠금 Python 3.14 + c225c86 + 실제 PG/OPA/Kubernetes 전체: **826 PASS, 123.68초**.
+  모의 공급자와 실제 인프라의 구분은 기존 SVC-08~10을 따른다. 원격 CI도 변경 커밋으로 재검증한다.

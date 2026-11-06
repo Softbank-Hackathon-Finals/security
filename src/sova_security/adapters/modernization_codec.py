@@ -8,6 +8,7 @@ merely because they decode successfully.
 from dataclasses import fields, is_dataclass
 from datetime import datetime
 from enum import Enum, IntEnum
+from functools import lru_cache
 from types import UnionType, MappingProxyType
 from typing import get_args, get_origin, get_type_hints, Union
 
@@ -80,6 +81,18 @@ def encode(value):
     )
 
 
+@lru_cache(maxsize=128)
+def _schema(kind):
+    """Cache fixed Python type metadata only, never documents or authority.
+
+    Only types reached from KINDS are passed by decode. Re-evaluating annotations
+    for every nested record is particularly costly on Python 3.14. Each input
+    still passes field/type checks and the domain constructor on every decode.
+    """
+    hints = get_type_hints(kind)
+    return tuple((field.name, hints[field.name]) for field in fields(kind))
+
+
 def _decode(kind, value, depth=0):
     if depth > 24:
         raise ContractError("Contract nesting limit exceeded")
@@ -113,13 +126,13 @@ def _decode(kind, value, depth=0):
             raise ContractError("Contract enumeration string required")
         return kind(value)
     if is_dataclass(kind):
-        if type(value) is not dict or set(value) != {f.name for f in fields(kind)}:
+        schema = _schema(kind)
+        if type(value) is not dict or set(value) != {name for name, _ in schema}:
             raise ContractError("Contract object fields differ from registered schema")
-        hints = get_type_hints(kind)
         return kind(
             **{
-                f.name: _decode(hints[f.name], value[f.name], depth + 1)
-                for f in fields(kind)
+                name: _decode(field_type, value[name], depth + 1)
+                for name, field_type in schema
             }
         )
     if kind in {str, bool, int, float} and type(value) is kind:

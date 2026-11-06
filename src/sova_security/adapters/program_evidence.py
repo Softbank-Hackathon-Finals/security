@@ -28,6 +28,7 @@ class SignedProgramEvidence:
         envelope_for,
         resolve_trust,
         clock,
+        authenticate_routes=None,
     ):
         self.current_program = current_program
         self.routes_for = routes_for
@@ -35,6 +36,9 @@ class SignedProgramEvidence:
         self.envelope_for = envelope_for
         self.resolve_trust = resolve_trust
         self.clock = clock
+        if authenticate_routes is not None and not callable(authenticate_routes):
+            raise ContractError("Explicit route collection authenticator required")
+        self.authenticate_routes = authenticate_routes
         self.verifier = Ed25519EvidenceVerifier(resolve_trust)
 
     def _collect(self, program, phase, *, check_id=None):
@@ -51,6 +55,8 @@ class SignedProgramEvidence:
         bounded_tuple(routes, ProgramEvidenceRoute, limit=64)
         if len({r.check_id for r in routes}) != len(routes):
             raise ContractError("Duplicate program evidence route")
+        if self.authenticate_routes is not None:
+            require_authentication(self.authenticate_routes, (program, routes))
         selected = {c.check_id for c in checks_for(program.kind) if c.phase == phase}
         snapshots, outputs = [], []
         for route in routes:
@@ -59,7 +65,8 @@ class SignedProgramEvidence:
                 check_id is not None and route.check_id != check_id
             ):
                 continue
-            require_authentication(self.authenticate_route, route)
+            if self.authenticate_routes is None:
+                require_authentication(self.authenticate_route, route)
             envelopes, trusts = [], []
             for source in route.sources:
                 envelope = self.envelope_for(source)
@@ -88,8 +95,11 @@ class SignedProgramEvidence:
 
         # No cache grants lasting trust. Re-read original records/roles/keys after
         # callbacks, so route removal and producer revocation invalidate projections.
+        if self.authenticate_routes is not None:
+            require_authentication(self.authenticate_routes, (program, routes))
         for route, envelopes, trusts in snapshots:
-            require_authentication(self.authenticate_route, route)
+            if self.authenticate_routes is None:
+                require_authentication(self.authenticate_route, route)
             for source, envelope, trust in zip(
                 route.sources, envelopes, trusts, strict=True
             ):

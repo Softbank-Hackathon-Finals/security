@@ -31,6 +31,7 @@ class RegisteredProgramAuthority:
                 scope, program.fingerprint
             ),
             authenticate_route=self.authenticate_route,
+            authenticate_routes=self.authenticate_routes,
             envelope_for=self.envelope_for,
             resolve_trust=resolve_trust,
             clock=clock,
@@ -58,6 +59,16 @@ class RegisteredProgramAuthority:
         ):
             raise ContractError("Registered producer route changed or was revoked")
         return route
+
+    def authenticate_routes(self, bundle):
+        """Fresh complete repository read, not a cached collection assertion."""
+        if type(bundle) is not tuple or len(bundle) != 2:
+            raise ContractError("Exact registered program and route collection required")
+        program, routes = bundle
+        if (self.current_program() != program
+                or self.artifacts.program_routes(self.scope, program.fingerprint) != routes):
+            raise ContractError("Registered program route collection changed")
+        return True
 
     def envelope_for(self, source):
         if (

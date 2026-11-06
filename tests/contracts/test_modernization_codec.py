@@ -42,6 +42,7 @@ def test_roundtrip_preserves_every_scope_revision_and_artifact_binding(scope, no
 )
 def test_schema_confusion_never_loads_unregistered_types(scope, now, case):
     _, _, request, _ = rehearsal_bundle(scope, now)
+    assert decode(encode(request).encode()) == request  # Warm metadata must not weaken later validation.
     data = json.loads(encode(request))
     if case == "envelope-extra":
         data["execute"] = "arbitrary"

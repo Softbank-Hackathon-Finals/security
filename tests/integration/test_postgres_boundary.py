@@ -192,6 +192,47 @@ def test_registered_program_rechecks_real_pg_routes_and_signed_producers(databas
         authority.producers.authenticate_evidence(proof)
 
 
+@pytest.mark.parametrize("change", ["route-revoked", "program-revoked-during-read", "other-scope"])
+def test_live_route_collection_keeps_scope_and_parent_revocation_checks(database, scope, monkeypatch, change):
+    import psycopg
+    from program_support import program_bundle
+    from sova_security.adapters.postgres_modernization import PostgresSecurityArtifacts
+    from sova_security.contracts.repositories import RepositoryConflict
+    from sova_security.domain.program_evidence import ProgramEvidenceRoute, ProgramSource
+
+    dsn, role, password = database
+    def connect():
+        return psycopg.connect(dsn, user=role, password=password)
+    scope = replace(scope, resource_id="route-batch-" + uuid4().hex)
+    program, records = program_bundle(scope, datetime.now(UTC))
+    artifacts = PostgresSecurityArtifacts(connect, tenant_id=scope.tenant_id)
+    writer = PostgresSecurityArtifacts(connect, tenant_id=scope.tenant_id)
+    writer.register(scope, program, actor_id="test-registrar")
+    routes = tuple(ProgramEvidenceRoute(program.fingerprint, binding.check_id,
+        (ProgramSource("registered-test-issuer", replace(record, obligation_id="producer:" + binding.check_id)),))
+        for binding, record in zip(program.bindings, records, strict=True))
+    for route in routes:
+        writer.register(scope, route, actor_id="test-registrar")
+    assert artifacts.program_routes(scope, program.fingerprint) == routes
+    if change == "route-revoked":
+        writer.revoke(scope, routes[0].fingerprint, expected_revision=1, actor_id="registrar", reason="test")
+        assert artifacts.program_routes(scope, program.fingerprint) == routes[1:]
+    elif change == "other-scope":
+        with pytest.raises(RecordNotFound):
+            artifacts.program_routes(replace(scope, resource_id="foreign"), program.fingerprint)
+    else:
+        original, reads = artifacts._get, []
+        def after_read(connection, current_scope, fingerprint):
+            reads.append(fingerprint)
+            if len(reads) == 2:
+                writer.revoke(scope, program.fingerprint, expected_revision=1, actor_id="registrar", reason="test-race")
+            return original(connection, current_scope, fingerprint)
+        monkeypatch.setattr(artifacts, "_get", after_read)
+        with pytest.raises(RepositoryConflict, match="parent changed"):
+            artifacts.program_routes(scope, program.fingerprint)
+        assert len(reads) == 2
+
+
 @pytest.fixture(scope="module")
 def database():
     dsn = os.environ.get("SOVA_SECURITY_TEST_POSTGRES_DSN")

@@ -19,8 +19,8 @@ from sova_security.domain.security_program import ProgramPhase, review_program
 from sova_security.domain.signed_evidence import VerifierTrust
 
 
-@pytest.fixture
-def producers(scope, now):
+@pytest.fixture(params=["individual-routes", "batch-routes"])
+def producers(scope, now, request):
     program, records = program_bundle(scope, now)
     signer = Ed25519EvidenceSigner(
         Ed25519PrivateKey.generate(), issuer_id="owned-producer", key_id="key"
@@ -72,6 +72,8 @@ def producers(scope, now):
         envelope_for=lookup,
         resolve_trust=lambda *_: state["trust"],
         clock=lambda: state["at"],
+        authenticate_routes=(lambda bundle: state["route_trusted"] and bundle == (state["program"], state["routes"]))
+            if request.param == "batch-routes" else None,
     )
     return authority, state, signer
 

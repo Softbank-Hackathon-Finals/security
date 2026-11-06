@@ -259,25 +259,47 @@ class PostgresSecurityArtifacts:
             return saved.value
 
     def program_routes(self, scope, program_digest):
+        """Bounded live collection, validating its shared program before/after.
+
+        Read bodies in one statement instead of re-decoding the same program for
+        every route. No row or revocation state is reused across method calls.
+        """
         self._scope(scope)
         digest(program_digest)
         with self.transactions.transaction() as conn:
             parent = self._get(conn, scope, program_digest)
             if parent.revoked or not isinstance(parent.value, SecurityProgram):
                 raise RepositoryConflict("Active security program parent required")
-            rows = self._active_artifacts(
-                conn,
-                scope,
-                "program-evidence-route.v1",
-                {"program_digest": program_digest},
-            )
+            rows = conn.execute(
+                """SELECT a.artifact_digest,a.artifact_kind,a.envelope,e.revision,e.event_kind
+                FROM sova_control.security_artifacts_v1 a
+                JOIN LATERAL (
+                  SELECT revision,event_kind FROM sova_control.security_artifact_events_v1 events
+                  WHERE events.tenant_id=a.tenant_id AND events.application_id=a.application_id
+                    AND events.artifact_digest=a.artifact_digest
+                  ORDER BY revision DESC LIMIT 1
+                ) e ON true
+                WHERE a.tenant_id=%s AND a.application_id=%s AND a.environment_id=%s
+                  AND a.resource_id=%s AND a.artifact_kind='program-evidence-route.v1'
+                  AND a.envelope->'value' @> %s AND e.event_kind <> 'revoked'
+                ORDER BY a.artifact_digest LIMIT 65""",
+                (self.tenant_id, scope.application_id, scope.environment_id, scope.resource_id,
+                 Jsonb({"program_digest": program_digest})),
+            ).fetchall()
             if len(rows) > 64:
                 raise ContractError("Program evidence route bound exceeded")
-            routes = tuple(self._get(conn, scope, row[0]).value for row in rows)
-            if any(not isinstance(route, ProgramEvidenceRoute) for route in routes):
-                raise ContractError("Typed registered evidence routes required")
+            routes = []
+            for fingerprint, kind, body, revision, event in rows:
+                route = decode(json.dumps(body).encode())
+                if (type(route) is not ProgramEvidenceRoute or route.fingerprint != fingerprint
+                        or kind_of(route) != kind or (revision, event) != (1, "registered")):
+                    raise ContractError("Persisted route collection integrity mismatch")
+                route.binding_for(parent.value)
+                routes.append(route)
             if len({route.check_id for route in routes}) != len(routes):
                 raise RepositoryConflict("Ambiguous active program evidence route")
+            if self._get(conn, scope, program_digest) != parent:
+                raise RepositoryConflict("Program parent changed during route collection")
             return tuple(sorted(routes, key=lambda route: route.check_id))
 
     def revoke(self, scope, fingerprint, *, expected_revision, actor_id, reason):
