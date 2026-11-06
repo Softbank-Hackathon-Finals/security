@@ -1,7 +1,7 @@
 """Real local TLS/process/PG, synthetic signed measurements and token issuer."""
 
-from contextlib import contextmanager
-from dataclasses import asdict, replace
+from contextlib import contextmanager, nullcontext
+from dataclasses import asdict, dataclass, replace
 from datetime import timedelta
 import json
 import secrets
@@ -14,6 +14,17 @@ import pytest
 from tokenreview_tls_support import LocalTokenReview
 from tls_review_support import review_process, tls_server
 from sova_security.adapters.review_https import BearerCredential, HTTPSJSONTransport
+
+
+@dataclass(frozen=True)
+class RuntimeIdentity:
+    username: str
+    uid: str
+    audience: str
+    origin: str
+    ca_file: str
+    client: BearerCredential
+    reviewer: BearerCredential
 
 
 def signed_program(write, registration, evidence, now):
@@ -48,7 +59,7 @@ def signed_program(write, registration, evidence, now):
 
 
 @contextmanager
-def registered_review_runtime(database, directory, *, registration, evidence, principal, now):
+def registered_review_runtime(database, directory, *, registration, evidence, principal, now, identity=None):
     import psycopg
     from psycopg import sql
     from psycopg.conninfo import make_conninfo
@@ -70,7 +81,7 @@ def registered_review_runtime(database, directory, *, registration, evidence, pr
         for statement in reader_statements(role=reader, tenant_id=registration.scope.tenant_id):
             admin.execute(statement)
         admin.execute(sql.SQL("ALTER ROLE {} PASSWORD {}").format(sql.Identifier(reader), sql.Literal(reader_password)))
-    issuer = LocalTokenReview(now)
+    issuer = LocalTokenReview(now) if identity is None else identity
     def mount(name, value):
         path = directory / name
         path.write_text(value)
@@ -81,16 +92,17 @@ def registered_review_runtime(database, directory, *, registration, evidence, pr
         scopes=[asdict(s) for s in principal.scopes], modes=list(principal.modes),
         issued_at=principal.issued_at.isoformat(), valid_until=principal.valid_until.isoformat())])
     try:
-        with tls_server(issuer, directory, name="issuer") as (issuer_origin, issuer_ca):
+        issuer_server = tls_server(issuer, directory, name="issuer") if identity is None else nullcontext((identity.origin, identity.ca_file))
+        with issuer_server as (issuer_origin, issuer_ca):
             config = dict(schema_version=1, tenant_id=registration.scope.tenant_id,
                 database_dsn_file=mount("database.dsn", make_conninfo(dsn, user=reader, password=reader_password)),
                 tokenreview_origin=issuer_origin, tokenreview_ca_file=str(issuer_ca),
-                reviewer_token_file=mount("reviewer.token", issuer.reviewer_token), audience=issuer.audience,
+                reviewer_token_file=mount("reviewer.token", issuer.reviewer_token if identity is None else identity.reviewer.token), audience=issuer.audience,
                 grants_file=mount("grants.json", json.dumps(grants)), local_audit_file=str(directory / "audit.jsonl"))
             with review_process(mount("config.json", json.dumps(config)), directory) as (origin, ca):
                 yield SimpleNamespace(artifacts=artifacts, trust_store=trust, trust_change=change, issuer=issuer,
                     transport=HTTPSJSONTransport(origin, tls_context=ssl.create_default_context(cafile=str(ca)), timeout=5),
-                    credential=BearerCredential(issuer.client_token, now + timedelta(minutes=2)))
+                    credential=BearerCredential(issuer.client_token, now + timedelta(minutes=2)) if identity is None else identity.client)
     finally:
         with psycopg.connect(dsn, autocommit=True) as admin:
             admin.execute(sql.SQL("DROP OWNED BY {}").format(sql.Identifier(reader)))

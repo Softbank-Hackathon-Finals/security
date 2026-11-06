@@ -157,3 +157,22 @@ Sova/bravo_gate 없이 import/CLI help와 pip check를 확인했다.
   거부했다. 각 시험 resource ID를 분리했고 생산 코드의 보호를 바꾸지 않았다.
 - GitHub CI의 격리 PostgreSQL socket과 Python 3.14의 고정 platform source를 연결해
   이 경로를 지속 시험한다. 클러스터/CNI/업무 데이터 인수 상태는 별개다.
+
+## SVC-09: 실제 Kubernetes 인증·철회와 incident hold
+
+- 요구: CTRL-01·02·04, POL-01·09·11, SG-1, SEC-PATCH-05. 기준 b19488e.
+- 코드: `tests/kubernetes_api_support.py`, `test_kubernetes_review_identity.py`,
+  `test_platform_review_runtime.py`, CI의 checksum 고정 envtest 설치.
+- [ADR-0004](../adr/0004-local-kubernetes-authentication.md): 새 로컬 Kubernetes 1.35.0 API·etcd 3.6.6,
+  실제 TokenRequest/TokenReview, 생성 명세의 RBAC만으로 시험한다. 기존 kubeconfig를 읽지 않는다.
+- 단독 실제 API 5 PASS(23.96초). 실제 API와 T10/TLS/PG 묶음 17 PASS(107.00초).
+  bound Secret 철회 10.023초, SA 철회 10.017초. JUnit 속성 2개에 관한 형식 경고는 이후
+  속성 기록 실행에서 legacy JUnit을 명시했다. 인증/철회 실패를 경고로 무시한 것이 아니다.
+- 이 전파 지연 때문에 다음 설계를 명확히 했다: 침해 시 기존 호스트 보류/승인 제한과 별도
+  보안 hold를 먼저 적용하고 자격을 철회한다. 자동 hold 해제나 기존 앱 중단은 추가하지 않는다.
+- 추가 실제 API/T10/PG 시험 2 PASS(11.88초). 삭제 직후 TokenReview가 두 번 모두 여전히
+  성공했지만 current hold로 접수는 0.085/0.087초에 거부됐으며 외부 실행은 0회였다.
+- 원격 `f98810c`의 [전체 서비스 체인 CI](https://github.com/Softbank-Hackathon-Finals/security/actions/runs/42197704724)는
+  모든 작업 통과. 실제 API 추가분은 별도 commit/CI로 검증한다.
+- 미검증: 팀 EKS/RKE2 배포판·CNI·Pod·실제 DB/Secret 연동, 운영 revocation 상한,
+  host-side 보류 writer의 운영 배선, 이미 접수한 실행의 실환경 조정. 로컬 실측과 구분한다.

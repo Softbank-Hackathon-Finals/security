@@ -12,6 +12,7 @@ from pathlib import Path
 import subprocess
 import sys
 from types import SimpleNamespace
+from uuid import uuid4
 
 import pytest
 
@@ -74,6 +75,10 @@ def platform_admission(tmp_path, request):
                 return value
             from bravo_gate.models import fingerprint
             source, target = shifted(source), shifted(target)
+            if request.param.get("isolated_app"):
+                app = "runtime-" + uuid4().hex[:12]
+                source["app"], target["app"] = app, app
+                context = replace(context, app=app)
             context = replace(context, source_digest=fingerprint(source), target_digest=fingerprint(target))
             bundle = context, source, target, current
         service = fixtures.service.__wrapped__(contract, bundle)

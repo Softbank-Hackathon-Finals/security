@@ -152,6 +152,30 @@ jobs:
           print('Pinned official OPA 1.22.0 verified')
           PY
       - run: ruff check src tests
+      - name: Install verified local Kubernetes API test binaries
+        if: matrix.python == '3.14'
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib, io, os, tarfile, urllib.request
+          url = 'https://github.com/kubernetes-sigs/controller-tools/releases/download/envtest-v1.35.0/envtest-v1.35.0-linux-amd64.tar.gz'
+          expected = '130369c16f076e724d089189afaede960316f5f5dea6cf57be7a4fc6f09c77342893192509790e4056e116e232dff832ed863f5bd55dcb55d38f3ab834828a11'
+          with urllib.request.urlopen(url, timeout=60) as response:
+              raw = response.read(150_000_001)
+          assert len(raw) <= 150_000_000 and hashlib.sha512(raw).hexdigest() == expected
+          target = Path(os.environ['RUNNER_TEMP']) / 'security-envtest'
+          target.mkdir()
+          with tarfile.open(fileobj=io.BytesIO(raw), mode='r:gz') as archive:
+              for name in ('etcd', 'kube-apiserver'):
+                  entries = [m for m in archive.getmembers() if Path(m.name).name == name and m.isfile()]
+                  assert len(entries) == 1 and entries[0].size < 200_000_000
+                  path = target / name
+                  path.write_bytes(archive.extractfile(entries[0]).read())
+                  path.chmod(0o700)
+          with open(os.environ['GITHUB_ENV'], 'a') as export:
+              export.write('SOVA_TEST_ENVTEST_DIRECTORY=' + str(target) + '\n')
+          print('Verified local Kubernetes API test tools installed')
+          PY
       - run: python -m pytest -q
       - run: python -m pip wheel . --no-deps --no-build-isolation --no-index -w "$RUNNER_TEMP/security-dist"
       - name: Bind wheel manifest to this tested commit
