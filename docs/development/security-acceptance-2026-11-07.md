@@ -140,3 +140,9 @@ HIGH/CRITICAL BLOCK 기준은 그대로다. 실제 amd64/arm64 CI 통과 후 인
 IMG-05 첫 CI `42259850201`은 양쪽 아키텍처의 기존 통합 시험을 통과한 뒤 격리 DB 다운로드에서
 중단됐다. 결과를 UNKNOWN으로 유지하고, 원문 stderr 대신 고정 오류 분류만 내보내는 진단을
 추가해 원인을 조사한다. 앞선 이미지 PASS와 진행 중인 4511a43 지속 시험은 별도 증거다.
+
+CI `42261162591`의 고정 진단은 `storage-full`이었다. DB 압축 해제가 작은 256MiB tmpfs를
+소진한 것으로 보고 TMPDIR을 이번 호출 전용 디스크 cache 아래로 옮겨 재검증한다. 호스트 HOME이나
+일반 /tmp를 마운트하지 않고 native Linux 6GiB 여유 조건을 유지한다. scanner CLI가 timeout으로
+끝나도 컨테이너 종료를 추정하지 않는다. 무작위 실행 label·정확한 ID/name/image를 대조한
+소유 컨테이너만 정리하는 finally 경로도 추가한다. 잘못된 identity에서는 삭제하지 않는다.

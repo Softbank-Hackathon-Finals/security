@@ -1,6 +1,7 @@
 """Scanner supply-chain containment must not weaken evidence collection."""
 
 import importlib.util
+import json
 import os
 from pathlib import Path
 import subprocess
@@ -16,7 +17,7 @@ spec.loader.exec_module(scanner)
 def command(tmp_path, **changes):
     options = dict(image_id="sha256:" + "a" * 64, trivy=tmp_path / "tool", inputs=tmp_path / "inputs",
                    cache=tmp_path / "cache", results=tmp_path / "results", uid=1001, gid=1001,
-                   network="none", arguments=["image", "--input", "/scan-input/image.tar"])
+                   network="none", arguments=["image", "--input", "/scan-input/image.tar"], invocation="b" * 32)
     options.update(changes)
     return scanner.scanner_command(**options)
 
@@ -31,7 +32,7 @@ def test_scanner_receives_only_owned_archive_tool_cache_and_results(tmp_path):
     assert "--security-opt=no-new-privileges" in args and "--pull=never" in args
     assert "--privileged" not in args and "--pid=host" not in args and "--network=host" not in args
     assert args[args.index("--user") + 1] == "1001:1001"
-    assert [value for value in args if value.startswith("--env")] == ["--env=HOME=/tmp"]
+    assert [value for value in args if value.startswith("--env")] == ["--env=HOME=/tmp", "--env=TMPDIR=/scan-cache/tmp"]
 
 
 @pytest.mark.parametrize("changes", [{"uid": 0}, {"gid": 0}, {"network": "host"},
@@ -89,3 +90,34 @@ def test_scanner_cannot_export_host_files_through_special_files(tmp_path, fault)
 ])
 def test_failure_diagnostics_never_include_subprocess_details(stderr, code, expected):
     assert scanner.failure_category(subprocess.CompletedProcess([], code, b"", stderr)) == expected
+
+
+@pytest.mark.parametrize("fault", [None, "image", "name", "label", "multiple"])
+def test_cleanup_requires_owned_container_identity_before_deleting(fault):
+    calls = []
+    invocation, identity, image = "b" * 32, "c" * 64, "sha256:" + "a" * 64
+    record = {"Id": identity, "Image": image, "Name": "/sova-image-scan-" + invocation,
+              "Config": {"Labels": {"sova.scanner.invocation": invocation}}}
+    if fault == "image":
+        record["Image"] = "sha256:" + "d" * 64
+    elif fault == "name":
+        record["Name"] = "/other-container"
+    elif fault == "label":
+        record["Config"]["Labels"] = {}
+
+    def run(args, **_):
+        calls.append(args)
+        if args[2] == "ls":
+            return (identity + ("\n" + "d" * 64 if fault == "multiple" else "") + "\n").encode()
+        if args[2] == "inspect":
+            return json.dumps([record]).encode()
+        assert args == ["docker", "container", "rm", "--force", identity]
+        return b""
+
+    if fault:
+        with pytest.raises(RuntimeError):
+            scanner.cleanup_scanner(run, invocation=invocation, image_id=image)
+        assert not any(args[2] == "rm" for args in calls)
+    else:
+        scanner.cleanup_scanner(run, invocation=invocation, image_id=image)
+        assert calls[-1] == ["docker", "container", "rm", "--force", identity]

@@ -18,6 +18,7 @@ import shutil
 import stat
 import subprocess
 import tempfile
+from uuid import uuid4
 
 from sova_security.adapters.bounded_json import bounded_json_object
 
@@ -180,22 +181,41 @@ def assess(report, database, inventory, *, image_id, commit, started_at, finishe
                 execution_authorized=False, release_authorized=False, signed_attestation=False)
 
 
-def scanner_command(*, image_id, trivy, inputs, cache, results, uid, gid, network, arguments):
+def scanner_command(*, image_id, trivy, inputs, cache, results, uid, gid, network, arguments, invocation):
     """Run the pinned scanner without the host checkout, credentials or Docker socket."""
-    if network not in {"none", "bridge"} or uid <= 0 or gid <= 0:
+    if network not in {"none", "bridge"} or uid <= 0 or gid <= 0 or not re.fullmatch(r"[0-9a-f]{32}", invocation):
         raise ValueError("Non-root isolated scanner identity required")
     mounts = [(trivy, "/scan-tool", True), (inputs, "/scan-input", True),
               (cache, "/scan-cache", False), (results, "/scan-output", False)]
     if any(not path.is_absolute() or "," in str(path) for path, _, _ in mounts):
         raise ValueError("Explicit safe scanner mount paths required")
     command = ["docker", "run", "--rm", "--pull=never", "--read-only", "--cap-drop=ALL",
+               "--name=sova-image-scan-" + invocation, "--label=sova.scanner.invocation=" + invocation,
                "--security-opt=no-new-privileges", "--pids-limit=128", "--memory=2g", "--cpus=2",
                "--user", f"{uid}:{gid}", "--network=" + network,
                "--tmpfs", "/tmp:rw,noexec,nosuid,size=256m", "--workdir=/tmp", "--env=HOME=/tmp",
+               "--env=TMPDIR=/scan-cache/tmp",
                "--entrypoint=/scan-tool"]
     for path, target, readonly in mounts:
         command.extend(["--mount", f"type=bind,src={path},dst={target}" + (",readonly" if readonly else "")])
     return command + [image_id, "--cache-dir", "/scan-cache", "--config", "/scan-input/config.yaml", *arguments]
+
+
+def cleanup_scanner(run, *, invocation, image_id):
+    """CLI timeout is not proof of container exit. Remove only our exact identity."""
+    found = run(["docker", "container", "ls", "--all", "--quiet", "--no-trunc", "--filter",
+                 "label=sova.scanner.invocation=" + invocation], stage="scanner cleanup lookup", timeout=20)
+    if not found.strip():
+        return
+    identity = found.decode("ascii").strip()
+    if not re.fullmatch(r"[0-9a-f]{64}", identity):
+        raise RuntimeError("Ambiguous scanner cleanup ownership")
+    inspected = json.loads(run(["docker", "container", "inspect", identity], stage="scanner cleanup identity", timeout=20))
+    if (len(inspected) != 1 or inspected[0].get("Id") != identity or inspected[0].get("Image") != image_id
+            or inspected[0].get("Name") != "/sova-image-scan-" + invocation
+            or inspected[0].get("Config", {}).get("Labels", {}).get("sova.scanner.invocation") != invocation):
+        raise RuntimeError("Scanner cleanup ownership mismatch")
+    run(["docker", "container", "rm", "--force", identity], stage="owned scanner cleanup", timeout=20)
 
 
 def scanner_file(root, relative, limit):
@@ -251,6 +271,9 @@ def collect(*, trivy, image_id, commit, inventory_path, output):
         inputs, cache, results = (work / name for name in ("inputs", "cache", "results"))
         for directory in (inputs, cache, results):
             directory.mkdir(mode=0o700)
+        # OCI database extraction exceeds the small in-memory /tmp allowance.
+        # Use only this invocation's disposable cache, never host /tmp or HOME.
+        (cache / "tmp").mkdir(mode=0o700)
         (inputs / "config.yaml").write_text("{}\n")
         (inputs / "ignore").write_text("")
         environment = {"PATH": os.environ["PATH"], "HOME": str(work), "LANG": "C.UTF-8"}
@@ -268,9 +291,13 @@ def collect(*, trivy, image_id, commit, inventory_path, output):
         run(["docker", "image", "save", "--output", str(inputs / "image.tar"), image_id],
             stage="owned image archive", timeout=120)
         def scan(arguments, *, stage, network="none", timeout=360):
-            return run(scanner_command(image_id=image_id, trivy=trivy, inputs=inputs, cache=cache, results=results,
-                                       uid=os.getuid(), gid=os.getgid(), network=network, arguments=arguments),
-                       stage=stage, timeout=timeout)
+            invocation = uuid4().hex
+            try:
+                return run(scanner_command(image_id=image_id, trivy=trivy, inputs=inputs, cache=cache, results=results,
+                                           uid=os.getuid(), gid=os.getgid(), network=network, arguments=arguments,
+                                           invocation=invocation), stage=stage, timeout=timeout)
+            finally:
+                cleanup_scanner(run, invocation=invocation, image_id=image_id)
         raw = scan(["--version", "--format", "json"], stage="scanner version", timeout=30)
         if json.loads(raw).get("Version") != TRIVY_VERSION:
             raise ValueError("Scanner version mismatch")
