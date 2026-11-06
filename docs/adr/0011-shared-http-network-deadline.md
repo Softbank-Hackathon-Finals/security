@@ -1,6 +1,6 @@
 # ADR-0011: TLS 요청 전체의 공통 시간·HTTP 부가 정보 한도
 
-- 상태: 구현 및 실제 loopback TLS 검증, 전체/원격 검증 진행 중.
+- 상태: 구현 및 실제 loopback TLS·Python 3.11/3.14 전체 CI·3.12 이미지 검증. 운영 DNS/CNI 인수 전.
 - 요구: SEC-PATCH-05·06, CTRL-07, POL-03·09·11. 플랫폼 기준 `9e0d6a5`.
 
 ## 발견과 선택

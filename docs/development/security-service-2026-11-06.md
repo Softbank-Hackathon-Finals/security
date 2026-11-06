@@ -561,3 +561,24 @@ push commit 메시지에 `[review-endurance]`가 있는 경우에만 10,800초 �
   wheel artifact 업로드는 기존 main push 조건을 유지한다. 별도 레지스트리 게시나 main 병합은 하지 않는다.
 - 브랜치별 동명 0.11.0 wheel을 혼동하지 않도록 전체 source SHA·lock/wheel hash 인수를 안내한다.
   이미지 수집 CI 성공과 취약점 BLOCK을 구분하며 README의 운영 사용을 암시하는 첫 문장도 정정했다.
+
+### SVC-27~29 최종 소비 기준 검증
+
+- `f25433a3905737c97e8aab3a6ced6832c8d6d7eb`
+  [CI](https://github.com/Softbank-Hackathon-Finals/security/actions/runs/42229814068) 전체 성공.
+  Python 3.14 **983 PASS / 2 SKIP, 154.27초**. skip은 별도 opt-in endurance 및 CA 등록형 HBA다.
+  HBA는 같은 실행의 PG18.4 image job에서 **1 PASS, 1.11초**로 별도 검증했다.
+- PG18.4 기존 권한 경계 **42 PASS, 8.66초**, 실제 image/T10 **11 PASS, 27.88초**.
+  최신 bb17486 계약 **18 PASS, 6.14초**, 나머지 여섯 기준과 Python 3.11도 성공했다.
+- v2 이미지 수집은 성공했지만 **HIGH 49 / MEDIUM 75 / LOW 62, BLOCK**이다.
+  ADR의 오래된 검증 중 표시를 확인한 수준으로 갱신하고 운영 인수 전 조건은 유지한다.
+
+## SVC-30: 인계 상태 정리와 복구 거버넌스 대조
+
+- [인계 현황](../platform-handoff-status.md)에 구조·요구사항별 구현/미검증 조건·고정 SHA·CI·운영 연결 순서를 모았다.
+  팀 플랫폼 코드는 변경하지 않았으며 실제 계정/CNI/T24/백업 인수 전 조건을 별도로 남긴다.
+- Asahi의 2026년 공식 후속 조사와 내부통제 약점 공시를 기존 복구·권한 경계에 대조했다.
+  [사고 조사](../incident-research-2026-11-06.md)에 사실과 설계 판단을 분리했다. 이미 구현한 시험을
+  이 사고의 재현으로 주장하지 않는다. Nikkei 공식 본문은 재시도에서도 접근되지 않아 구체 주장은 보류한다.
+- 코드 변경 없이 확인된 ADR 상태를 정리한다. 장시간 CI는 기존 source별로 계속 실행 중이며
+  결과 원본을 받은 뒤 해당 기록에 추가한다.

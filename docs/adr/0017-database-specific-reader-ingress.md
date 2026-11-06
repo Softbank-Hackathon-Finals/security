@@ -1,6 +1,6 @@
 # ADR-0017: DB 전체 역할과 데이터베이스별 접속 경계
 
-- 상태: 구현·개인 PostgreSQL 17.11 실측, CI PostgreSQL 18.4 검증 중, CNPG 운영 인수 전.
+- 상태: 구현·개인 PostgreSQL 17.11 및 CI PostgreSQL 18.4 실측, CNPG 운영 인수 전.
 - 요구: SG-1·2, CTRL-01·06, SEC-PATCH-08, identity-boundary.
 - 플랫폼 기준: `8b12236ae4277de16cebdf1391f87721e5851d47`.
 

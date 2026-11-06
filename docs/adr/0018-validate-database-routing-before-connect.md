@@ -1,6 +1,6 @@
 # ADR-0018: 자격 전달 전에 DB 경로와 TLS 설정 검증
 
-- 상태: 구현·단위 검증, 실제 PG18.4/서비스 CI 검증 중.
+- 상태: 구현·단위·실제 PG18.4/TLS/HBA·서비스 이미지/T10 CI 검증. 운영 설정 인수 전.
 - 요구: CTRL-01·02, SEC-PATCH-08, identity-boundary, network-tls.
 - 플랫폼 기준: `bb174860bedf100de3970c3e8e410f02f23994e2`.
 
@@ -44,6 +44,11 @@ host=registered-db-service port=5432 dbname=platform user=security_reader sslmod
 새 시험은 연결 전 거부, 환경 우회, 자격 회전, 강제 옵션, 연결 후 불일치 종료를 확인한다.
 PG18.4 실제 TLS/HBA 시험의 허용 연결도 이 parameter 경로를 사용하도록 연결했다.
 기존 실제 서비스 프로세스/컨테이너·T10/Sova 소비의 회귀는 CI에서 수행한다.
+
+`f25433a` [CI](https://github.com/Softbank-Hackathon-Finals/security/actions/runs/42229814068)에서
+Python 3.14 **983 PASS / 2 SKIP**, PG18.4 권한 **42 PASS**, 실제 TLS/HBA **1 PASS**,
+실제 image/T10 **11 PASS**를 확인했다. 전체 실행의 skip은 별도 opt-in endurance와 TLS CA 등록이
+필요한 HBA 시험이며, HBA는 같은 CI의 전용 image job에서 실행했다. 장시간 시험 결과는 따로 보존한다.
 
 근거: [libpq 연결·환경 기본값·host/hostaddr·SSL/GSS](https://www.postgresql.org/docs/18/libpq-connect.html),
 [Psycopg 정식 conninfo parser](https://www.psycopg.org/psycopg3/docs/api/conninfo.html).
