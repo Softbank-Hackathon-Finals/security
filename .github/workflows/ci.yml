@@ -315,6 +315,12 @@ jobs:
       - run: uv sync --locked --extra dev --extra platform-test --no-install-project --no-build --python '3.12'
       - run: .venv/bin/python -m pip install --no-deps --no-build-isolation --no-index -e .
       - run: .venv/bin/python -m pytest tests/contracts/test_platform_review_bridge.py tests/contracts/test_platform_workflow_host_bridge.py tests/contracts/test_platform_current_key_bridge.py tests/contracts/test_platform_published_authority_bridge.py tests/contracts/test_platform_reevaluation_bridge.py tests/contracts/test_platform_detection_bridge.py -q
+      - name: Exercise the unchanged current T33 producer regression suite on Linux
+        if: matrix.name == 'c364e62'
+        working-directory: .local-notes/platform-contract-source/services/security-findings
+        env:
+          AWS_EC2_METADATA_DISABLED: 'true'
+        run: PYTHONPATH=src "$GITHUB_WORKSPACE/.venv/bin/python" -m pytest -q tests
   secrets:
     runs-on: ubuntu-latest
     timeout-minutes: 5

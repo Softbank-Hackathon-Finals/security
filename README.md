@@ -3,6 +3,7 @@
 Team Bravo 플랫폼 연동을 위해 개인 환경에서 검증하는 공통 Python 보안 패키지와 선택형 보안 판정 서비스다. 보호 수준 비교, 근거 검증, 보안 보류와 제한된 대응 계획을 제공한다. **보안 판정은 사용자 승인이나 운영 실행 권한을 부여하지 않는다.**
 
 두 보안 문서 적용 결과와 플랫폼 연결 순서는 [인계 현황](docs/platform-handoff-status.md)에서 확인한다.
+T14·T33의 맥 인수 준비와 오프라인 20개 통제 요약은 [인수 실행 안내](docs/mac-t14-t33-intake.md)를 따른다.
 
 ## 현재 포함 범위
 
@@ -32,7 +33,7 @@ Sova의 실행 원장·승인 서비스·작업 큐·격리 실행 조정기·�
 Python 3.11 이상을 사용한다. 기본 설치에는 클라우드 SDK나 DB 연결이 필요 없다.
 
 ```sh
-python -m pip install /path/to/sova_security-0.11.0-py3-none-any.whl
+python -m pip install /path/to/sova_security-0.11.1-py3-none-any.whl
 # 개발 시 이 저장소에서
 python -m pip install -e '.[dev]'
 python -m pytest -q

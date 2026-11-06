@@ -31,3 +31,20 @@ AWS 양성 탐지와 실제 scoped mapping, SCC 프로젝트·인증, 온프렘 
 T14 양쪽 full 시험 원문, T19 원문 인증·저장·소비, T34 감사·T35 복구는 이 로컬 시험으로
 완료되지 않는다. `bravo-personal`만 사용하며 공용 환경 조회 시점과 변경 시험 창은
 맥에서 기존 담당 절차로 확인한다. 이번 작업은 클라우드 로그인·호출을 수행하지 않는다.
+
+## 인수 목록 도구와 추가 검증
+
+`application.acceptance_intake.intake_plan`은 T5 profiles 원본 바이트와 schema를 고정해
+20개 full 시험 목록을 생성한다. T14 ControlRun과 T33 SourceStatus는 스키마·중복·시각을
+검사한 뒤 원문 hash와 보고된 상태만 투영한다. source/target 혼합, 빈 결과, 만료된
+PASS, INGESTION_GAP, 민감 발췌 제거를 시험했다(14 PASS). 실제 원문 인증·계획 결속을
+하지 않으므로 모든 결과는 LIVE_NOT_VERIFIED이며 실행 권한은 항상 false다.
+
+Sova의 `security-intake-plan`은 같은 함수를 호출하며 기존 Mac/Linux 개인 파일 검사를
+재사용한다. 클라우드·shell subprocess가 호출되지 않는 소비 시험을 포함한다.
+버전은 0.11.1로 올려 이전 검증 wheel과 구분한다. 과거 0.11.0 이미지 검증은 그대로 보존한다.
+
+Windows 전체 unit/contract 회귀에서 942 PASS·47 SKIP와 기존 UTF-8 기본 인코딩 실패
+1개를 관측했다. 해당 계약 시험을 UTF-8 모드로 다시 실행해 3 PASS를 확인했다.
+플랫폼 T33 회귀도 Windows에서는 UTF-8 설정 뒤 POSIX O_NOFOLLOW 조건에서 실패하므로,
+현재 platform 코드는 바꾸지 않고 Linux CI에서 정본 회귀 전체를 실행한다.
