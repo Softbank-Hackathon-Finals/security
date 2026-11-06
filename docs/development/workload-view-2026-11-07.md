@@ -75,6 +75,22 @@ T28 원문 로그 SHA-256:
 이는 해당 시각의 상태다. 이후 배포 성공이나 실패 원인 해소를 대신하지 않는다.
 관련 호스트 수정은 기존 담당의 PR #565가 있어 중복 구현·리뷰 대응하지 않았다.
 
+### 06:19 KST 후속 조회
+
+수정 PR #565는 병합됐지만 실제 imageID와 세 설정 객체는 05:25 관측과 같았다.
+Reader·등록 API·관측 수신기는 1/1, 워크플로 호스트는 0/1·CrashLoopBackOff였으며
+호스트의 재시작 횟수는 54회였다. 조회 전후 Deployment 세대는 동일했다.
+
+조회한 네 Deployment에는 non-root, RuntimeDefault seccomp, privilege escalation 금지,
+capability ALL 제거, 읽기 전용 root filesystem, SA 토큰 자동 마운트 금지가 선언돼 있었다.
+hostNetwork·hostPID·명시적인 projected token 볼륨은 없었다. 해당 SA에 적용되는 Kubernetes
+바인딩은 기본 discovery·자기 권한 조회 계열 네 개였다. NetworkPolicy는 10개였다.
+이는 선언 조회이며 실제 권한 거부·토큰 회전·네트워크 차단·외부 IAM 권한 검증이 아니다.
+
+로컬 SSM 프로세스 종료 뒤 추가 terminate 호출은 성공 응답을 주지 않았다. 완료로 추정하지
+않고 그 세션 ID만 재조회했다. 06:20 KST에 Active 없음, History `Terminated`와 종료 시각을
+확인했다. 다른 세션은 종료하지 않았다. 원본 조회와 종료 확인은 별도 영수증으로 보존한다.
+
 ## 남은 인수
 
 1. 실제 호스트 Ready와 이미지·설정·자격 기준의 동시 확인.
