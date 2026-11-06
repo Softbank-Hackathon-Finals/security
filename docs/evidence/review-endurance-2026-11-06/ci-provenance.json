@@ -37,5 +37,18 @@
     "report_sha256": "ef504a935df06c28a5e3e9990a285677ec28b18128c136c86e22a95608a58cde",
     "source_file_count": 113,
     "test_sha256": "d46c9ddf3edbd47166bb7ad90c412e169c0e161801fda2083bd0c3639d443a1a"
+  },
+  {
+    "source": "68ec7316cdd9855f1977ddb0edcb93c12267e324",
+    "file": "ci-budget-30m.json",
+    "seconds": 1800,
+    "run_id": 42240519877,
+    "job_id": 127969272579,
+    "artifact_id": 13516389547,
+    "artifact_name": "sova-security-endurance-68ec7316cdd9855f1977ddb0edcb93c12267e324",
+    "zip_sha256": "f3c70b31a3247c0452e9b94196355ea2ae2947c53523f5bfd8e334b19b04e8c4",
+    "report_sha256": "1796dcf6d2c7c92b4465c576ff5ebb17508090e4d1ee8255d36cda78d946dac5",
+    "source_file_count": 114,
+    "test_sha256": "d46c9ddf3edbd47166bb7ad90c412e169c0e161801fda2083bd0c3639d443a1a"
   }
 ]

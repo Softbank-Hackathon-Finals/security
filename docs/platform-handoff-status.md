@@ -40,6 +40,7 @@
 - [Sova 최종 소비](https://github.com/Softbank-Hackathon-Finals/sova-test/actions/runs/42242378539):
   process/container 각각 **44 PASS**. 실제 두 PG·TLS와 기존 승인/효과/복원 hold 경계를 확인했다.
 - [지속 시험 원본](evidence/review-endurance-2026-11-06/README.md): 코드 SHA·실측 시간·자원·종료를 구분한다.
+  3시간·90분·30분 두 실행을 각각 완료했으며 최신 자원 제한 수정은 마지막 30분 source에 포함된다.
   합성 issuer/측정 내용과 실제 PG/TLS/프로세스를 구분하고, 실패한 로컬 실행을 성공에 합산하지 않는다.
 - [이미지 원본](evidence/service-image-scan-2026-11-06/README.md): OS 87개/Python 10개 대조,
   **HIGH 49건(고유 CVE 13개)으로 배포 BLOCK**. 수집 CI 성공은 보안 정책 PASS가 아니다.

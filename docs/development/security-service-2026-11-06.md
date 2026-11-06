@@ -724,3 +724,16 @@ push commit 메시지에 `[review-endurance]`가 있는 경우에만 10,800초 �
   재고 해시와 image ID를 확인하고 [원본 폴더](../evidence/service-image-scan-2026-11-06/qualified-ec4aac6/README.md)에 보존했다.
 - DB 갱신 시각은 12:55:02Z이며 관측은 15:25:23Z다. HIGH 49/고유 CVE 13, OS 87/Python 10,
   BLOCK이 유지됐다. 초기 d9 source의 이미지 증거를 최종 이미지로 대신하지 않는다.
+
+### SVC-35 마지막 30분 완료
+
+- `68ec7316cdd9855f1977ddb0edcb93c12267e324`, 15:10:53Z~15:40:54Z,
+  **1 PASS / 1,801.61초**, 실제 관찰 1,800초. 60회 자격 교체, 정상 120, issuer/grant 거부
+  각각 60, 실제 만료 거부 56, RSS 62,648→최대 63,036KiB, descriptor 7/thread 2 고정.
+  본인 서비스 프로세스 종료를 확인했다. 모든 114개 src 파일과 시험 해시를 Git source에 대조했다.
+- 최종 ec4aac6 제품 src와의 차이는 platform_review의 기본/허용 SHA 목록뿐이다. 아홉 기준 계약과
+  fixture 정리 보완은 최종 1,032개 전체 회귀와 Sova process/container 각 44개에서 따로 확인했다.
+  초기 3시간 결과를 최종 source 전체에 소급하지 않는다.
+- 먼저 보존한 artifact의 임시 다운로드 URL이 만료되어 재다운로드가 403이었다. 검증해 저장한 원본의
+  report hash·기존 ZIP hash·artifact/source ID를 다시 확인하고 새 완료 artifact만 내려받았다.
+  공개 원본은 불변이며 네 실행의 출처 명세도 함께 보존했다.

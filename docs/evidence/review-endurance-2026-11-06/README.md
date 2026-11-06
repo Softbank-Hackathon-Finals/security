@@ -1,5 +1,19 @@
 # 실제 서비스 프로세스의 회전·철회 지속 시험
 
+## 연결 수 예산을 포함한 마지막 30분
+
+`ci-budget-30m.json`, source `68ec7316cdd9855f1977ddb0edcb93c12267e324`의
+[CI](https://github.com/Softbank-Hackathon-Finals/security/actions/runs/42240519877)는
+15:10:53Z~15:40:54Z, 실제 **1,800초**, pytest **1 PASS / 1,801.61초**다.
+60회 회전 동안 정상 120회, issuer/grant 철회 거부 각각 60회, 실제 만료 거부 56회였다.
+RSS는 62,648→최대 63,036KiB, descriptor 7/thread 2를 유지했고 본인 서비스 종료를 확인했다.
+전체 114개 src Python 파일과 시험 SHA-256을 해당 Git source에 대조했다.
+
+이 source는 감사 이후 현재 권한·연결 전 DB 검증·TEMP/대형 객체 제한·역할별 연결 수 예산을 포함한다.
+최종 소비 source `ec4aac6`과 제품 src의 차이는 platform_review의 기본/허용 SHA 목록뿐이며,
+새 아홉 번째 플랫폼 계약과 fixture 정리 재시도는 최종 전체 CI에서 별도 검증했다.
+이 결과를 최종 source 전체의 3시간 관찰로 표현하지 않는다.
+
 ## 90분 원격 CI
 
 `ci-90m.json`은 source `c4730bba8bba94a4cbdb0acbfe53eb2b72bda2d7`의
