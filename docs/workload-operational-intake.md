@@ -61,6 +61,12 @@ T28을 채택할 때에는 원본 CLI를 그대로 우회 실행할 권한과 `-
 PostgreSQL 효과 원장·현재 승인·fencing·복구 권한을 사용한다. lease 만료나 현재 GET 일치만으로
 이전 원격 요청이 종료됐다고 판단하지 않는다.
 
+06:37 KST 후속 관측에서 실제 배포 원본은 `87ec6147e4e6ee717c062894ae891ad8abcb27d9`로
+바뀌었다. Reader·등록 API·호스트는 새 imageID로 Ready였고 Reader 설정 v2의 내용 해시는
+배포·Pod 주석에 일치했다. 같은 방식으로 새 SHA의 로컬 HTTP 소비 10개와 계약 진단 34개를
+확인했으나, 운영 허용 목록이나 실제 인증·권한·효과 인수는 갱신하지 않았다.
+T28 원문은 `6ca1160c`와 같지만 실제 새 driver 실행을 검증한 것은 아니다.
+
 ## 남긴 근거
 
 - [구현·Mac process/PG 검증](development/workload-view-2026-11-07.md)
