@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "source_commit": "ec4aac6c3d839111f76ef7466f7b6fc7fcea1e49",
+  "run_id": 42242142761,
+  "job_id": 127976722998,
+  "artifact_id": 13517222056,
+  "artifact_name": "sova-security-image-inputs-ec4aac6c3d839111f76ef7466f7b6fc7fcea1e49",
+  "zip_sha256": "4d0bfb383cb58dabde49ef21ab40bd6596ecb55e113f0147d03e4ac6e423d744",
+  "files_sha256": {
+    "Dockerfile": "e55077a3989e2a2e2eb27d8666d53ba95f223a6b64df86fa911738a03d69f284",
+    "manifest.json": "4123530db2644b815beaf31da3a97ecd7ecaf78f9b1a3c861159eb19b8ff90ba",
+    "installer-requirements.txt": "f409e9c999da22f4920b4724c68adadb416a515f38d760dfd34ae6382d43df04",
+    "requirements.txt": "70963ddb5ad3d2dfcf75bee44216e2a2d2123dde119da8ba8a68ef671c9fb20d",
+    "local-image-id.txt": "aba3834ad49c2460862d55e80b0c9f60c0d69b85ff9256f917bf532bd5270145",
+    "runtime-inventory.json": "2d0bec0fc83da1c59cbfd67d86a40b87b5fcae0065dfff4cb459987a1ae87f5b",
+    "database-metadata.json": "50fa65a8de92743dc6c32eeb4f4c2327f0e5aaaf1efbba67c67de065346b3f90",
+    "decision.json": "d8abed9d692073d7286a2a1c089de967498b91676cd7fc148bad3d7866e73e67",
+    "scan.json": "20a0d5557e075da72883b6665dc9a3b02d27dc8926ad6a66cd211d1b46a64300",
+    "sbom.cdx.json": "0d2f647d96b9738e7263b442fd542cbe0d26ee2e08eb9873ce5803690504c15e",
+    "scanner-version.json": "3fb54aa2b21f0cb798950ace48bd226e388b49f75af4e8f19392bf09267bdcb5"
+  },
+  "wheel_sha256": "9ea757c822e2ed1010e5a661b8d0b05a59eb048f3377b93b3455f1ef35a07a7a",
+  "wheel_binary_preserved_in_git": false
+}

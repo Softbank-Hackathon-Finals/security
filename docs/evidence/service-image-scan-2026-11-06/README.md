@@ -1,5 +1,13 @@
 # 서비스 이미지 실제 취약점 검사 — 배포 BLOCK
 
+## 최종 소비 기준 ec4aac6
+
+최신 고정 producer의 [검사 원본](qualified-ec4aac6/README.md)을 별도로 보존했다.
+2026-11-06T15:25:23Z, OS 87/Python 10개 전체 재고 대조, **CRITICAL 0 / HIGH 49 / MEDIUM 75 / LOW 62,
+배포 BLOCK**이다. 아래 이전 source의 기록과 혼동하지 않는다.
+
+## 초기 구현의 검사
+
 - 대상 source: `f344aece4eecbed94f0e2ba7b415e67c8d8bb412`.
 - [CI 실행](https://github.com/Softbank-Hackathon-Finals/security/actions/runs/42217523350),
   [artifact](https://github.com/Softbank-Hackathon-Finals/security/actions/runs/42217523350/artifacts/13502033047).

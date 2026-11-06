@@ -716,3 +716,11 @@ push commit 메시지에 `[review-endurance]`가 있는 경우에만 10,800초 �
 - 각 source에 들어간 수정 범위를 구분하며 겹친 실행 시간을 합산하지 않는다. 실제 PG/TLS/서명과
   합성 issuer·측정값의 차이, 운영 부하/전체 통제 인수 미검증 상태를 유지한다.
   연결 수 예산을 추가한 `68ec731`의 별도 30분 시험은 아직 진행 중이다.
+
+### SVC-35 최종 이미지 근거 보존
+
+- 최종 producer ec4aac6의 image artifact도 별도로 내려받아 GitHub ZIP digest를 대조했다.
+  manifest의 wheel/requirements/Dockerfile·Git lock/준비 스크립트, decision의 scan/SBOM/runtime
+  재고 해시와 image ID를 확인하고 [원본 폴더](../evidence/service-image-scan-2026-11-06/qualified-ec4aac6/README.md)에 보존했다.
+- DB 갱신 시각은 12:55:02Z이며 관측은 15:25:23Z다. HIGH 49/고유 CVE 13, OS 87/Python 10,
+  BLOCK이 유지됐다. 초기 d9 source의 이미지 증거를 최종 이미지로 대신하지 않는다.
