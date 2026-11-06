@@ -46,7 +46,7 @@ docker build --platform linux/amd64 --iidfile /tmp/new-service-image-id \
   --label "org.opencontainers.image.revision=$(git rev-parse HEAD)" /tmp/new-service-image-context
 ```
 
-CI `service-image`는 기존 package·현재 여섯 플랫폼 계약·secrets 성공 후 이 과정을 수행한다.
+CI `service-image`는 기존 package·현재 일곱 플랫폼 계약·secrets 성공 후 이 과정을 수행한다.
 레지스트리에 push하지 않으며, 공개 build inputs와 **local image ID**만 artifact로 보존한다.
 local image ID는 레지스트리 manifest digest가 아니다. 운영 배포에 쓰려면 팀의 기존 이미지
 발행/서명/검증 경로를 통해 registry digest를 받고 그 값을 review manifest에 지정해야 한다.

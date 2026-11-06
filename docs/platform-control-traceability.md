@@ -3,8 +3,13 @@
 기준: platform `b19488e2debbee8bbe120f1309eadbe19df85b6f`, security catalog
 `security-modernization.v1`. 원문 요구 ID는 `domain/security_program.py`의 CHECKS가
 정본이며 [원문 요구사항 연결](architecture-integration.md)과 함께 읽는다.
-T5 원문 기준은 위 SHA를 유지한다. 후속 platform `8b12236ae4277de16cebdf1391f87721e5851d47`까지
+T5 원문 기준은 위 SHA를 유지한다. 후속 platform `bb174860bedf100de3970c3e8e410f02f23994e2`까지
 T10/T19 계약 차이를 재검토했으며, 새 T14 SEC-01.2 실측을 나머지 검사 PASS로 합산하지 않는다.
+
+최신 T19 정정 기록은 기존 양쪽 앱 경로가 같은 출발지 DB에 도달했음을 설명한다. 과거 앱 경로의
+스키마 조회를 독립된 두 DB의 일치나 pooler→DB 신원 증명으로 쓰지 않는다. 새 목적지 직접 수집도
+그 단일 관측 창의 수집기 자격이며, 현재 계획의 양쪽 새 원문·최소 권한·데이터 무결성 인수를 대체하지 않는다.
+[T19 정정 원문](https://github.com/Softbank-Hackathon-Finals/platform/blob/bb174860bedf100de3970c3e8e410f02f23994e2/docs/evidence/t19-direct-database-2026-11-06/README.md).
 
 플랫폼 T5의 **6개 범주**는 비밀 저장(SEC-01/ENC-02), 전송 암호화(ENC-01), 감사(AUD-01),
 네트워크(NET-01), 최소 권한(IAM-01/ISO-01), 복구(DR-01)다. 범주 수와 하위 시험 수를

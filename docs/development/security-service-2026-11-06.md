@@ -506,3 +506,32 @@ push commit 메시지에 `[review-endurance]`가 있는 경우에만 10,800초 �
 - 원본 report의 모든 Python source와 시험 파일 해시가 `d9c878f`와 같음을 확인했다.
   [원본과 해석](../evidence/review-endurance-2026-11-06/README.md).
   별도 3시간 CI는 이전 source의 시험이므로 결과를 소급 합치지 않는다.
+
+### SVC-26 CI 결과
+
+- `b9f4f52` [CI](https://github.com/Softbank-Hackathon-Finals/security/actions/runs/42226489791) 전체 성공.
+  PG18.4 기존 경계 **42 PASS, 11.79초**, 새 실제 TLS/HBA **1 PASS, 0.43초**,
+  실제 image/T10 **11 PASS, 30.70초**. 이미지 스캔은 HIGH 49건으로 BLOCK 유지.
+
+## SVC-27: 일곱 번째 플랫폼 기준과 진행 주체 확인
+
+- 원격 develop `bb174860bedf100de3970c3e8e410f02f23994e2`는 8b12236보다 13 commit 진행됐다.
+  새 `WorkflowHost`/`StageReaders`를 검토하고 현재 기본 기준·전체/이미지 CI와 계약 matrix를 갱신한다.
+- 새 호스트는 상태별 판독기를 선택하고 미연결 단계는 보류한다. 준비 네트워크 읽기는 plan lock 밖에서
+  plan/version별로 수행하며 실제 판독은 lock 안이다. 운영 조립은 아직 단계별 인수 대상이다.
+- SHIFT는 이 드라이버의 진행 대상이 아니다. 기존 T10 실행 접수 책임과 `T10ProgramAuthority`를 유지한다.
+  새 host가 SHIFT를 직접 실행하지 않는지, prepared reader를 다른 version/두 번째 호출에 재사용하지 않는지
+  실제 고정 모듈로 계약 시험을 추가한다. 과거 여섯 기준에는 모듈이 없어 그 시험만 명시적으로 skip한다.
+- 보안 서비스의 원래 5초 기한과 현재 호스트 승인/등록 재검사를 유지한다. 새 preparer가 네트워크 결과를
+  받았다는 이유만으로 실행 허가를 만들지 않는다. T10 gate adapter를 모든 workflow state에 끼워 넣지 않는다.
+- T19 정정은 양쪽 앱 경로가 같은 출발지 DB를 사용했음을 명시한다. 과거 기록을 독립 DB 일치로 해석하지 않는다.
+  새 목적지 직접 수집은 단일 수집기 자격이며 복제 권한을 가진 기존 역할을 사용했다. 최소 권한 운영 인수와 다르다.
+- T22 실제 브라우저 8조합 재접속은 클라이언트 연결 종료 시험이다. DB 컷오버·쓰기 개방·독립 목적지 운영의
+  증거로 확대하지 않는다. 최종 기능·DB 신원·경로별 TLS는 같은 현재 승인 창에서 새로 수집한다.
+- 로컬 전체 회귀 도중 host C: 여유가 약 0.82GB까지 줄어 본인 pytest만 SIGINT로 중단했다.
+  이 실행은 미완료이며 통과로 집계하지 않는다. 별도 PG는 helper 정리 경로로 종료하고 CI에서 검증을 이어간다.
+
+근거: [변경 비교](https://github.com/Softbank-Hackathon-Finals/platform/compare/8b12236ae4277de16cebdf1391f87721e5851d47...bb174860bedf100de3970c3e8e410f02f23994e2),
+[워크플로 결정](https://github.com/Softbank-Hackathon-Finals/platform/blob/bb174860bedf100de3970c3e8e410f02f23994e2/docs/adr/0031-workflow-host.md),
+[T19 정정](https://github.com/Softbank-Hackathon-Finals/platform/blob/bb174860bedf100de3970c3e8e410f02f23994e2/docs/evidence/t19-direct-database-2026-11-06/README.md),
+[T22 범위](https://github.com/Softbank-Hackathon-Finals/platform/blob/bb174860bedf100de3970c3e8e410f02f23994e2/docs/evidence/t22-live-reconnect-2026-11-06/README.md).
