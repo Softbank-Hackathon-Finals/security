@@ -95,3 +95,7 @@ archive SHA-256·scan decision hash를 붙이고 arch별로 구분한다. regist
 해시만으로 발행자 신뢰나 실행 권한을 주장하지 않는다.
 
 로컬 관련 계약 시험 **63 PASS / 0.15초**, lint 성공. CI의 실제 archive 생성은 후속 검증한다.
+
+archive export 뒤에는 Docker load와 network-none/read-only 컨테이너 재검증을 실행해
+원래 runtime inventory와 바이트 단위로 대조한다. 큰 이미지 artifact를 받지 않고도 검토할 수 있도록
+작은 입력 artifact에 archive provenance를 함께 보존한다. CI 외부 registry나 운영 환경은 변경하지 않는다.

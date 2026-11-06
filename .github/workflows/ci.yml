@@ -209,6 +209,19 @@ jobs:
               summary.write('Actual service Python packages verified: ' + str(result['runtime_python_packages_verified']) + '.\n')
               summary.write('No image was published; registry digest and signed attestation are absent.\n')
           PY
+      - name: Preserve the exact scanned PASS image for controlled handoff
+        run: |
+          .venv/bin/python scripts/export_qualified_image.py \
+            --context "$RUNNER_TEMP/service-image-context" --output "$RUNNER_TEMP/qualified-image-export"
+          cp "$RUNNER_TEMP/qualified-image-export/archive-provenance.json" "$RUNNER_TEMP/service-image-context/archive-provenance.json"
+      - name: Verify exported archive loads and preserves the actual runtime inventory
+        run: |
+          docker image load --input "$RUNNER_TEMP/qualified-image-export/image.tar.gz"
+          docker run --rm --pull=never --network=none --read-only --cap-drop=ALL \
+            --security-opt=no-new-privileges:true --pids-limit=64 --memory=384m \
+            --mount "type=bind,source=$PWD/scripts/verify_service_image.py,target=/verify.py,readonly" \
+            --entrypoint python "$SOVA_TEST_REVIEW_IMAGE" /verify.py > "$RUNNER_TEMP/reloaded-runtime-inventory.json"
+          cmp "$RUNNER_TEMP/service-image-context/runtime-inventory.json" "$RUNNER_TEMP/reloaded-runtime-inventory.json"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
@@ -217,10 +230,6 @@ jobs:
           if-no-files-found: error
           retention-days: 14
           include-hidden-files: false
-      - name: Preserve the exact scanned PASS image for controlled handoff
-        run: >-
-          .venv/bin/python scripts/export_qualified_image.py
-          --context "$RUNNER_TEMP/service-image-context" --output "$RUNNER_TEMP/qualified-image-export"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: sova-security-qualified-image-${{ matrix.arch }}-${{ github.sha }}
