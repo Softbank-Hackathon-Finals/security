@@ -107,6 +107,41 @@ jobs:
           print('Verified isolated PostgreSQL 18.4')
           PY
           .venv/bin/python -m pytest -q tests/integration/test_review_database_escape.py tests/integration/test_review_database_admin_functions.py tests/integration/test_postgres_boundary.py
+      - name: Prepare TLS only in the disposable PostgreSQL service container
+        env:
+          TEST_DATABASE_CONTAINER: ${{ job.services.postgres.id }}
+        run: |
+          .venv/bin/python - <<'PY'
+          import os, sys
+          from pathlib import Path
+          sys.path.insert(0, 'tests')
+          from tls_review_support import certificates
+          root = Path(os.environ['RUNNER_TEMP']) / 'review-database-tls'
+          root.mkdir()
+          certificates(root, name='db')
+          PY
+          docker cp "$RUNNER_TEMP/review-database-tls/db.pem" "$TEST_DATABASE_CONTAINER:/tmp/review-db-test.pem"
+          docker cp "$RUNNER_TEMP/review-database-tls/db.key" "$TEST_DATABASE_CONTAINER:/tmp/review-db-test.key"
+          docker exec "$TEST_DATABASE_CONTAINER" chown postgres:postgres /tmp/review-db-test.pem /tmp/review-db-test.key
+          docker exec "$TEST_DATABASE_CONTAINER" chmod 600 /tmp/review-db-test.key
+          .venv/bin/python - <<'PY'
+          import os, time, psycopg
+          with psycopg.connect(os.environ['SOVA_SECURITY_TEST_POSTGRES_DSN'], autocommit=True) as connection:
+              assert connection.info.host.startswith('/')
+              assert connection.execute("SELECT current_setting('cluster_name'),current_database()").fetchone() == ('sova-security-test', 'sova_security_test')
+              connection.execute("ALTER SYSTEM SET ssl_cert_file='/tmp/review-db-test.pem'")
+              connection.execute("ALTER SYSTEM SET ssl_key_file='/tmp/review-db-test.key'")
+              connection.execute("ALTER SYSTEM SET ssl='on'")
+              assert connection.execute('SELECT pg_reload_conf()').fetchone() == (True,)
+              deadline = time.monotonic() + 5
+              while connection.execute('SHOW ssl').fetchone() != ('on',):
+                  assert time.monotonic() < deadline, 'Disposable PostgreSQL TLS startup failed'
+                  time.sleep(0.05)
+          PY
+          echo "SOVA_TEST_REVIEW_DB_CA=$RUNNER_TEMP/review-database-tls/db-ca.pem" >> "$GITHUB_ENV"
+          echo "SOVA_TEST_REVIEW_DB_HOSTADDR=$(docker inspect --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "$TEST_DATABASE_CONTAINER")" >> "$GITHUB_ENV"
+      - name: Verify direct database ingress and cross-database denial
+        run: .venv/bin/python -m pytest -q tests/integration/test_review_database_network.py
       - name: Prepare only committed wheel and hashed runtime dependencies
         run: .venv/bin/python scripts/prepare_service_image.py --output "$RUNNER_TEMP/service-image-context"
       - name: Build exact service image without publishing

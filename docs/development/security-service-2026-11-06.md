@@ -484,3 +484,16 @@ push commit 메시지에 `[review-endurance]`가 있는 경우에만 10,800초 �
   앞선 SIGBUS 중단은 실패로 남긴다. 이번 시험은 scanner DB를 내려받지 않았다.
 - 플랫폼 T15 발행의 `ignore-unfixed: true`를 이 서비스에 복사하지 않는다. 기존 OCI/digest 발행 경로의
   재사용과 취약점 정책의 호환은 별도 조건이며 현재 BLOCK을 자동 예외 처리하지 않는다.
+
+## SVC-26: 같은 DB 서버의 다른 데이터베이스 접속 제한
+
+- [ADR-0017](../adr/0017-database-specific-reader-ingress.md). 현재 RLS/권한 검사는 현재 DB 범위다.
+  같은 로그인으로 다른 DB의 PUBLIC canary를 읽을 수 있음을 실제 private PG에서 재현했다.
+- 운영자 전용 `reader_hba_rules`를 추가해 정확한 DB/reader/CIDR/TLS/SCRAM만 허용하는 규칙을 렌더링한다.
+  다른 DB·평문·등록되지 않은 주소를 거부한다. 기존 서비스 API·T10 계약·reader DDL은 바꾸지 않는다.
+- 로컬 PostgreSQL 17.11 실측과 단위 **31 PASS, 0.55초**. 최초 시도는 단위/통합 파일명 충돌로
+  collection error였고 이름을 분리해 해결했다. 격리된 PG18.4 CI에도 TLS와 실제 접속 시험을 추가한다.
+- 실제 HBA는 변경 전 bytes로 복구했다. 기존 열린 연결은 reload 뒤에도 살아 있음을 확인했으므로
+  즉시 철회로 표현하지 않는다. 기존 host hold + 별도 자격/세션 철회 순서를 유지한다.
+- CNPG 고정 규칙/사용자 규칙 순서, pooler와 Unix socket의 다른 경계는 별도 인수다.
+  팀 Cluster나 공유 PUBLIC 권한을 변경하지 않았다. 실제 IPv6 연결과 CNPG CNI는 미검증이다.

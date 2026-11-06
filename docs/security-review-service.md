@@ -120,6 +120,11 @@ DB는 verify-full TLS 또는 등록한 사설 Unix socket만 허용한다. 전�
 `review_database.reader_statements(role=..., tenant_id=...)`가 비밀 없는 DDL을 반환한다.
 새 역할을 별도 관리자 트랜잭션에서 만들고, 로그인 자격은 기존 비밀 관리 경로에서 설정한다.
 
+DB 안의 RLS는 같은 로그인으로 다른 DB에 접속하는 경로까지 제한하지 않는다. 직접 TCP 배포에는
+`review_database_network.reader_hba_rules`로 DB·reader·TLS·허용 CIDR을 결속한 운영 HBA 후보를 만든다.
+앞선 넓은 허용 규칙, CNPG 고정 규칙, pooler와 기존 연결의 차이를 실제로 인수해야 한다.
+설치·권한 변경은 서비스가 수행하지 않는다. [ADR-0017](adr/0017-database-specific-reader-ingress.md).
+
 grant mount는 정확히 `schema_version: 1`, `grants: [...]`를 가진다. 각 항목에는
 `username`, `uid`, `subject_id`, `tenant_id`, `scopes`, `modes`, `issued_at`, `valid_until`이 필요하다.
 scopes는 전체 ResourceScope 객체 배열이며 같은 tenant 내 source/target을 명시한다.
