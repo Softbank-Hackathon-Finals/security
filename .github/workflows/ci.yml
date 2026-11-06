@@ -12,7 +12,7 @@ jobs:
     timeout-minutes: 10
     services:
       postgres:
-        image: postgres:17
+        image: postgres:18.4@sha256:a02db8cac496f15b094798a38254f14d6e00741f709360e5e00bb6668ea31636
         env:
           POSTGRES_USER: bravo_test_admin
           POSTGRES_PASSWORD: ci-test-only
@@ -50,6 +50,15 @@ jobs:
           version: '0.13.6'
           enable-cache: false
       - run: uv sync --locked --extra dev --extra platform-test --no-install-project --no-build --python '3.12'
+      - name: Qualify database boundary on the platform PostgreSQL version
+        run: |
+          .venv/bin/python - <<'PY'
+          import os, psycopg
+          with psycopg.connect(os.environ['SOVA_SECURITY_TEST_POSTGRES_DSN']) as connection:
+              assert connection.execute("SHOW server_version_num").fetchone() == ('180004',)
+          print('Verified isolated PostgreSQL 18.4')
+          PY
+          .venv/bin/python -m pytest -q tests/integration/test_review_database_escape.py tests/integration/test_postgres_boundary.py
       - name: Prepare only committed wheel and hashed runtime dependencies
         run: .venv/bin/python scripts/prepare_service_image.py --output "$RUNNER_TEMP/service-image-context"
       - name: Build exact service image without publishing

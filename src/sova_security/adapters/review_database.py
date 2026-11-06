@@ -47,8 +47,10 @@ def require_reader(connection, *, tenant_id):
     """Reject drift before any service store query, including inherited privileges."""
     identifier(tenant_id)
     role = connection.execute("""SELECT current_user, session_user, rolsuper, rolbypassrls, rolcreatedb, rolcreaterole,
+        rolreplication,
         EXISTS(SELECT 1 FROM pg_auth_members m WHERE m.member=r.oid),
-        has_schema_privilege(current_user,'sova_control','CREATE')
+        has_schema_privilege(current_user,'sova_control','CREATE'),
+        has_database_privilege(current_user,current_database(),'CREATE')
         FROM pg_roles r WHERE rolname=current_user""").fetchone()
     if not role or role[0] != role[1] or any(role[2:]):
         raise ContractError("Independent unprivileged review reader required")
@@ -56,7 +58,8 @@ def require_reader(connection, *, tenant_id):
     rows = connection.execute("""SELECT c.relname, c.relrowsecurity, c.relforcerowsecurity,
         c.relowner=(SELECT oid FROM pg_roles WHERE rolname=current_user),
         has_table_privilege(current_user,c.oid,'SELECT'),
-        has_table_privilege(current_user,c.oid,'INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER'),
+        (has_table_privilege(current_user,c.oid,'INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER')
+          OR has_any_column_privilege(current_user,c.oid,'INSERT,UPDATE,REFERENCES')),
         p.polpermissive, p.polcmd, p.polroles=ARRAY[(SELECT oid FROM pg_roles WHERE rolname=current_user)],
         pg_get_expr(p.polqual,p.polrelid)=format('(tenant_id = %%L::text)',%s::text),
         pg_get_expr(p.polwithcheck,p.polrelid)='false'
@@ -67,3 +70,31 @@ def require_reader(connection, *, tenant_id):
         tuple(row[1:]) != (True, True, False, True, False, False, "*", True, True, True) for row in rows
     ):
         raise ContractError("Fixed tenant, FORCE RLS and SELECT-only review policy required")
+    # PUBLIC grants are additive: REVOKE FROM this role cannot cancel them.
+    # Owner-rights views and definer routines can bypass the underlying RLS.
+    # Refuse the unsafe deployment; only a separate owner may repair grants.
+    extra = connection.execute("""SELECT
+        EXISTS(SELECT 1 FROM pg_namespace n WHERE n.nspname !~ '^pg_'
+            AND n.nspname <> 'information_schema' AND has_schema_privilege(current_user,n.oid,'CREATE')),
+        EXISTS(SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
+            JOIN pg_language l ON l.oid=p.prolang
+            WHERE has_schema_privilege(current_user,n.oid,'USAGE') AND has_function_privilege(current_user,p.oid,'EXECUTE')
+              AND (p.prosecdef OR (NOT l.lanpltrusted AND n.nspname !~ '^pg_' AND n.nspname <> 'information_schema'))),
+        EXISTS(SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
+            WHERE n.nspname !~ '^pg_' AND n.nspname <> 'information_schema'
+              AND c.relkind IN ('r','p','v','m','f') AND has_schema_privilege(current_user,n.oid,'USAGE')
+              AND NOT (n.nspname='sova_control' AND c.relname=ANY(%s))
+              AND (has_table_privilege(current_user,c.oid,'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER')
+                   OR has_any_column_privilege(current_user,c.oid,'SELECT,INSERT,UPDATE,REFERENCES'))),
+        EXISTS(SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
+            WHERE c.relkind='S' AND n.nspname !~ '^pg_' AND n.nspname <> 'information_schema'
+              AND has_schema_privilege(current_user,n.oid,'USAGE') AND has_sequence_privilege(current_user,c.oid,'SELECT,USAGE,UPDATE')),
+        (current_setting('lo_compat_privileges') <> 'off' OR EXISTS(
+            SELECT 1 FROM pg_largeobject_metadata l
+            WHERE l.lomowner=(SELECT oid FROM pg_roles WHERE rolname=current_user)
+              OR EXISTS(SELECT 1 FROM aclexplode(l.lomacl) a
+                  WHERE a.grantee IN (0,(SELECT oid FROM pg_roles WHERE rolname=current_user))
+                    AND a.privilege_type IN ('SELECT','UPDATE'))))
+        """, (list(REVIEW_TABLES),)).fetchone()
+    if not extra or any(extra):
+        raise ContractError("Review reader has an indirect or unrelated database privilege")

@@ -26,3 +26,7 @@
 검증: 실제 PostgreSQL에서 직접 GUC를 다른 tenant로 변경해도 행 0개, 정상 tenant
 읽기 성공, 네 종류의 권한/정책 drift 차단. 로컬 TLS·서명 토큰 검증기 모형과 이 역할을
 함께 사용한 API 시험은 클라우드 IAM/RBAC 실측을 대신하지 않는다.
+
+후속 [ADR-0009](0009-indirect-database-privileges.md)는 PUBLIC 함수·뷰의 간접 접근을 실제
+재현하고 열 단위 권한·replication·추가 객체 권한까지 검사를 확장했다. 테이블의 고정 RLS만으로
+모든 DB 경로를 제한했다고 해석하지 않는다. 전용 보안 DB의 실제 PUBLIC 권한 정리가 필요하다.

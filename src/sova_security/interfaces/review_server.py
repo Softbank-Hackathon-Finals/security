@@ -33,7 +33,7 @@ def app_from_config(path, *, clock=None):
     def connect_read():
         dsn = mounted_bytes(data["database_dsn_file"], limit=8192).decode().strip()
         connection = psycopg.connect(dsn, connect_timeout=2, autocommit=True,
-            options="-c statement_timeout=2000 -c default_transaction_read_only=on -c idle_in_transaction_session_timeout=3000")
+            options="-c statement_timeout=2000 -c default_transaction_read_only=on -c idle_in_transaction_session_timeout=3000 -c search_path=pg_catalog")
         try:
             connection.isolation_level = psycopg.IsolationLevel.READ_COMMITTED
             params = connection.info.get_parameters()

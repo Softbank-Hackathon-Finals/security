@@ -259,3 +259,21 @@ Sova/bravo_gate 없이 import/CLI help와 pip check를 확인했다.
   최신 T10/TLS/PG 연결을 더한 잠금 Python 3.14 시험: **61 PASS, 85.04초**.
 - API는 실제 발급한 복수 audience·3,600초 토큰을 각각 인증했다. 서비스는 둘 다 거부하고
   기존 600초 서비스 전용 자격은 허용했다. 전역 Kubernetes 토큰 정책이나 T7 코드는 변경하지 않았다.
+
+## SVC-14: 실제 간접 DB 권한 우회 재현과 차단 조건
+
+- 기준 9e0d6a5. [ADR-0009](../adr/0009-indirect-database-privileges.md)에 위협·선행 조건·관리자
+  조치 경계를 기록했다. `review_database.py`, `review_server.py`, 실제 PG 회귀 파일을 수정했다.
+- PUBLIC definer 함수와 owner-rights view로 다른 tenant의 합성 hold ID 읽기를 재현했다.
+  직접 테이블 조회는 0행이었으나 기존 검사도 통과했다. 변경 전 새 시험은 2 FAIL이었다.
+- 첫 수정은 PG17에 없는 large-object 검사 함수로 20 FAIL/27 PASS였다. 실제 catalog ACL
+  검사로 수정한 뒤 DB 경계와 독립 TLS 서비스 묶음 **47 PASS, 19.73초**.
+- 별도 관리자 PUBLIC 회수 후 직접 SQL도 거부되는 것을 확인했다. 서비스의 거부와 DB 자격의
+  실제 권한 회수는 다른 동작이며, 서비스가 자동으로 팀 DB 권한을 변경하지 않는다.
+- 플랫폼 DB와 같은 18.4의 공식 Docker index digest를 조회·확인해 image CI에 고정했다.
+  기존 package CI의 PG17과 버전 간 동작을 대조한다. 결과는 해당 CI 이후 보충한다.
+- `a78bac5` [토큰 보강 CI](https://github.com/Softbank-Hackathon-Finals/security/actions/runs/42208538564) 전체 통과.
+  앞선 `97a6910` [image CI](https://github.com/Softbank-Hackathon-Finals/security/actions/runs/42207932376)도
+  최신 플랫폼 initial/post_apply를 포함한 실제 컨테이너 연결 **11 PASS, 37.31초**였다.
+- 잠금 Python 3.14 + 최신 플랫폼 + 실제 PostgreSQL/OPA/Kubernetes 전체 회귀:
+  **847 PASS, 120.58초**. 새로운 간접 권한 검사와 토큰 수명 제한을 모두 포함한다.
