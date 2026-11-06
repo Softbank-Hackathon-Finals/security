@@ -112,3 +112,8 @@ Docker CLI 프로세스의 자원을 서비스 자원으로 잘못 기록하지 
 `[image-endurance-90m]`가 포함된 개인 브랜치 push만 90분 시험을 실행한다.
 일반 push/PR은 장시간 실행하지 않는다. 원본 보고서에 image config ID, source, architecture,
 시험·harness hash, 실제 경과 시간과 자원 범위를 남긴다. 운영 부하·CNI 검증은 아니다.
+
+첫 IMG-04 CI `42257008812`는 package boundary 검사에서 중단됐다. Python 표준 라이브러리
+`platform` import가 팀 저장소 `platform` 의존 금지 규칙과 이름이 겹쳤다. 검사를 완화하지 않고
+Linux 전용 자원 시험에서 기존 `os.uname().machine`을 사용하도록 수정했다.
+90분 컨테이너 시험은 시작되지 않았으며 완료 시간에 포함하지 않는다.

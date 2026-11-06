@@ -6,7 +6,6 @@ import hashlib
 import json
 import os
 from pathlib import Path
-import platform
 import time
 from uuid import uuid4
 
@@ -86,7 +85,7 @@ def test_live_process_rotation_expiry_revocation_and_resources(database, scope, 
                     cycles=0, accepted=0, revoked_denials=0, grant_denials=0, expired_denials=0,
                     credential_rotations=0, execution_authorized=False,
                     evidence_source="synthetic signed originals", identity_source="local issuer simulator")
-    progress.update(runtime_kind="container" if in_container else "process", architecture=platform.machine())
+    progress.update(runtime_kind="container" if in_container else "process", architecture=os.uname().machine)
     if in_container:
         progress.update(local_image_config_id=os.environ["SOVA_TEST_REVIEW_IMAGE"],
                         image_source_commit=os.environ["SOVA_TEST_REVIEW_IMAGE_COMMIT"])
