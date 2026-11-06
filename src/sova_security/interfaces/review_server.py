@@ -28,16 +28,18 @@ def app_from_config(path, *, clock=None):
     import psycopg
     from sova_security.adapters.postgres_review import PostgresReviewHost
     from sova_security.adapters.review_database import require_reader
-    from sova_security.adapters.review_connections import RequestScopedReader
+    from sova_security.adapters.review_connections import RequestScopedReader, review_connection_parameters
 
     def connect_read():
         dsn = mounted_bytes(data["database_dsn_file"], limit=8192).decode().strip()
-        connection = psycopg.connect(dsn, connect_timeout=2, autocommit=True,
-            options="-c statement_timeout=2000 -c default_transaction_read_only=on -c idle_in_transaction_session_timeout=3000 -c search_path=pg_catalog")
+        parameters = review_connection_parameters(dsn)
+        connection = psycopg.connect(**parameters, autocommit=True)
         try:
             connection.isolation_level = psycopg.IsolationLevel.READ_COMMITTED
             params = connection.info.get_parameters()
-            if not params.get("host", "").startswith("/") and (
+            if params.get("host") != parameters["host"]:
+                raise ContractError("Connected database host differs from registered routing")
+            if not parameters["host"].startswith("/") and (
                 not connection.info.ssl_in_use or params.get("sslmode") != "verify-full"
             ):
                 raise ContractError("Verified TLS or registered private Unix socket required")

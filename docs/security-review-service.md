@@ -118,6 +118,9 @@ Python DNS/일부 SDK 호출의 강제 취소까지 보장하지 않으므로 �
 
 DB는 verify-full TLS 또는 등록한 사설 Unix socket만 허용한다. 전용 reader 역할과
 테넌트별 restrictive RLS를 먼저 준비해야 하며 공유 쓰기 계정으로 시작할 수 없다.
+mounted DSN에는 host·port·dbname·user를 명시한다. TCP는 `sslmode=verify-full`과 절대 경로의
+`sslrootcert`도 필요하다. 여러 host·service profile·환경의 숨은 hostaddr는 연결 전에 거부한다.
+연결 후 실제 TLS 검사와 매 요청 자격 회전도 유지한다. [ADR-0018](adr/0018-validate-database-routing-before-connect.md).
 `review_database.reader_statements(role=..., tenant_id=...)`가 비밀 없는 DDL을 반환한다.
 새 역할을 별도 관리자 트랜잭션에서 만들고, 로그인 자격은 기존 비밀 관리 경로에서 설정한다.
 

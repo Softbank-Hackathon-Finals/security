@@ -44,6 +44,7 @@ def test_database_scoped_hba_blocks_stolen_login_cross_database_and_plaintext(da
     from psycopg import sql
     from psycopg.conninfo import make_conninfo
     from sova_security.adapters.review_database import reader_statements, require_reader
+    from sova_security.adapters.review_connections import review_connection_parameters
 
     configured_ca = os.environ.get("SOVA_TEST_REVIEW_DB_CA")
     if not configured_ca:
@@ -94,7 +95,7 @@ def test_database_scoped_hba_blocks_stolen_login_cross_database_and_plaintext(da
                 install_owned_hba(admin, hba, ("\n".join(rules) + "\n").encode() + original)
 
             install(network)
-            with psycopg.connect(connection_info) as reader:
+            with psycopg.connect(**review_connection_parameters(connection_info)) as reader:
                 require_reader(reader, tenant_id=scope.tenant_id)
                 assert reader.execute("SELECT ssl FROM pg_stat_ssl WHERE pid=pg_backend_pid()").fetchone() == (True,)
             with pytest.raises(psycopg.OperationalError, match="pg_hba.conf rejects connection"):

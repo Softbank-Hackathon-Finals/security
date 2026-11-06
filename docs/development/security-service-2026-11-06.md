@@ -535,3 +535,14 @@ push commit 메시지에 `[review-endurance]`가 있는 경우에만 10,800초 �
 [워크플로 결정](https://github.com/Softbank-Hackathon-Finals/platform/blob/bb174860bedf100de3970c3e8e410f02f23994e2/docs/adr/0031-workflow-host.md),
 [T19 정정](https://github.com/Softbank-Hackathon-Finals/platform/blob/bb174860bedf100de3970c3e8e410f02f23994e2/docs/evidence/t19-direct-database-2026-11-06/README.md),
 [T22 범위](https://github.com/Softbank-Hackathon-Finals/platform/blob/bb174860bedf100de3970c3e8e410f02f23994e2/docs/evidence/t22-live-reconnect-2026-11-06/README.md).
+
+## SVC-28: DB 연결 전 TLS·단일 경로 검증
+
+- [ADR-0018](../adr/0018-validate-database-routing-before-connect.md). 기존 접속 후 TLS 검사만으로는
+  잘못된 평문/prefer/mixed-host DSN이 DB 클라이언트에 먼저 전달될 수 있었다. 네트워크 없는 재현 **3 FAIL**.
+- 정식 libpq parser 뒤 단일 host/port/DB/reader, TCP verify-full/절대 CA, private socket 조건을
+  연결 전에 검사한다. 환경 service/hostaddr 우회와 TLS 대신 GSS 선택을 막는다. 실제 연결 후 검사도 유지한다.
+- 기존 T9 mounted credential 회전과 readonly/statement timeout/search_path는 그대로다.
+  관련 단위 **32 PASS / 1 SKIP**. 실제 PG18.4/HBA와 전체 서비스 CI로 연결 경로를 재검증한다.
+- 직전 `1bfb877`의 일곱 플랫폼 기준·전체 package·image CI는 모두 성공했다.
+  새 네트워크 전 검사는 별도 결과로 기록한다. 로컬 대규모 회귀는 C: 공간 때문에 계속 CI로 대체한다.
