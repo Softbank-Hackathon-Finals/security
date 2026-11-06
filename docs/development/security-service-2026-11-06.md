@@ -340,3 +340,14 @@ process/container 모두 통과. 실제 컨테이너 소비 **39 PASS, 31.89초*
 - 사용자 platform checkout은 수정하지 않고 소유한 격리 참조 복사본에서 계약/실행 시험을 수행한다.
 - 새 기준에서 계약/실제 T10/TLS/T7 연결 **32 PASS, 60.51초**. upstream의 T30 helper 모의 시험도
   **7 PASS**였다. 후자는 실제 쓰기 개방이나 클러스터 권한 인수가 아니다.
+
+## SVC-19: 실제 시간의 자격 수명과 프로세스 자원
+
+- 요구/설계/한계: [ADR-0013](../adr/0013-owned-process-endurance.md).
+  명시적으로 선택하는 실제 PG/TLS 독립 프로세스 endurance 시험을 추가했다.
+- 180초 예비 시험 **1 PASS, 181.55초**. 정상 12회, issuer/grant 철회 각 6회, 실제 만료 거부 2회.
+  파일 핸들 8개/스레드 2개 유지, RSS 증가 236KiB. 다음 단계는 13,200초 연속 관측이다.
+- 정리 완료까지 확인해야 report를 completed로 기록한다. 정상 완료/실패 모두 자신의 프로세스와
+  DB를 정리하며 민감한 자격이나 원본 데이터를 보고서에 넣지 않는다.
+- DB 관리 함수 [CI](https://github.com/Softbank-Hackathon-Finals/security/actions/runs/42213904868)
+  전체 통과: PG18.4 경계 **42 PASS, 11.39초**, 실제 이미지/T10 **11 PASS, 39.47초**.
