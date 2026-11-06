@@ -22,6 +22,7 @@ from sova_security.adapters.bounded_json import bounded_json_object
 
 TRIVY_VERSION = "0.76.2"
 TRIVY_SHA256 = "6a972c69606c7b3ea4c6bdcc6fc9332ea9ad38381624310c1e85cc77345909f3"
+TRIVY_ARM64_SHA256 = "7844c3851b28470b6d7f0975fa0b3262c5b2272c9a54a91f522801bb8926f51f"
 LEVELS = {"UNKNOWN", "LOW", "MEDIUM", "HIGH", "CRITICAL"}
 MINIMUM_FREE_BYTES = 6 * 1024 ** 3
 
@@ -94,8 +95,15 @@ def assess(report, database, inventory, *, image_id, commit, started_at, finishe
         raise ValueError("Fresh isolated vulnerability database download required")
     os_info = report["Metadata"].get("OS", {})
     family = os_info.get("Family")
-    supported = {"debian": (r"13(?:\.[0-9]+)?", {"amd64", "all"}),
-                 "alpine": (r"3\.24(?:\.[0-9]+)?", {"x86_64", "noarch"})}
+    target_platform = inventory.get("platform", "linux/amd64")
+    if target_platform not in {"linux/amd64", "linux/arm64"}:
+        raise ValueError("Qualified image platform required")
+    config = report["Metadata"].get("ImageConfig", {})
+    if config.get("os", "") + "/" + config.get("architecture", "") != target_platform:
+        raise ValueError("Scanner image architecture differs from runtime inventory")
+    arm = target_platform == "linux/arm64"
+    supported = {"debian": (r"13(?:\.[0-9]+)?", {"arm64" if arm else "amd64", "all"}),
+                 "alpine": (r"3\.24(?:\.[0-9]+)?", {"aarch64" if arm else "x86_64", "noarch"})}
     if family not in supported or not re.fullmatch(supported[family][0], os_info.get("Name", "")):
         raise ValueError("Qualified OS release coverage required")
     if family == "alpine" and inventory.get("os_family") != family:
@@ -162,7 +170,7 @@ def assess(report, database, inventory, *, image_id, commit, started_at, finishe
     if not packages[("os-pkgs", family)] or expected != detected or expected_os != detected_os:
         raise ValueError("Scanner coverage differs from the actual OS or Python inventory")
     gate = "BLOCK" if counts["HIGH"] or counts["CRITICAL"] or os_info.get("EOSL") else "UNKNOWN" if counts["UNKNOWN"] else "PASS"
-    return dict(schema_version=1, policy="service-image-high-critical.v3", gate=gate, os_family=family,
+    return dict(schema_version=1, policy="service-image-high-critical.v4", gate=gate, os_family=family, platform=target_platform,
                 source_commit=commit, local_image_config_id=image_id, registry_digest=None,
                 scanner_version=TRIVY_VERSION, database_updated_at=updated.isoformat(), observed_at=finished_at.isoformat(),
                 severity_counts={key: counts[key] for key in sorted(LEVELS)}, os_package_count=packages[("os-pkgs", family)],
@@ -173,7 +181,8 @@ def assess(report, database, inventory, *, image_id, commit, started_at, finishe
 
 def collect(*, trivy, image_id, commit, inventory_path, output):
     require_scan_capacity(output.parent)
-    if sha_file(trivy) != TRIVY_SHA256:
+    scanner_digest = {"x86_64": TRIVY_SHA256, "aarch64": TRIVY_ARM64_SHA256}.get(platform.machine())
+    if scanner_digest is None or sha_file(trivy) != scanner_digest:
         raise ValueError("Qualified scanner executable required")
     if not re.fullmatch(r"sha256:[0-9a-f]{64}", image_id) or not re.fullmatch(r"[0-9a-f]{40}", commit):
         raise ValueError("Exact local image and source identifiers required")
@@ -192,6 +201,9 @@ def collect(*, trivy, image_id, commit, inventory_path, output):
         inspected = json.loads(run(["docker", "image", "inspect", image_id], stage="image inspection", timeout=20))
         if len(inspected) != 1 or inspected[0].get("Id") != image_id or inspected[0].get("Config", {}).get("Labels", {}).get("org.opencontainers.image.revision") != commit:
             raise ValueError("Local image differs from the requested source commit")
+        inventory = document(inventory_path, 65536)
+        if inventory.get("platform") != inspected[0].get("Os", "") + "/" + inspected[0].get("Architecture", ""):
+            raise ValueError("Runtime inventory differs from actual image architecture")
         common = [str(trivy), "--cache-dir", str(work / "cache"), "--config", str(work / "config.yaml")]
         raw = run(common + ["--version", "--format", "json"], stage="scanner version", timeout=10)
         if json.loads(raw).get("Version") != TRIVY_VERSION:
@@ -207,7 +219,7 @@ def collect(*, trivy, image_id, commit, inventory_path, output):
         finished = datetime.now(UTC)
         result = assess(document(output / "scan.json"), document(output / "database-metadata.json", 16384), document(inventory_path, 65536),
                         image_id=image_id, commit=commit, started_at=started, finished_at=finished)
-        result.update(scanner_binary_sha256=TRIVY_SHA256, database_sha256=sha_file(db / "trivy.db"),
+        result.update(scanner_binary_sha256=scanner_digest, database_sha256=sha_file(db / "trivy.db"),
                       report_sha256=sha_file(output / "scan.json"), runtime_inventory_sha256=sha_file(inventory_path))
         run(common + ["convert", "--format", "cyclonedx", "--output", str(output / "sbom.cdx.json"), str(output / "scan.json")], stage="SBOM conversion", timeout=30)
         result["sbom_sha256"] = sha_file(output / "sbom.cdx.json")

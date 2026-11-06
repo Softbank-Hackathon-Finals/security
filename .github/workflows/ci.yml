@@ -55,8 +55,21 @@ jobs:
           if-no-files-found: error
           retention-days: 14
   service-image:
+    name: service-image (${{ matrix.arch }})
     needs: [package, platform-contract, secrets]
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-latest
+            trivy_archive: trivy_0.76.2_Linux-64bit.tar.gz
+            trivy_sha: bc0fc726e017b8927a62b2d3531d7a84ee01769daf5c99ed866dced54089fdbf
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+            trivy_archive: trivy_0.76.2_Linux-ARM64.tar.gz
+            trivy_sha: ab9d51f86e6a5fb936f605faff6b593ac51bc378fff4d3e8b9d58358b9c367c3
+    runs-on: ${{ matrix.runner }}
     timeout-minutes: 15
     services:
       postgres:
@@ -74,6 +87,9 @@ jobs:
       SOVA_SECURITY_TEST_POSTGRES_DSN: 'host=/tmp/security-image-pg port=5432 user=bravo_test_admin password=ci-test-only dbname=sova_security_test'
       UV_PYTHON_DOWNLOADS: 'never'
       AWS_EC2_METADATA_DISABLED: 'true'
+      IMAGE_PLATFORM: linux/${{ matrix.arch }}
+      TRIVY_ARCHIVE: ${{ matrix.trivy_archive }}
+      TRIVY_ARCHIVE_SHA: ${{ matrix.trivy_sha }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -143,10 +159,10 @@ jobs:
       - name: Verify direct database ingress and cross-database denial
         run: .venv/bin/python -m pytest -q tests/integration/test_review_database_network.py
       - name: Prepare only committed wheel and hashed runtime dependencies
-        run: .venv/bin/python scripts/prepare_service_image.py --output "$RUNNER_TEMP/service-image-context"
+        run: .venv/bin/python scripts/prepare_service_image.py --platform "$IMAGE_PLATFORM" --output "$RUNNER_TEMP/service-image-context"
       - name: Build exact service image without publishing
         run: |
-          docker build --platform linux/amd64 --iidfile "$RUNNER_TEMP/service-image-id" \
+          docker build --platform "$IMAGE_PLATFORM" --iidfile "$RUNNER_TEMP/service-image-id" \
             --label "org.opencontainers.image.revision=$GITHUB_SHA" \
             --label "org.opencontainers.image.source=https://github.com/Softbank-Hackathon-Finals/security" \
             "$RUNNER_TEMP/service-image-context"
@@ -170,9 +186,9 @@ jobs:
         run: |
           mkdir "$RUNNER_TEMP/service-scanner"
           curl --fail --location --proto '=https' --tlsv1.2 --max-time 120 \
-            https://github.com/aquasecurity/trivy/releases/download/v0.76.2/trivy_0.76.2_Linux-64bit.tar.gz \
+            "https://github.com/aquasecurity/trivy/releases/download/v0.76.2/$TRIVY_ARCHIVE" \
             --output "$RUNNER_TEMP/service-scanner/trivy.tar.gz"
-          printf '%s  %s\n' bc0fc726e017b8927a62b2d3531d7a84ee01769daf5c99ed866dced54089fdbf \
+          printf '%s  %s\n' "$TRIVY_ARCHIVE_SHA" \
             "$RUNNER_TEMP/service-scanner/trivy.tar.gz" | sha256sum --check
           tar -xzf "$RUNNER_TEMP/service-scanner/trivy.tar.gz" -C "$RUNNER_TEMP/service-scanner" trivy
           PYTHONPATH=src .venv/bin/python scripts/scan_service_image.py \
@@ -196,7 +212,7 @@ jobs:
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
-          name: sova-security-image-inputs-${{ github.sha }}
+          name: sova-security-image-inputs-${{ matrix.arch }}-${{ github.sha }}
           path: ${{ runner.temp }}/service-image-context/
           if-no-files-found: error
           retention-days: 14
@@ -442,7 +458,8 @@ jobs:
               'dependency_inventory_sha256': dependency_digest,
               'uv_version': '0.13.6',
               'required_workflow_checks': ['secrets', 'package (3.11)', 'package (3.14)',
-                  *(f'platform-contract ({sha[:7]})' for sha in PLATFORM_BASELINES), 'service-image'],
+                  *(f'platform-contract ({sha[:7]})' for sha in PLATFORM_BASELINES),
+                  'service-image (amd64)', 'service-image (arm64)'],
           }
           (directory / 'manifest.json').write_text(json.dumps(manifest, sort_keys=True, indent=2) + '\n')
           (directory / 'SHA256SUMS').write_text(

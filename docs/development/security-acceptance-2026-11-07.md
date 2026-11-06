@@ -60,3 +60,19 @@ WSL에는 AWS 설정이 있지만 kubeconfig가 없다. 사용자에게 시험 �
 - OPS-01: 최신 팀 self-service는 kubeconfig 배포 대신 본인 Tailscale 로그인과 비밀 없는
   `team-test.json`을 사용한다. 기존 T7 직접 API·단기 토큰을 우선 재사용한다.
   실제 RKE2 시험 기록은 ARM64이므로 amd64 이미지 성공을 해당 배포 성공으로 간주하지 않는다.
+
+## ARM64 인수 준비 (IMG-02)
+
+실제 플랫폼의 RKE2/ARM64 기록을 확인해 이미지 검증을 native ARM64에도 확장한다.
+GitHub의 `ubuntu-24.04-arm` runner를 사용하며 QEMU 성능 결과로 대체하지 않는다.
+https://docs.github.com/en/actions/reference/runners/github-hosted-runners
+
+빌드 manifest·실제 컨테이너 CPU·Docker inspect·Trivy ImageConfig·OS 패키지 arch가
+모두 같아야 한다. amd64와 arm64 artifact를 구분하고 각각 기존 PG/TLS/T10/철회 시험을 실행한다.
+공식 Trivy 0.76.2 ARM64 archive의 공개 digest를 확인한 뒤 메모리에서만 hash를 대조했다.
+archive `ab9d51f86e6a5fb936f605faff6b593ac51bc378fff4d3e8b9d58358b9c367c3`,
+binary `7844c3851b28470b6d7f0975fa0b3262c5b2272c9a54a91f522801bb8926f51f`를 고정한다.
+https://github.com/aquasecurity/trivy/releases/tag/v0.76.2
+
+로컬 계약 시험 **53 PASS / 0.14초**, lint 성공. ARM64 실제 빌드 결과는 아직 검증 전이다.
+이 추가 작업은 플랫폼 노드 아키텍처와의 호환성을 확인하기 위한 것으로 운영 배포를 수행하지 않는다.

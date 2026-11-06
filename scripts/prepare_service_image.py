@@ -47,7 +47,9 @@ def sha(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def prepare(project, output, uv):
+def prepare(project, output, uv, target_platform="linux/amd64"):
+    if target_platform not in {"linux/amd64", "linux/arm64"}:
+        raise ValueError("Explicit qualified image architecture required")
     project = project.resolve(strict=True)
     output = output.absolute()
     git = ["git", "-c", "safe.directory=" + str(project)]
@@ -112,7 +114,7 @@ def prepare(project, output, uv):
         ):
             raise ValueError("Source changed during preparation")
         manifest = dict(schema_version=1, repository="Softbank-Hackathon-Finals/security", commit_sha=revision,
-                        package=metadata["name"], version=metadata["version"], platform="linux/amd64", base=BASE,
+                        package=metadata["name"], version=metadata["version"], platform=target_platform, base=BASE,
                         uv_version=UV_VERSION, lock_sha256=sha(source / "uv.lock"), wheel=wheel.name,
                         wheel_sha256=sha(wheel), requirements_sha256=hashlib.sha256(requirements).hexdigest(),
                         installer_version=INSTALLER_VERSION, installer_requirements_sha256=hashlib.sha256(installer).hexdigest(),
@@ -133,8 +135,9 @@ def main():
     parser.add_argument("--project", type=Path, default=Path.cwd())
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--uv", default="uv")
+    parser.add_argument("--platform", choices=["linux/amd64", "linux/arm64"], default="linux/amd64")
     args = parser.parse_args()
-    prepare(args.project, args.output, args.uv)
+    prepare(args.project, args.output, args.uv, args.platform)
 
 
 if __name__ == "__main__":

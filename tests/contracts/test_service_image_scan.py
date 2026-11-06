@@ -17,7 +17,8 @@ IMAGE, COMMIT = "sha256:" + "a" * 64, "b" * 40
 
 def fixture(now):
     report = dict(SchemaVersion=2, ArtifactType="container_image", Trivy={"Version": "0.76.2"}, CreatedAt=now.isoformat(),
-                  Metadata=dict(ImageID=IMAGE, OS=dict(Family="debian", Name="13", EOSL=False)),
+                  Metadata=dict(ImageID=IMAGE, OS=dict(Family="debian", Name="13", EOSL=False),
+                                ImageConfig=dict(os="linux", architecture="amd64")),
                   Results=[dict(Class="os-pkgs", Type="debian", Packages=[dict(Name="libc6", Version="2.41", Arch="amd64")]),
                            dict(Class="lang-pkgs", Type="python-pkg", Packages=[dict(Name="sova_security", Version="0.11.0"),
                                                                                 dict(Name="uvicorn", Version="0.54.0")])])
@@ -156,6 +157,30 @@ def test_alpine_runtime_coverage_remains_exact_and_unfixed_high_blocks(now, faul
         result = assess(values, now)
         assert result["gate"] == ("BLOCK" if fault else "PASS")
         assert result["os_family"] == "alpine" and result["os_packages_verified"] == 1
+    else:
+        with pytest.raises(ValueError):
+            assess(values, now)
+
+
+@pytest.mark.parametrize("fault", [None, "runtime-platform", "scanner-platform", "package-arch", "missing-platform"])
+def test_arm64_requires_matching_runtime_scanner_and_os_packages(now, fault):
+    values = fixture(now)
+    report, _, inventory = values
+    report["Metadata"]["OS"].update(Family="alpine", Name="3.24.4")
+    report["Metadata"]["ImageConfig"]["architecture"] = "arm64"
+    report["Results"][0].update(Type="alpine", Packages=[dict(Name="musl", Version="1.2.6-r3", Arch="aarch64")])
+    inventory.update(platform="linux/arm64", os_family="alpine", os_packages=[["musl", "1.2.6-r3", "aarch64"]])
+    if fault == "runtime-platform":
+        inventory["platform"] = "linux/amd64"
+    elif fault == "scanner-platform":
+        report["Metadata"]["ImageConfig"]["architecture"] = "amd64"
+    elif fault == "package-arch":
+        report["Results"][0]["Packages"][0]["Arch"] = "x86_64"
+    elif fault == "missing-platform":
+        inventory.pop("platform")
+    if fault is None:
+        result = assess(values, now)
+        assert result["gate"] == "PASS" and result["platform"] == "linux/arm64"
     else:
         with pytest.raises(ValueError):
             assess(values, now)

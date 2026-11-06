@@ -8,13 +8,14 @@ from pathlib import Path
 import sys
 import subprocess
 import re
+import platform
 
 import cryptography
 import psycopg
 import uvicorn
 
 
-def os_inventory():
+def os_inventory(target_platform):
     release = dict(line.split("=", 1) for line in Path("/etc/os-release").read_text().splitlines() if "=" in line)
     family = release.get("ID", "").strip('"')
     if family == "alpine":
@@ -31,7 +32,7 @@ def os_inventory():
                     assert line[0] not in identity, "Duplicate APK identity"
                     identity[line[0]] = line[2:]
             assert set(identity) == {"P", "V", "A"}, "Incomplete APK identity"
-            assert identity["A"] in {"x86_64", "noarch"}
+            assert identity["A"] in {"x86_64" if target_platform == "linux/amd64" else "aarch64", "noarch"}
             assert all(identity.values())
             packages.append((identity["P"], identity["V"], identity["A"]))
         return family, packages
@@ -44,7 +45,7 @@ def os_inventory():
     for row in query.stdout.decode("utf-8").splitlines():
         fields = row.split("\t")
         assert len(fields) == 5 and fields[3:] == ["installed", "ok"], "Incomplete OS package state"
-        assert fields[2] in {"amd64", "all"}, "Unexpected image architecture"
+        assert fields[2] in {"amd64" if target_platform == "linux/amd64" else "arm64", "all"}, "Unexpected image architecture"
         packages.append(tuple(fields[:3]))
     return family, packages
 
@@ -68,14 +69,17 @@ def main():
         os.close(fd)
         raise AssertionError("Root filesystem must reject writes")
     manifest = json.loads(Path("/app/build-manifest.json").read_text())
+    target_platform = manifest["platform"]
+    assert target_platform in {"linux/amd64", "linux/arm64"}
+    assert platform.machine() == {"linux/amd64": "x86_64", "linux/arm64": "aarch64"}[target_platform]
     assert metadata.version("sova-security") == manifest["version"]
     assert manifest["execution_authorized"] is False and manifest["signed_attestation"] is False
     inventory = sorted((item.metadata["Name"], item.version) for item in metadata.distributions())
-    family, packages = os_inventory()
+    family, packages = os_inventory(target_platform)
     assert packages and len(packages) == len(set(packages))
     print(json.dumps(dict(commit_sha=manifest["commit_sha"], uid=os.getuid(), dependencies=inventory,
                           global_python_packages=[], package_installers_absent=True,
-                          os_family=family, os_packages=sorted(packages),
+                          platform=target_platform, os_family=family, os_packages=sorted(packages),
                           root_write_denied=True, effective_capabilities=0, no_new_privileges=True)))
 
 
