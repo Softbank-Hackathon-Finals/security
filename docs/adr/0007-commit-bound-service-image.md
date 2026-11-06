@@ -1,6 +1,6 @@
 # ADR-0007: 고정 소스와 최소 입력으로 서비스 이미지 검증
 
-- 상태: 구현, 실제 CI 컨테이너 검증 대기.
+- 상태: 구현, 실제 CI 컨테이너 시작·TLS·철회 검증. T10 전체 연결 추가 검증 중.
 - 요구: SEC-PATCH-05·06·10, CTRL-01·02·07, POL-03·09·11.
 - 플랫폼 기준: `c225c86cf5e408b5fcd016b0e367d3672d1bac44`.
 
@@ -53,7 +53,11 @@ local image ID는 레지스트리 manifest digest가 아니다. 운영 배포에
   Python 환경값은 3.12.16이며 플랫폼의 고정 base와 일치한다.
 - `uv export --locked --offline --no-default-groups --extra service --no-emit-project`는
   현재 lock에서 성공했다. 자동 의존성 갱신을 하지 않는다.
-- 변경 후 로컬 ruff 및 Git whitespace 검사 통과. 실제 이미지 build/runtime 결과는
-  개발 기록에 CI run과 함께 추가한다. 로컬 Docker daemon은 시작하지 않았다.
+- 변경 후 로컬 ruff 및 Git whitespace 검사 통과. `893ddff`의
+  [CI](https://github.com/Softbank-Hackathon-Finals/security/actions/runs/42207161356)에서 실제
+  이미지 build, 기본 UID 10001·capabilities 0·no-new-privileges·루트 쓰기 거부와
+  TLS/issuer 철회 시험 1 PASS(1.93초)를 확인했다. 서비스 venv에는 자체 패키지와
+  실행 의존성 9개만 있었다. 이후 네 번째 플랫폼 기준의 initial/post_apply 10개 연결
+  시나리오를 image job에 추가했다. 로컬 Docker daemon은 시작하지 않았다.
 - 해시 고정 자체는 취약점 부재를 증명하지 않는다. 새 권고문과 dependency/base 갱신은
   별도 평가·시험을 거쳐야 하며 이번 image test를 22개 보안 통제 전체 PASS로 확대하지 않는다.

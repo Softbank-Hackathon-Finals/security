@@ -233,3 +233,18 @@ Sova/bravo_gate 없이 import/CLI help와 pip check를 확인했다.
   모든 작업 통과. `sova-test`의 실제 2개 DB/독립 서비스 연결 8개 시나리오도
   [609d115 CI](https://github.com/Softbank-Hackathon-Finals/sova-test/actions/runs/42205726034) 통과.
   전체 Sova 로컬 회귀는 1110 PASS / 3 SKIP이며 외부 컨테이너·collector·AWS 환경 인수는 별도다.
+
+### SVC-12 결과 및 네 번째 플랫폼 기준
+
+- `893ddff` [CI](https://github.com/Softbank-Hackathon-Finals/security/actions/runs/42207161356)는
+  모든 작업 통과했다. 실제 이미지의 기본 UID 10001, 읽기 전용 root, capabilities 0,
+  no-new-privileges와 service-only 의존성 9개를 확인했다. TLS/issuer 철회 1 PASS, 1.93초.
+- 작업 중 develop은 `9e0d6a59d7a00925ddafc50cfa2ccad00c5ba768`로 8개 커밋 진행됐다.
+  T13 실제 지문 기록, T9 ARM OpenBao pin, T43 GitOps image, T31 테스트 시계 변경이다.
+  T10/T19 집행 코드 변경은 없다. 새 SHA를 네 번째 명시 기준으로 추가하고 기본값을 갱신했다.
+- 새 기준 + 실제 PG/API의 계약·T10/TLS 체인·T7 시험: **32 PASS, 66.04초**.
+  image job에도 새 기준의 initial/post_apply 정상·철회·단일 접수 10개 시나리오를 추가한다.
+- [새 T13 실측](https://github.com/Softbank-Hackathon-Finals/platform/blob/9e0d6a59d7a00925ddafc50cfa2ccad00c5ba768/docs/evidence/t13-real-fingerprint-2026-11-06/README.md)은
+  두 표 1행/2행의 데이터·스키마 MATCH다. 로컬 관리자·질의별 별도 트랜잭션이며 실제 실행기
+  계정/동일 snapshot/시퀀스 보정/컷오버 인수가 아니다. 비공개 원본 digest도 없으므로 이 공개
+  요약을 서명 원본으로 수입하거나 CTRL-06 전체 PASS로 바꾸지 않는다.

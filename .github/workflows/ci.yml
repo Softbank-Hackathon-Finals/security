@@ -33,6 +33,18 @@ jobs:
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: '3.12'
+      - name: Read qualified platform for image admission checks
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          repository: Softbank-Hackathon-Finals/platform
+          ref: 9e0d6a59d7a00925ddafc50cfa2ccad00c5ba768
+          path: .local-notes/platform-image-source
+          persist-credentials: false
+          sparse-checkout: |
+            services/control-gate
+            services/platform-events
+            docs/controls
+      - run: echo "SOVA_PLATFORM_SOURCE=$PWD/.local-notes/platform-image-source" >> "$GITHUB_ENV"
       - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
         with:
           version: '0.13.6'
@@ -58,6 +70,7 @@ jobs:
         run: >-
           .venv/bin/python -m pytest -q
           'tests/integration/test_review_host_runtime.py::test_standalone_review_runtime_reads_current_authority[issuer-revoked]'
+          tests/integration/test_platform_review_runtime.py::test_real_platform_runtime_enforces_current_service_authority
       - name: Preserve public build inputs and local image identifier
         run: |
           cp "$RUNNER_TEMP/service-image-id" "$RUNNER_TEMP/service-image-context/local-image-id.txt"
@@ -81,6 +94,8 @@ jobs:
             ref: b19488e2debbee8bbe120f1309eadbe19df85b6f
           - name: c225c86
             ref: c225c86cf5e408b5fcd016b0e367d3672d1bac44
+          - name: 9e0d6a5
+            ref: 9e0d6a59d7a00925ddafc50cfa2ccad00c5ba768
     env:
       SOVA_PLATFORM_SOURCE: '${{ github.workspace }}/.local-notes/platform-contract-source'
       UV_PYTHON_DOWNLOADS: 'never'
@@ -175,7 +190,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           repository: Softbank-Hackathon-Finals/platform
-          ref: c225c86cf5e408b5fcd016b0e367d3672d1bac44
+          ref: 9e0d6a59d7a00925ddafc50cfa2ccad00c5ba768
           path: .local-notes/platform-contract-source
           persist-credentials: false
           sparse-checkout: |
@@ -281,7 +296,7 @@ jobs:
               'dependency_lock_sha256': hashlib.sha256(Path('uv.lock').read_bytes()).hexdigest(),
               'dependency_inventory_sha256': dependency_digest,
               'uv_version': '0.13.6',
-              'required_workflow_checks': ['secrets', 'package (3.11)', 'package (3.14)', 'platform-contract (f602b39)', 'platform-contract (b19488e)', 'platform-contract (c225c86)', 'service-image'],
+              'required_workflow_checks': ['secrets', 'package (3.11)', 'package (3.14)', 'platform-contract (f602b39)', 'platform-contract (b19488e)', 'platform-contract (c225c86)', 'platform-contract (9e0d6a5)', 'service-image'],
           }
           (directory / 'manifest.json').write_text(json.dumps(manifest, sort_keys=True, indent=2) + '\n')
           (directory / 'SHA256SUMS').write_text(
