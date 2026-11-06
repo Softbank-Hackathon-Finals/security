@@ -20,6 +20,19 @@ import zipfile
 
 BASE = "python:3.12.16-slim-trixie@sha256:4840d514c583a4d3d8cad3940e68dee6f0f6f3635c12fcd0a3d74c21a5b93a54"
 UV_VERSION = "0.13.6"
+INSTALLER_VERSION = "26.2.2"
+
+
+def installer_requirements(lock):
+    candidates = [item for item in lock["package"] if item["name"] == "pip" and item["version"] == INSTALLER_VERSION]
+    if len(candidates) != 1 or candidates[0].get("source") != {"registry": "https://pypi.org/simple"}:
+        raise ValueError("Qualified public installer lock entry required")
+    wheels = [item for item in candidates[0]["wheels"]
+              if item["url"].startswith("https://files.pythonhosted.org/packages/")
+              and item["url"].endswith(f"/pip-{INSTALLER_VERSION}-py3-none-any.whl")]
+    if len(wheels) != 1 or not re.fullmatch(r"sha256:[0-9a-f]{64}", wheels[0]["hash"]):
+        raise ValueError("Exact portable installer wheel hash required")
+    return f"pip=={INSTALLER_VERSION} --hash={wheels[0]['hash']}\n".encode()
 
 
 def run(command, *, cwd):
@@ -72,6 +85,7 @@ def prepare(project, output, uv):
         template = source / "deploy/security-review.Dockerfile"
         if template.read_text(encoding="utf-8").count("FROM " + BASE) != 2:
             raise ValueError("Both build stages must use the qualified base digest")
+        installer = installer_requirements(tomllib.loads((source / "uv.lock").read_text(encoding="utf-8")))
         requirements = run([uv, "export", "--locked", "--offline", "--no-default-groups", "--extra", "service",
                             "--no-emit-project", "--no-header", "--no-annotate", "--python", sys.executable], cwd=source)
         # Only exact registry requirements, markers, continuations and sha256 hashes.
@@ -101,12 +115,14 @@ def prepare(project, output, uv):
                         package=metadata["name"], version=metadata["version"], platform="linux/amd64", base=BASE,
                         uv_version=UV_VERSION, lock_sha256=sha(source / "uv.lock"), wheel=wheel.name,
                         wheel_sha256=sha(wheel), requirements_sha256=hashlib.sha256(requirements).hexdigest(),
+                        installer_version=INSTALLER_VERSION, installer_requirements_sha256=hashlib.sha256(installer).hexdigest(),
                         dockerfile_sha256=sha(template), preparation_sha256=sha(source / "scripts/prepare_service_image.py"),
                         execution_authorized=False, signed_attestation=False)
         output.mkdir(parents=True, exist_ok=False)
         (output / "dist").mkdir()
         (output / "dist" / wheel.name).write_bytes(wheel.read_bytes())
         (output / "requirements.txt").write_bytes(requirements)
+        (output / "installer-requirements.txt").write_bytes(installer)
         (output / "Dockerfile").write_bytes(template.read_bytes())
         (output / "manifest.json").write_text(json.dumps(manifest, sort_keys=True, indent=2) + "\n", encoding="utf-8")
     print(json.dumps({"commit_sha": revision, "wheel_sha256": manifest["wheel_sha256"], "output": str(output)}))

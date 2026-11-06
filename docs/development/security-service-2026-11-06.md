@@ -395,3 +395,14 @@ push commit 메시지에 `[review-endurance]`가 있는 경우에만 10,800초 �
   이번 변경의 별도 단위/전체 CI 결과를 연결한다.
 - Windows의 감사/서비스/ASGI 단위 시험 **52 PASS, 1 SKIP**. SKIP은 POSIX symlink/FIFO 시험이며
   Linux CI에서 별도 실행한다. Ruff와 diff 공백 검사를 통과했다.
+
+## SVC-22: 실제 이미지의 잔존 installer 제거
+
+- [첫 실제 이미지 검사](../evidence/service-image-scan-2026-11-06/README.md)는 수집 성공,
+  정책 **BLOCK**이다. HIGH 49 finding / 13 고유 CVE, MEDIUM 80, LOW 63, CRITICAL 0.
+  OS 87개와 서비스 venv 10개를 확인했고 venv 밖 기본 pip의 취약점 6개도 발견했다.
+- build installer는 기존 uv.lock의 pip 26.2.2 wheel hash로 고정한다. runtime 이미지에는
+  설치가 필요 없어 기본 pip/ensurepip를 제거하고 global site-packages와 entrypoint 부재를 검사한다.
+  원본 보고서는 수정하지 않으며 새 이미지의 재스캔 결과와 구별한다.
+- OS HIGH는 미수정 상태다. Debian 1차 자료와 함께 인수 문서에 기록하고 배포 BLOCK을 유지한다.
+  현재 격리 통제나 일반 CI 통과를 해당 CVE 해결로 간주하지 않는다.

@@ -19,8 +19,11 @@ def main():
     status = dict(line.split(":", 1) for line in Path("/proc/self/status").read_text().splitlines())
     assert int(status["CapEff"].strip(), 16) == 0
     assert status["NoNewPrivs"].strip() == "1"
-    for module in ("pytest", "ruff", "fastapi", "boto3"):
+    for module in ("pytest", "ruff", "fastapi", "boto3", "pip", "ensurepip"):
         assert util.find_spec(module) is None, "Development/cloud dependencies must not be in the service environment"
+    global_site = Path(sys.base_prefix) / "lib" / f"python{sys.version_info.major}.{sys.version_info.minor}" / "site-packages"
+    assert not list(metadata.distributions(path=[str(global_site)])), "Base global installer packages must be removed"
+    assert not list(Path(sys.base_prefix, "bin").glob("pip*")), "Installer entry points must be removed"
     try:
         fd = os.open("/app/forbidden-write", os.O_CREAT | os.O_WRONLY | os.O_EXCL, 0o600)
     except OSError as error:
@@ -33,6 +36,7 @@ def main():
     assert manifest["execution_authorized"] is False and manifest["signed_attestation"] is False
     inventory = sorted((item.metadata["Name"], item.version) for item in metadata.distributions())
     print(json.dumps(dict(commit_sha=manifest["commit_sha"], uid=os.getuid(), dependencies=inventory,
+                          global_python_packages=[], package_installers_absent=True,
                           root_write_denied=True, effective_capabilities=0, no_new_privileges=True)))
 
 
