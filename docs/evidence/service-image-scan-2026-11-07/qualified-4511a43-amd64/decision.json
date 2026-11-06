@@ -1,0 +1,32 @@
+{
+  "blocking_or_unknown_findings": [],
+  "database_sha256": "7520aa80bfb8db4a230514baa510ec6b1d7de9099b74f7879be65450407a6f1f",
+  "database_updated_at": "2026-11-06T12:55:02.577403+00:00",
+  "execution_authorized": false,
+  "gate": "PASS",
+  "local_image_config_id": "sha256:f93285debc6d2345f74602d9e2fbb6c09ae04b856db41c6006a0806dc9499e06",
+  "observed_at": "2026-11-06T17:04:27.335012+00:00",
+  "os_family": "alpine",
+  "os_package_count": 38,
+  "os_packages_verified": 38,
+  "platform": "linux/amd64",
+  "policy": "service-image-high-critical.v4",
+  "registry_digest": null,
+  "release_authorized": false,
+  "report_sha256": "412461fa17b870defc3f89419b9210a241c2c31e02ea2c1f489cc5876daf325f",
+  "runtime_inventory_sha256": "16e146f9eac80d2e284ee884d01b87bed40d0864cada25d0ad2ac9dddffa72d8",
+  "runtime_python_packages_verified": 10,
+  "sbom_sha256": "b7c96478c81ada98f0d1bc328947553418b78c259ca244095a02f474acf25895",
+  "scanner_binary_sha256": "6a972c69606c7b3ea4c6bdcc6fc9332ea9ad38381624310c1e85cc77345909f3",
+  "scanner_version": "0.76.2",
+  "schema_version": 1,
+  "severity_counts": {
+    "CRITICAL": 0,
+    "HIGH": 0,
+    "LOW": 0,
+    "MEDIUM": 0,
+    "UNKNOWN": 0
+  },
+  "signed_attestation": false,
+  "source_commit": "4511a433d9a8af8bab7426cb934842a96bca5290"
+}

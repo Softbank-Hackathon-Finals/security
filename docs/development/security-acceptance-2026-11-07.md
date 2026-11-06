@@ -1,8 +1,15 @@
 # 배포 차단 해소와 플랫폼 인수 후속 작업
 
 시작: 2026-11-06 16:23 UTC / 11-07 01:23 KST. 최대 5시간, 완료 시 조기 종료.
-기준 플랫폼: `42811da4cf19ce941491d4794ab49790881dc409`.
+시작 시 기준 플랫폼: `42811da4cf19ce941491d4794ab49790881dc409`.
 수정 범위: security·sova-test. 실제 팀 플랫폼 배포와 개인 환경 검증은 구분한다.
+
+최신 코드 인계 기준은 producer `546f6e0482cc06fa32f00ea8d554522551a84beb`, platform develop
+`0795f65e24f58e43545b16b97757efcc0923fd4a`, 발행 host source `445848d2ed9878e31eb6f5aabad0575c61739b47`이다.
+최종 producer CI `42265872242`는 12개 계약·Python·native 양쪽 이미지를 모두 통과했다.
+아래 초기 후보/접속 미확인 문단은 작업 당시의 이력이며, 최종 상태는 인계 문서와 후속 결과를 따른다.
+OPS-01은 사용자의 후속 지시로 데모용 맥의 실제 로그인·검증에 넘기고, 이번 범위에서는
+SSO/SSM·platform-state 읽기 전용 범위와 인수 조건을 준비한다. 실환경 PASS로 표시하지 않는다.
 
 ## 요구사항과 완료 기준
 
@@ -13,7 +20,7 @@
 - T28-01: 효과 전 영속 접수, 중단 후 재호출 금지, 별도 조회·조정 경계 검증.
   기존 T10/T31 및 Sova 실행 원장을 재사용하고 승인 체계를 중복하지 않는다.
 
-## 이미지 후보 설계 (구현, 검증 전)
+## 초기 이미지 후보 설계 (당시 구현, 검증 전)
 
 기존 Debian 13 이미지의 HIGH 49건은 13개 CVE의 패키지별 발생 수다.
 Debian tracker는 CVE-2026-76642의 trixie를 여전히 vulnerable로 표시한다.
@@ -31,7 +38,7 @@ glibc에서 musl로 바뀌므로 단순 스캔만으로 채택하지 않는다. 
 기존 Debian 증거 재검증도 유지하고, 지원하지 않는 라이브러리 종류를 조용히 무시하지 않는다.
 아직 후보이며 PASS나 배포 허가를 주장하지 않는다.
 
-## 환경 확인
+## 초기 환경 확인
 
 Windows에 Kubernetes context가 없고 기존 AWS default 계정은 플랫폼용인지 확인되지 않았다.
 WSL에는 AWS 설정이 있지만 kubeconfig가 없다. 사용자에게 시험 대상과 profile/namespace를
@@ -200,3 +207,22 @@ T28 36개 결과는 앞선 원격 CI와 구분한다.
 
 발행 source 445848d의 focused 실제 모듈 소비 시험도 **34 PASS / 13.24초**다.
 runtime image source와 develop 계약 기준을 모두 별도로 남긴다.
+
+## 최종 고정 생산자와 소비 검증
+
+생산자 `546f6e0482cc06fa32f00ea8d554522551a84beb`의
+[CI 42265872242](https://github.com/Softbank-Hackathon-Finals/security/actions/runs/42265872242)는 성공했다.
+Python 3.14 전체 **1,084 PASS / 2 SKIP**, 12개 계약 기준을 유지하며 최신 0795f65와 실제 발행
+원본 445848d의 소비·재평가 시험은 각각 **34 PASS**다. native amd64·arm64 모두 PG18.4 58개,
+TLS/HBA 1개, 서비스 이미지/T10 11개와 격리 스캔·export/reload를 통과했다.
+OS 38개/Python 10개 대조 후 전체 심각도 0건이다. 이미지·입력 ZIP hash와 원본별 결속은
+[이미지 증거](../evidence/service-image-scan-2026-11-07/README.md)에 보존한다.
+
+소비자 `a177276761f601428d54df57dc4a2000274c6ac1`은 이 생산자를 정확히 고정한다.
+[CI 42266814087](https://github.com/Softbank-Hackathon-Finals/sova-test/actions/runs/42266814087)에서
+process **44 PASS / 67.36초**, container **44 PASS / 48.77초**, 최신 T28 **36 PASS / 2.16초**,
+이전 T28 **32 PASS / 4 SKIP / 2.02초**다. 앞선 이전 패키지 소비와 구분되는 최종 결과다.
+
+후속 문서·원본 증거 커밋은 검증한 코드 생산자 pin을 바꾸지 않는다. 이 결과는 개인 환경의
+실제 프로세스/컨테이너·PG·TLS 검증이며 실제 플랫폼 배포나 다섯 운영 인수 항목의 PASS가 아니다.
+실제 로그인·읽기 전용 대조 및 별도 변경 시험은 사용자가 지정한 데모용 맥으로 인계한다.

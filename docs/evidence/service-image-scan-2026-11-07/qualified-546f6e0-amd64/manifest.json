@@ -1,0 +1,20 @@
+{
+  "base": "python:3.12.16-alpine3.24@sha256:e064671ca452259bab50e8e2c7bd896e39e9a343bb06ca25234adf6fe18d0fc7",
+  "commit_sha": "546f6e0482cc06fa32f00ea8d554522551a84beb",
+  "dockerfile_sha256": "4e53ac43a6794f5b186165452fb053271a2a4c0a0b5ee0562fdc53e35faa7acd",
+  "execution_authorized": false,
+  "installer_requirements_sha256": "f409e9c999da22f4920b4724c68adadb416a515f38d760dfd34ae6382d43df04",
+  "installer_version": "26.2.2",
+  "lock_sha256": "8668d10143d6f24123a3aca54adad7052cbb40d547baa53ae21f96a4cded37ac",
+  "package": "sova-security",
+  "platform": "linux/amd64",
+  "preparation_sha256": "aa00bdf1d70a1d30863aa9cc40e64877b6413d0bcaa141fa94a3254a23b501e0",
+  "repository": "Softbank-Hackathon-Finals/security",
+  "requirements_sha256": "70963ddb5ad3d2dfcf75bee44216e2a2d2123dde119da8ba8a68ef671c9fb20d",
+  "schema_version": 1,
+  "signed_attestation": false,
+  "uv_version": "0.13.6",
+  "version": "0.11.0",
+  "wheel": "sova_security-0.11.0-py3-none-any.whl",
+  "wheel_sha256": "c31dbfbcc41d77e96fda159ba0ef62900ed7183bb4b3ef8c7fb6f646fddfa431"
+}

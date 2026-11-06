@@ -1,6 +1,6 @@
 # 제한된 보안 판정 서비스
 
-현재 기준 플랫폼: `7edab5312f965bd683a7738e74d49b883190e8da`.
+현재 개발 계약 기준: `0795f65e24f58e43545b16b97757efcc0923fd4a`.
 이전 기준 `f602b39a949b99f3e2e7be901103063e78a52a70`과
 `b19488e2debbee8bbe120f1309eadbe19df85b6f`,
 `c225c86cf5e408b5fcd016b0e367d3672d1bac44`,
@@ -8,17 +8,26 @@
 `a610bbfb60d3a633597d75dc6e070addd3c3b559`,
 `8b12236ae4277de16cebdf1391f87721e5851d47`,
 `bb174860bedf100de3970c3e8e410f02f23994e2`,
-`98885a69999398bfe3f49fbc8324a7b19aae3e16`도 별도 소비 시험으로 유지한다.
+`98885a69999398bfe3f49fbc8324a7b19aae3e16`,
+`7edab5312f965bd683a7738e74d49b883190e8da`,
+`42811da4cf19ce941491d4794ab49790881dc409`도 별도 소비 시험으로 유지한다.
+현재 GitOps 호스트 이미지가 가리키는 `445848d2ed9878e31eb6f5aabad0575c61739b47`도
+독립적으로 검증하여 총 12개 기준을 유지한다. 선언된 image pin을 실제 rollout 완료로 간주하지 않는다.
 `T10ProgramAuthority`의 `baseline_sha`는 호스트의 검증한 실제 소스에 맞춰 명시한다.
 기본값은 현재 기준이며 실행 시 Git을 조회하거나 버전을 자동 추측하지 않는다. 구현은 개인 환경용이다.
 실제 클러스터의 T7 audience·CNPG 역할·NetworkPolicy·T24 인수는 아직 수행하지 않았다.
-현재 서비스 이미지 실측은 linux/amd64다. ARM64 배포에는 해당 이미지/잠금 의존성과 동일 시험을
-별도로 인수해야 한다. 플랫폼 노드 아키텍처를 확인하지 않은 채 현재 이미지가 실행된다고 전제하지 않는다.
+서비스 이미지는 native linux/amd64·linux/arm64에서 각각 빌드·검사·TLS/T10 시험을 수행했다.
+[이미지 원본](evidence/service-image-scan-2026-11-07/README.md)의 exact source/platform을 확인한다.
+운영 반입에는 대상 아키텍처의 기존 registry 발행·서명·신원·네트워크 인수가 여전히 필요하다.
 전용 보안 DB는 PUBLIC TEMPORARY/대형 객체 생성 권한도 제거해야 한다.
 [ADR-0019](adr/0019-reader-storage-creation-boundaries.md)의 운영자 준비 helper와 현재 권한 검사를 따른다.
 기존 공유 DB에 자동 REVOKE하지 않으며 원래 기본 권한이 남아 있으면 신규 판정은 보류한다.
 선택 이유는 [ADR-0001](adr/0001-security-review-service.md), DB 격리는
 [ADR-0002](adr/0002-tenant-fixed-service-reader.md)에 기록한다.
+
+현재 실제 플랫폼 확인은 사용자 지시에 따라 데모용 맥의 로그인 이후로 인계했다.
+`bravo-personal` SSO/SSM과 `platform-state`의 읽기 전용 범위를 사용하며, 온프렘 목적지의
+team-test 설정과 구분한다. [실환경 인수 실행안](platform-live-acceptance.md)을 따른다.
 
 ## 책임과 신뢰 경계
 
@@ -241,6 +250,17 @@ T19의 `Ed25519Authority`에 같은 현재 `GateRecordView`로 연결하며, 별
 
 T28의 `happy_path.py`는 운영자 도구의 순서를 기록하는 별도 경로다. 현재 결과 기록 전 중단 후에는
 operator가 재호출될 수 있어 보안 집행 정본으로 연결하지 않는다. [중단·재시작 모의 재현](evidence/t28-restart-boundary-2026-11-06/README.md).
+후속으로 Sova의 기존 effect journal/CAS·PG 소유권·복구 권한에 연결하는
+[DurableT28Port](https://github.com/Softbank-Hackathon-Finals/sova-test/blob/0f032c0a0cd494d16bf035d95cc0dcb984cc9d7c/docs/platform-t28-restart.md)를
+개인 환경에서 검증했다. caller 종료 후 지연 HTTP 효과, 현재 승인 철회, 상태 조회 subprocess 우회와
+initial_args 변경을 다룬다. 원본 플랫폼 CLI의 권한 제한·운영 조립까지 완료했다는 뜻은 아니다.
+
+0795f65와 발행 source 445848d의 T10은 접수 직전 현재 T19를 다시 평가하고, 기존 GATE report와
+같은 context/readiness 결속인지 확인한다. 추가 보안 서비스는 그 새 PASS를 받더라도 현재 등록과
+근거를 독립적으로 확인한다. 원래 GATE report와 별도 reevaluation 기록을 보존하며 과거 승인이나
+만료된 추가 응답을 되살리지 않는다. 이 경계를 initial/post_apply에서 별도 소비 시험으로 검증했다.
+T24는 최신 플랫폼의 기존 `bravo-audit follow`를 재사용한다. 서비스 로컬 computed 로그를 실행
+완료 이벤트로 바꾸거나, 서비스에 감사 저장소 writer 자격을 넣지 않는다.
 
 `compare_shadow`는 기존 로컬 판정과 원격 shadow 결과를 비교만 한다. 통신 장애는 unavailable,
 검사별 차이는 mismatch로 남긴다. shadow 결과로 운영 승인/기존 상태를 바꾸지 않는다.
@@ -255,4 +275,5 @@ python -m pytest tests/integration/test_postgres_boundary.py tests/integration/t
 SOVA_PLATFORM_SOURCE=/absolute/pinned-platform python -m pytest tests/contracts/test_platform_review_bridge.py -q
 ```
 
-정확한 실행 결과와 미검증 항목은 [개발 기록](development/security-service-2026-11-06.md)에 남긴다.
+초기 실행은 [기존 개발 기록](development/security-service-2026-11-06.md), 이미지·최신 계약·T28 보강은
+[후속 개발 기록](development/security-acceptance-2026-11-07.md)에 남긴다.

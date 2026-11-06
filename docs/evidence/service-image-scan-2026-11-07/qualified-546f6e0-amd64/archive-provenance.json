@@ -1,0 +1,16 @@
+{
+  "archive": "image.tar.gz",
+  "archive_bytes": 30901086,
+  "archive_format": "docker-save+gzip",
+  "archive_sha256": "e06f11ec00dc4b3bc164185a4143593a38cc57a17b1e4722c71f516f6c2e0cc1",
+  "local_image_config_id": "sha256:f04d687736ceaa58925dd9de77d34d8513fbdcc20d6ceefc4bcba46b267d0132",
+  "observed_at": "2026-11-06T17:59:01.073304+00:00",
+  "platform": "linux/amd64",
+  "policy": "service-image-high-critical.v4",
+  "registry_digest": null,
+  "release_authorized": false,
+  "scan_decision_sha256": "7771610c080e683cb1d56e1f186b5230b99202ee4b4a7497f7c1565091878705",
+  "schema_version": 1,
+  "signed_attestation": false,
+  "source_commit": "546f6e0482cc06fa32f00ea8d554522551a84beb"
+}

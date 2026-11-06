@@ -13,12 +13,15 @@ Python 3.11 작업은 시험·정적 검사 후 wheel과 다음 메타데이터�
 
 산출물 이름은 `sova-security-wheel-<전체 commit SHA>`이며 보존 기간은 30일이다. 설치 전에 **두 Python 작업, secrets, platform-contract가 모두 성공했는지** 확인한다. 3.11 산출물이 존재한다는 사실만으로 다른 작업이 통과한 것은 아니다. platform-contract는 Python 3.12에서 고정한 공개 platform 소스를 읽고 실제 T10/T19 모듈과의 소비 시험을 수행한다. 운영 배포 인수를 뜻하지 않는다.
 
-`required_workflow_checks`는 코드의 `PLATFORM_BASELINES` 전체에서 생성하며 현재 열 개 기준을 포함한다.
+`required_workflow_checks`는 코드의 `PLATFORM_BASELINES` 전체에서 생성하며 현재 열두 기준을 포함한다.
 `service-image (amd64)`와 `service-image (arm64)`를 각각 확인한다. 기존 CI의 이미지 job 성공은
 검사 **수집** 성공만 뜻했지만, 새 export 단계는 별도 `decision.json`의 PASS를 요구한다.
 BLOCK/UNKNOWN의 수집 원본은 보존하고 export/job은 실패한다. wheel 설치와 운영 배포는 다른 결정이다.
 기존 Debian HIGH 49건은 [당시 원본](evidence/service-image-scan-2026-11-06/README.md)에 보존했고,
-Alpine 후보는 [전체 대조와 0건 PASS](evidence/service-image-scan-2026-11-07/qualified-338f755/README.md)를 확인했다.
+Alpine 후보는 [양쪽 native 아키텍처의 전체 대조와 0건 PASS](evidence/service-image-scan-2026-11-07/README.md)를 확인했다.
+후속 scanner는 Docker 소켓·checkout·호스트 HOME 없이 전용 컨테이너에서 archive를 읽는다.
+DB 다운로드만 bridge network이며 실제 검사와 SBOM 변환은 network none이다. DB 해시·크기와
+격리 방식을 decision에 남긴다. 이는 CI 자격 노출 범위 제한이며 scanner의 진실성 보증은 아니다.
 
 ```sh
 gh run view RUN_ID --repo Softbank-Hackathon-Finals/security
