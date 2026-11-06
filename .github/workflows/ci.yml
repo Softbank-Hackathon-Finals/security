@@ -217,6 +217,17 @@ jobs:
           if-no-files-found: error
           retention-days: 14
           include-hidden-files: false
+      - name: Preserve the exact scanned PASS image for controlled handoff
+        run: >-
+          .venv/bin/python scripts/export_qualified_image.py
+          --context "$RUNNER_TEMP/service-image-context" --output "$RUNNER_TEMP/qualified-image-export"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: sova-security-qualified-image-${{ matrix.arch }}-${{ github.sha }}
+          path: ${{ runner.temp }}/qualified-image-export/
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0
   platform-contract:
     name: platform-contract (${{ matrix.name }})
     runs-on: ubuntu-latest

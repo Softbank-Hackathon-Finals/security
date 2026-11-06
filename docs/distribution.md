@@ -13,10 +13,12 @@ Python 3.11 작업은 시험·정적 검사 후 wheel과 다음 메타데이터�
 
 산출물 이름은 `sova-security-wheel-<전체 commit SHA>`이며 보존 기간은 30일이다. 설치 전에 **두 Python 작업, secrets, platform-contract가 모두 성공했는지** 확인한다. 3.11 산출물이 존재한다는 사실만으로 다른 작업이 통과한 것은 아니다. platform-contract는 Python 3.12에서 고정한 공개 platform 소스를 읽고 실제 T10/T19 모듈과의 소비 시험을 수행한다. 운영 배포 인수를 뜻하지 않는다.
 
-`required_workflow_checks`는 코드의 `PLATFORM_BASELINES` 전체에서 생성하므로 현재 일곱 기준을 포함한다.
-`service-image` 성공은 이미지 검사 **수집**의 성공이다. 별도 `decision.json`의 BLOCK/UNKNOWN을
-PASS로 해석하지 않는다. wheel 설치와 서비스 이미지 운영 배포는 다른 결정이며, 현재 이미지의 미수정
-OS HIGH 49건에 대한 BLOCK은 [원본 증거](evidence/service-image-scan-2026-11-06/README.md)를 따른다.
+`required_workflow_checks`는 코드의 `PLATFORM_BASELINES` 전체에서 생성하며 현재 열 개 기준을 포함한다.
+`service-image (amd64)`와 `service-image (arm64)`를 각각 확인한다. 기존 CI의 이미지 job 성공은
+검사 **수집** 성공만 뜻했지만, 새 export 단계는 별도 `decision.json`의 PASS를 요구한다.
+BLOCK/UNKNOWN의 수집 원본은 보존하고 export/job은 실패한다. wheel 설치와 운영 배포는 다른 결정이다.
+기존 Debian HIGH 49건은 [당시 원본](evidence/service-image-scan-2026-11-06/README.md)에 보존했고,
+Alpine 후보는 [전체 대조와 0건 PASS](evidence/service-image-scan-2026-11-07/qualified-338f755/README.md)를 확인했다.
 
 ```sh
 gh run view RUN_ID --repo Softbank-Hackathon-Finals/security
@@ -55,6 +57,13 @@ uv 0.13.6과 검토한 `uv.lock`을 사용한다. Windows에서는 `.venv/Script
 구현으로 간주하지 않는다. Sova는 `integration/security/manifest.json`의 전체 producer SHA를 별도로 고정한다.
 
 ## 보증의 범위
+
+검사한 서비스 이미지 자체는 `sova-security-qualified-image-<amd64|arm64>-<FULL_SHA>` artifact의
+`image.tar.gz`와 `archive-provenance.json`으로 보존한다 (14일). 같은 run의
+`sova-security-image-inputs-<arch>-<FULL_SHA>`에서 원본 판정·SBOM·빌드 입력을 함께 확인한다.
+archive는 docker-save 형식이며 OCI registry manifest가 아니다. archive hash, 실제 load 뒤
+config ID/아키텍처/commit label, scanner decision hash를 대조하고 기존 플랫폼 발행 경로에서
+registry digest를 새로 확인한다. artifact 보관만으로 배포하지 않는다.
 
 체크섬은 전송 중 변경을 확인한다. manifest 단독으로 발행자의 진위를 증명하지 않는다. 신뢰 경계는 선택한 저장소·검토한 commit·성공한 GitHub Actions 실행 및 그 실행에 묶인 산출물이다. 이 경로를 Sigstore 서명, SLSA 인증 또는 장기 지원용 정식 릴리스라고 부르지 않는다. 장기 배포에는 별도 패키지 저장소·발행 정책·보존 및 서명 검증을 연결해야 한다.
 

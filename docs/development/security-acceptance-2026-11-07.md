@@ -76,3 +76,22 @@ https://github.com/aquasecurity/trivy/releases/tag/v0.76.2
 
 로컬 계약 시험 **53 PASS / 0.14초**, lint 성공. ARM64 실제 빌드 결과는 아직 검증 전이다.
 이 추가 작업은 플랫폼 노드 아키텍처와의 호환성을 확인하기 위한 것으로 운영 배포를 수행하지 않는다.
+
+- IMG-02 결과: `865e484`, [CI 42254592499](https://github.com/Softbank-Hackathon-Finals/security/actions/runs/42254592499)
+  **성공**. native amd64·arm64 모두 스캔 PASS, ARM64 PG 58·HBA 1·실제 이미지/T10 11 PASS.
+  최신 42811da를 포함한 10개 platform 계약 job도 성공했다.
+- T28 PostgreSQL 결과: sova-test `6e000ff`,
+  [CI 42255522327](https://github.com/Softbank-Hackathon-Finals/sova-test/actions/runs/42255522327) 성공.
+  실제 lease/승인/복구 원장과 합성 파일 효과를 연결했다. 플랫폼 운영 적용으로 집계하지 않는다.
+
+## 검사한 이미지 자체 보존 (IMG-03)
+
+이전 artifact는 재빌드 입력과 scan을 보존했지만 실제 image layer는 보존하지 않았다.
+같은 source에서 재빌드해도 생성 시각 등으로 config ID가 달라질 수 있어, 검사한 정확한 이미지를
+`docker save` gzip artifact로 별도 보존한다. 최근 30분 이내 동일 source/platform/config ID의
+policy PASS만 export한다. BLOCK/UNKNOWN이면 수집 원본은 남기되 export와 job은 실패한다.
+archive SHA-256·scan decision hash를 붙이고 arch별로 구분한다. registry에는 push하지 않는다.
+다운로드·배포 전 기존 플랫폼 발행/서명/승인 경로가 여전히 필요하다.
+해시만으로 발행자 신뢰나 실행 권한을 주장하지 않는다.
+
+로컬 관련 계약 시험 **63 PASS / 0.15초**, lint 성공. CI의 실제 archive 생성은 후속 검증한다.
