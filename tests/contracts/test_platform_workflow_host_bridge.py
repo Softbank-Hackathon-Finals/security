@@ -8,6 +8,7 @@ platform_admission = pinned_admission
 WORKFLOW_BASELINES = {
     "bb174860bedf100de3970c3e8e410f02f23994e2",
     "98885a69999398bfe3f49fbc8324a7b19aae3e16",
+    "7edab5312f965bd683a7738e74d49b883190e8da",
 }
 
 
