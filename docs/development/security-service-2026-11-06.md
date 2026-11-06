@@ -497,3 +497,12 @@ push commit 메시지에 `[review-endurance]`가 있는 경우에만 10,800초 �
   즉시 철회로 표현하지 않는다. 기존 host hold + 별도 자격/세션 철회 순서를 유지한다.
 - CNPG 고정 규칙/사용자 규칙 순서, pooler와 Unix socket의 다른 경계는 별도 인수다.
   팀 Cluster나 공유 PUBLIC 권한을 변경하지 않았다. 실제 IPv6 연결과 CNPG CNI는 미검증이다.
+
+### 복구 후 최신 receipt 코드의 지속 시험
+
+- 실제 로컬 PG17/TLS 프로세스 **180초, 1 PASS, 181.50초**.
+  6회 회전, PASS 12회, issuer/grant 거부 각각 6회, 이전 credential 실제 만료 거부 2회.
+  RSS 58,984→59,312 KiB, descriptor 8/thread 2 유지, 본인 child 종료 확인.
+- 원본 report의 모든 Python source와 시험 파일 해시가 `d9c878f`와 같음을 확인했다.
+  [원본과 해석](../evidence/review-endurance-2026-11-06/README.md).
+  별도 3시간 CI는 이전 source의 시험이므로 결과를 소급 합치지 않는다.
