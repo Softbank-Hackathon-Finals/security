@@ -75,6 +75,51 @@ def test_authority_changes_during_audit_never_escape_as_pass(scope, now, change)
         endpoint.review(state.token, request)
 
 
+@pytest.mark.parametrize("change", ["evidence-removed", "evidence-trust-revoked", "hold-added"])
+def test_source_authority_changes_during_receipt_are_rechecked(scope, now, change):
+    state, endpoint, request = service_bundle(scope, now)
+    state.trusted, state.held = True, False
+    original_service = endpoint.service_for
+
+    def service(*args):
+        value = original_service(*args)
+        value.authenticate_evidence = lambda record: state.trusted and record in state.evidence
+        value.require_no_holds = lambda *_: not state.held
+        return value
+
+    def audit(event):
+        state.audit.append(event)
+        if event["stage"] == "computed":
+            if change == "evidence-removed":
+                state.evidence = ()
+            elif change == "evidence-trust-revoked":
+                state.trusted = False
+            else:
+                state.held = True
+        return True
+
+    endpoint.service_for, endpoint.audit = service, audit
+    with pytest.raises(ReviewServiceError):
+        endpoint.review(state.token, request)
+    assert [item["stage"] for item in state.audit] == ["computed", "rejected"]
+
+
+def test_recorded_report_matches_response_without_renewing_original_deadline(scope, now):
+    state, endpoint, request = service_bundle(scope, now)
+    original = endpoint.audit
+
+    def delayed(event):
+        result = original(event)
+        state.now += timedelta(seconds=1)
+        return result
+
+    endpoint.audit = delayed
+    response = endpoint.review(state.token, request)
+    assert response.review.passed and response.valid_until == now + timedelta(seconds=5)
+    assert state.audit[0]["review_digest"] == response.review.fingerprint
+    assert response.review.reviewed_at == now
+
+
 def test_arbitrary_adapter_exception_does_not_expose_credentials(scope, now):
     state, endpoint, request = service_bundle(scope, now)
 

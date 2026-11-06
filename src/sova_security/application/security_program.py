@@ -1,5 +1,6 @@
 """Authenticate current program evidence before composing existing execution gates."""
 
+from dataclasses import replace
 from sova_security.application.boundary import require_accept, require_authentication
 from sova_security.contracts.commands import ContractError, utc
 from sova_security.contracts.evidence import EvidenceRecord
@@ -37,7 +38,9 @@ class SecurityProgramService:
             raise ContractError("One explicit current-collection authenticator required")
         self.authenticate_current_evidence_batch = authenticate_current_evidence_batch
 
-    def review(self, actor, *, scope, subject_digest, phase, not_before=None):
+    def review(self, actor, *, scope, subject_digest, phase, not_before=None, record_review=None):
+        if record_review is not None and not callable(record_review):
+            raise ContractError("Explicit review receipt callback required")
         require_accept(self.authorize, actor, scope, "security:review-program")
         program = self.program_for(scope, subject_digest)
         if (
@@ -90,11 +93,20 @@ class SecurityProgramService:
         result = review_program(
             program, phase, evidence, now=started, not_before=not_before
         )
+        if record_review is not None and record_review(result) is not True:
+            raise ContractError("Review receipt was not accepted")
+        # A durable receipt is another blocking boundary. Check current source
+        # authority after it, without adding or caching an evidence collection.
         check_authority()
         finished = utc(self.clock())
         if finished < started or finished >= result.valid_until:
             raise ContractError("Security program authority expired during review")
         # Re-evaluate freshness after callbacks; never return an old cached PASS.
-        return review_program(
+        fresh = review_program(
             program, phase, evidence, now=finished, not_before=not_before
         )
+        if record_review is not None:
+            if replace(fresh, reviewed_at=result.reviewed_at) != result:
+                raise ContractError("Security review changed after receipt")
+            return result  # The returned report is exactly the recorded report.
+        return fresh

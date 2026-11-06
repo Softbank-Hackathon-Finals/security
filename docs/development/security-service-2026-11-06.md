@@ -411,3 +411,15 @@ push commit 메시지에 `[review-endurance]`가 있는 경우에만 10,800초 �
 - 두 탐지는 `scan.json` 55/149행의 공식 Python 이미지 **공개 서명 키 fingerprint**였다.
   [공식 Dockerfile](https://github.com/docker-library/python/blob/master/3.12/slim-trixie/Dockerfile)의
   GPG_KEY와 정확히 대조했다. 그 값 하나만 literal allowlist에 추가하고 모든 탐지 규칙/전체 history 검사는 유지한다.
+
+## SVC-23: 감사 이후 최종 권한 확인
+
+- [ADR-0016](../adr/0016-authority-after-review-receipt.md): 감사 기록 동안 근거 삭제·신뢰 철회·보류 추가가
+  발생하는 세 시험이 변경 전 **3 FAIL**이었다. 기존 감사 후 검사는 신원/등록만 확인하던 틈이다.
+- `SecurityProgramService`의 마지막 현재 원본 검사를 receipt callback 뒤로 옮겼다. 별도 collection이나
+  cache를 추가하지 않는다. callback 없는 기존 직접 소비는 그대로 동작한다.
+- endpoint는 정확히 한 번 기록한 report digest를 확인하고 같은 report를 반환한다. 원래 reviewed_at과
+  최대 5초 기한을 유지한다. 시간 경과로 판정이 달라지면 새 PASS를 만들지 않고 거부한다.
+- Windows 단위 전체 **740 PASS, 6 SKIP, 10.02초**. SKIP은 POSIX OPA 프로세스 5개와 symlink/FIFO 1개다.
+  실제 PG/TLS에서 독립 writer의 verifier 철회/hold commit 시나리오를 추가했다.
+  전체 Linux CI와 T10/Sova 소비 결과는 후속 기록한다.

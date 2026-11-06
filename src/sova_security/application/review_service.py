@@ -69,12 +69,6 @@ class SecurityReviewEndpoint:
     def _review(self, credential, request, actor, started):
         registration = self._registration(actor, request)
         service = self.service_for(actor, registration, request.mode)
-        review = service.review(
-            actor.subject_id, scope=registration.scope,
-            subject_digest=registration.program.subject_digest,
-            phase=registration.phase, not_before=registration.not_before,
-        )
-        validate_review(review, registration)
 
         def current():
             if self._identity(credential, request) != actor or self._registration(actor, request) != registration:
@@ -84,15 +78,37 @@ class SecurityReviewEndpoint:
                 raise ReviewServiceError("AUTHORITY_UNAVAILABLE")
             return now
 
-        finished = current()
-        # Receipt contains identifiers/digests only; no tokens, raw evidence or provider errors.
-        event = dict(kind="security-review.v1", stage="computed", request_id=request.request_id,
-                     context_digest=registration.fingerprint, principal_digest=actor.fingerprint,
-                     review_digest=review.fingerprint, mode=request.mode,
-                     passed=review.passed, observed_at=finished.isoformat())
-        if self.audit(event) is not True:
+        recorded = []
+
+        def receipt(review):
+            if recorded:
+                raise ReviewServiceError("AUDIT_UNAVAILABLE")
+            validate_review(review, registration)
+            observed = current()
+            # Computed does not mean delivered/admitted. Source authority is
+            # checked after this receipt by SecurityProgramService.
+            event = dict(kind="security-review.v1", stage="computed", request_id=request.request_id,
+                         context_digest=registration.fingerprint, principal_digest=actor.fingerprint,
+                         review_digest=review.fingerprint, mode=request.mode,
+                         passed=review.passed, observed_at=observed.isoformat())
+            if self.audit(event) is not True:
+                raise ReviewServiceError("AUDIT_UNAVAILABLE")
+            current()
+            recorded.append(review.fingerprint)
+            return True
+
+        review = service.review(
+            actor.subject_id, scope=registration.scope,
+            subject_digest=registration.program.subject_digest,
+            phase=registration.phase, not_before=registration.not_before,
+            record_review=receipt,
+        )
+        validate_review(review, registration)
+        if recorded != [review.fingerprint]:
             raise ReviewServiceError("AUDIT_UNAVAILABLE")
-        finished = current()
+        finished = utc(self.clock())
+        if finished < started or finished - started >= MAX_REVIEW_LIFETIME:
+            raise ReviewServiceError("AUTHORITY_UNAVAILABLE")
         return RemoteProgramReview(
             registration.fingerprint, request.request_id, actor.subject_id, actor.fingerprint,
             registration.scope, request.mode, review, finished,

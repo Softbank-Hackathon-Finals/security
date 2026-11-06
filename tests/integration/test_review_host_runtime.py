@@ -20,7 +20,8 @@ pytestmark = pytest.mark.postgres
 database = isolated_database
 
 
-@pytest.mark.parametrize("fault", ["issuer-revoked", "uid-replaced", "grant-revoked", "reviewer-rotated", "registration-revoked", "audit-unavailable", "signed-producer-revoked"])
+@pytest.mark.parametrize("fault", ["issuer-revoked", "uid-replaced", "grant-revoked", "reviewer-rotated", "registration-revoked", "audit-unavailable", "signed-producer-revoked",
+    "producer-revoked-during-audit", "hold-added-during-audit"])
 def test_standalone_review_runtime_reads_current_authority(database, scope, tmp_path, fault):
     import psycopg
     from psycopg import sql
@@ -41,7 +42,8 @@ def test_standalone_review_runtime_reads_current_authority(database, scope, tmp_
     artifacts.register(scope, state.registration.program, actor_id="registrar")
     artifacts.register(scope, state.registration, actor_id="registrar")
     trust_store = trust_change = None
-    if fault == "signed-producer-revoked":
+    signed_case = fault in {"signed-producer-revoked", "producer-revoked-during-audit", "hold-added-during-audit"}
+    if signed_case:
         from review_runtime_support import signed_program
         trust_store, trust_change = signed_program(write, state.registration, state.evidence, now)
     with psycopg.connect(dsn, autocommit=True) as admin:
@@ -76,8 +78,8 @@ def test_standalone_review_runtime_reads_current_authority(database, scope, tmp_
                     return decode(transport.post("/v1/program-reviews", encode(request).encode(), credential))
                 result = call()
                 assert result.subject_id == p.subject_id
-                assert result.review.passed is (fault == "signed-producer-revoked")
-                assert all(r.result.value == ("pass" if fault == "signed-producer-revoked" else "unknown") for r in result.review.results)
+                assert result.review.passed is signed_case
+                assert all(r.result.value == ("pass" if signed_case else "unknown") for r in result.review.results)
                 assert issuer.calls >= 2  # online identity rechecked around protected work
                 if fault == "issuer-revoked":
                     issuer.active = False
@@ -91,6 +93,22 @@ def test_standalone_review_runtime_reads_current_authority(database, scope, tmp_
                     artifacts.revoke(scope, state.registration.fingerprint, expected_revision=1, actor_id="registrar", reason="test")
                 elif fault == "signed-producer-revoked":
                     trust_store.publish(replace(trust_change, revision=2, trust=replace(trust_change.trust, revoked=True)))
+                elif fault in {"producer-revoked-during-audit", "hold-added-during-audit"}:
+                    original_audit = app.endpoint.audit
+
+                    def audit_then_change(event):
+                        accepted = original_audit(event)
+                        if event["stage"] == "computed":
+                            if fault == "producer-revoked-during-audit":
+                                trust_store.publish(replace(trust_change, revision=2, trust=replace(trust_change.trust, revoked=True)))
+                            else:
+                                from sova_security.adapters.postgres_governance import PostgresSecurityHolds
+                                from sova_security.domain.governance import SecurityHold
+                                PostgresSecurityHolds(write, tenant_id=scope.tenant_id).open_hold(
+                                    SecurityHold(uuid4().hex, scope, "independent-controller", "audit-race-test", datetime.now(UTC)))
+                        return accepted
+
+                    app.endpoint.audit = audit_then_change
                 else:
                     (tmp_path / "audit.jsonl").unlink()
                     (tmp_path / "audit.jsonl").mkdir()
