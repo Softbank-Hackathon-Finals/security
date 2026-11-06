@@ -10,6 +10,9 @@ from sova_security.contracts.commands import ContractError, canonical_json, iden
 from sova_security.domain.review_service import ReviewPrincipal
 
 
+MAX_SERVICE_TOKEN_LIFETIME_SECONDS = 600
+
+
 class ExecCredentialProvider:
     """Consume a host ExecCredential without minting or changing its audience.
 
@@ -52,7 +55,7 @@ class WorkloadGrant:
 
 
 class TokenReviewAuthenticator:
-    """TokenReview verifies signature/current bound objects; claims only bound time.
+    """TokenReview verifies signature/current bound objects; claims narrow use.
 
     The registered grant supplies the tenant, scopes and permissions. JWT claims
     and Kubernetes groups never enroll an identity or widen a grant.
@@ -73,6 +76,14 @@ class TokenReviewAuthenticator:
             claims = bounded_report(base64.b64decode(parts[1] + "=" * (-len(parts[1]) % 4), altchars=b"-_", validate=True))
             if any(type(claims.get(k)) is not int for k in ("iat", "nbf", "exp")):
                 return None
+            audience = claims.get("aud")
+            if audience != self.audience and audience != [self.audience]:
+                return None
+            # TokenReview returns the intersection of requested/issued audiences.
+            # Its success alone cannot rule out a reusable multi-audience token.
+            # This is a rejecting constraint, never local signature validation.
+            if not 0 < claims["exp"] - claims["iat"] <= MAX_SERVICE_TOKEN_LIFETIME_SECONDS:
+                return None
             now = utc(self.clock())
             start = datetime.fromtimestamp(max(claims["iat"], claims["nbf"]), UTC)
             end = datetime.fromtimestamp(claims["exp"], UTC)
@@ -88,7 +99,7 @@ class TokenReviewAuthenticator:
                 return None
             status = value.get("status", {})
             if (type(status) is not dict or status.get("authenticated") is not True or status.get("error")
-                    or type(status.get("audiences")) is not list or self.audience not in status["audiences"]):
+                    or status.get("audiences") != [self.audience]):
                 return None
             user = status.get("user", {})
             if type(user) is not dict or claims.get("sub") != user.get("username"):

@@ -15,7 +15,7 @@ from sova_security.contracts.commands import ContractError
 def identity_bundle(scope, now):
     state, _, _ = service_bundle(scope, now)
     username, uid = "system:serviceaccount:security:test-worker", "test-account-uid"
-    claims = dict(sub=username, iat=int(now.timestamp()), nbf=int(now.timestamp()), exp=int((now + timedelta(minutes=1)).timestamp()))
+    claims = dict(sub=username, aud=["security-review"], iat=int(now.timestamp()), nbf=int(now.timestamp()), exp=int((now + timedelta(minutes=1)).timestamp()))
     payload = base64.urlsafe_b64encode(json.dumps(claims).encode()).rstrip(b"=").decode()
     # This unit fixture has no signature. Only the simulated online verifier accepts it.
     token = "test-header." + payload + ".test-signature"
@@ -44,6 +44,46 @@ def test_online_audience_uid_and_current_grant_are_required(scope, now):
     state.response["status"]["authenticated"] = False
     assert verifier(token) is None
     assert len(state.calls) == 2  # no successful authentication cache
+
+
+@pytest.mark.parametrize("audience", ["security-review", ["security-review"]])
+def test_exact_short_lived_audience_still_requires_current_online_verification(scope, now, audience):
+    state, verifier, token = identity_bundle(scope, now)
+    claims = json.loads(base64.urlsafe_b64decode(token.split(".")[1] + "=="))
+    claims.update(aud=audience, exp=claims["iat"] + 600)
+    payload = base64.urlsafe_b64encode(json.dumps(claims).encode()).rstrip(b"=").decode()
+    candidate = "test-header." + payload + ".test-signature"
+    assert verifier(candidate) is not None
+    state.response["status"]["authenticated"] = False
+    assert verifier(candidate) is None
+    assert len(state.calls) == 2
+
+
+@pytest.mark.parametrize("fault", ["missing-audience", "two-audiences", "duplicate-audience", "wrong-type",
+                                  "too-long", "old-but-not-expired", "zero-lifetime", "multiple-returned-audiences"])
+def test_scope_and_original_lifetime_cannot_be_widened_by_positive_tokenreview(scope, now, fault):
+    state, verifier, token = identity_bundle(scope, now)
+    claims = json.loads(base64.urlsafe_b64decode(token.split(".")[1] + "=="))
+    if fault == "missing-audience":
+        del claims["aud"]
+    elif fault == "two-audiences":
+        claims["aud"].append("kubernetes-api")
+    elif fault == "duplicate-audience":
+        claims["aud"] *= 2
+    elif fault == "wrong-type":
+        claims["aud"] = {"security-review": True}
+    elif fault == "too-long":
+        claims["exp"] = claims["iat"] + 601
+    elif fault == "old-but-not-expired":
+        claims["iat"] -= 86400  # Remaining TTL is short; original lifetime is not.
+    elif fault == "zero-lifetime":
+        claims["exp"] = claims["iat"]
+    else:
+        state.response["status"]["audiences"].append("kubernetes-api")
+    payload = base64.urlsafe_b64encode(json.dumps(claims).encode()).rstrip(b"=").decode()
+    candidate = "test-header." + payload + ".test-signature"
+    assert verifier(candidate) is None
+    assert len(state.calls) == (1 if fault == "multiple-returned-audiences" else 0)
 
 
 @pytest.mark.parametrize("fault", ["audience", "uid", "subject", "error", "truthy", "missing-auth", "no-grant", "revoked", "expired", "reviewer-expired", "clock-backwards", "transport"])

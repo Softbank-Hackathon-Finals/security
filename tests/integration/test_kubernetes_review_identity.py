@@ -85,6 +85,28 @@ def test_actual_audience_uid_and_reviewer_credential_are_enforced(workload):
     assert w.auth(w.client.token) is None
 
 
+@pytest.mark.parametrize("fault", ["multi-audience", "long-lifetime"])
+def test_service_rejects_broad_credentials_that_actual_tokenreview_accepts(workload, fault):
+    w = workload
+    spec = dict(audiences=["security-review"], expirationSeconds=600,
+                boundObjectRef=dict(apiVersion="v1", kind="Secret", name=w.secret["metadata"]["name"],
+                                    uid=w.secret["metadata"]["uid"]))
+    if fault == "multi-audience":
+        spec["audiences"].append("kubernetes-api")
+    else:
+        spec["expirationSeconds"] = 3600
+    issued = w.api.create(f"/api/v1/namespaces/{w.ns}/serviceaccounts/consumer/token",
+                         dict(apiVersion="authentication.k8s.io/v1", kind="TokenRequest", spec=spec))
+    token = issued["status"]["token"]
+    status, response = w.api.request("POST", "/apis/authentication.k8s.io/v1/tokenreviews",
+        dict(apiVersion="authentication.k8s.io/v1", kind="TokenReview", spec=dict(token=token, audiences=["security-review"])),
+        credential=w.state.reviewer)
+    assert status == 201 and response["status"]["authenticated"] is True
+    assert response["status"]["audiences"] == ["security-review"]
+    assert w.auth(token) is None
+    assert w.auth(w.client.token) is not None
+
+
 def test_bound_secret_deletion_and_same_name_recreation_do_not_resurrect_token(workload, record_property):
     w = workload
     status, _ = w.api.request("DELETE", f"/api/v1/namespaces/{w.ns}/secrets/lease")

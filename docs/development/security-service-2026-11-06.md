@@ -248,3 +248,14 @@ Sova/bravo_gate 없이 import/CLI help와 pip check를 확인했다.
   두 표 1행/2행의 데이터·스키마 MATCH다. 로컬 관리자·질의별 별도 트랜잭션이며 실제 실행기
   계정/동일 snapshot/시퀀스 보정/컷오버 인수가 아니다. 비공개 원본 digest도 없으므로 이 공개
   요약을 서명 원본으로 수입하거나 CTRL-06 전체 PASS로 바꾸지 않는다.
+
+## SVC-13: 연동 토큰의 원래 수명과 단일 audience
+
+- 기준 9e0d6a5. [ADR-0008](../adr/0008-service-token-use-boundaries.md)에 Salesloft Drift와
+  NIST IR 8587 참고 근거, 실제 TokenReview의 교집합 동작, bearer 자격의 한계를 기록했다.
+- 코드: `review_identity.py`, unit/integration identity 시험. 서비스 소비자만 단일 audience와
+  원래 수명 600초를 요구하며 기존 TokenReview/UID/grant 확인을 유지한다. schema 변경 없음.
+- `pytest tests/unit/test_review_identity.py -q`: **37 PASS**. 실제 Kubernetes API와 T7,
+  최신 T10/TLS/PG 연결을 더한 잠금 Python 3.14 시험: **61 PASS, 85.04초**.
+- API는 실제 발급한 복수 audience·3,600초 토큰을 각각 인증했다. 서비스는 둘 다 거부하고
+  기존 600초 서비스 전용 자격은 허용했다. 전역 Kubernetes 토큰 정책이나 T7 코드는 변경하지 않았다.

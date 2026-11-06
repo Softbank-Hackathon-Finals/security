@@ -50,3 +50,16 @@ Pod exec·배포·DB 쓰기 거부, 다른 namespace/tenant 접근 거부, T24 �
 변경 이후 실제 복원·업무 정합성은 등록된 팀 환경과 담당 공급자가 필요하다. 개인 환경의
 합성 PASS로 채우지 않는다. 기존 22개 검사와 해당 경로의 `ProgramEvidenceRoute`에
 원본 증거를 연결하며 새 실행 엔진·모델 승인·자동 보류 해제 기능을 만들지 않는다.
+
+## 추가 조사: 연동 토큰의 수평 확산
+
+2025-08 Salesloft Drift 사고의 [Google 조사팀 원문](https://cloud.google.com/blog/topics/threat-intelligence/data-theft-salesforce-instances-via-salesloft-drift)은
+탈취한 OAuth 토큰으로 연결된 Salesforce 자료를 읽고, 그 자료에서 다른 자격을 찾은 행동을
+설명한다. 08-28 갱신은 다른 연동도 조사·철회 대상으로 확장했다. 핵심 서비스 자체가 침해된
+것과 고객이 승인한 연동 자격이 악용된 것을 구분한다.
+
+이 프로젝트에서는 서비스 자격의 사용 범위를 최소화한다. [ADR-0008](adr/0008-service-token-use-boundaries.md)에
+단일 audience·원래 수명 600초 제한을 구현하고, 실제 Kubernetes가 인증한 더 넓은 토큰도
+서비스가 거부하는 시험을 추가했다. 기존 토큰 생성기와 실행 권한을 합치지 않는다.
+2026-09 [NIST IR 8587](https://csrc.nist.gov/pubs/ir/8587/final)의 workload/audience 지침도
+참고했지만 이 변경을 NIST 전체 준수나 탈취 토큰 재사용의 완전한 방지로 표현하지 않는다.

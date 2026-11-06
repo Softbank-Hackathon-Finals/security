@@ -1,8 +1,9 @@
 # 제한된 보안 판정 서비스
 
-현재 기준 플랫폼: `c225c86cf5e408b5fcd016b0e367d3672d1bac44`.
+현재 기준 플랫폼: `9e0d6a59d7a00925ddafc50cfa2ccad00c5ba768`.
 이전 기준 `f602b39a949b99f3e2e7be901103063e78a52a70`과
-`b19488e2debbee8bbe120f1309eadbe19df85b6f`도 별도 소비 시험으로 유지한다.
+`b19488e2debbee8bbe120f1309eadbe19df85b6f`,
+`c225c86cf5e408b5fcd016b0e367d3672d1bac44`도 별도 소비 시험으로 유지한다.
 `T10ProgramAuthority`의 `baseline_sha`는 호스트의 검증한 실제 소스에 맞춰 명시한다.
 기본값은 현재 기준이며 실행 시 Git을 조회하거나 버전을 자동 추측하지 않는다. 구현은 개인 환경용이다.
 실제 클러스터의 T7 audience·CNPG 역할·NetworkPolicy·T24 인수는 아직 수행하지 않았다.
@@ -61,8 +62,11 @@ API audience를 서비스에 허용하거나 복수 audience로 권한 범위를
 선택과 시험 범위는 [ADR-0005](adr/0005-service-credential-audience.md)에 기록한다.
 
 `TokenReviewAuthenticator`는 고정 API TLS origin·audience와 현재 ServiceAccount UID를
-대조한다. 토큰의 그룹/tenant 주장은 권한 등록에 사용하지 않는다. JWT를 로컬 파싱하는 부분은
-시간 범위 확인이며 서명 인증이 아니다. 성공한 온라인 TokenReview가 매번 필요하다.
+대조한다. 소비자 토큰은 서비스 audience 하나만 포함하고 원래 `exp - iat` 수명이 600초 이하여야
+한다. 복수 audience·과도한 원래 수명은 남은 만료 시간이 짧아도 거부한다. 토큰의 그룹/tenant
+주장은 권한 등록에 사용하지 않는다. JWT 로컬 파싱은 사용 범위를 좁히는 거부 조건이며 서명
+인증이 아니다. 성공한 온라인 TokenReview가 매번 필요하다.
+[ADR-0008](adr/0008-service-token-use-boundaries.md)에 위협·호환성·bearer 자격의 한계를 기록한다.
 
 서버는 원본 검증 전후와 감사 기록 후 신원·등록을 다시 조회한다. 인증 성공 캐시나 이전 PASS
 대체 경로는 없다. projected token과 grant 파일은 호출마다 읽으므로 원자적 파일 교체를 반영한다.
