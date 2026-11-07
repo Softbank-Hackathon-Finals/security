@@ -76,3 +76,6 @@ T28 원문은 `6ca1160c`와 같지만 실제 새 driver 실행을 검증한 것�
 
 원본 로그·해시 manifest·계약 실험·영상은 비공개 로컬 증빙 경로에 보존한다.
 공개 문서에는 운영 계정, endpoint, 개인 경로, 토큰과 원문 오류를 싣지 않는다.
+
+최신 main 통합·고정 checkout 재현 시험과 10:24 KST 후속 관측은
+[통합 기록](development/workload-main-integration-2026-11-07.md)에 분리해 기록했다.
