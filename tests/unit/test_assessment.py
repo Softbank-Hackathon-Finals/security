@@ -1,6 +1,7 @@
 from dataclasses import replace
 from datetime import timedelta
 import json
+from pathlib import Path
 
 import pytest
 
@@ -9,8 +10,10 @@ from sova_security.contracts.commands import ContractError
 from sova_security.domain.assessment import (
     Coverage,
     Compromise,
+    ExposureObservation,
     Reachability,
     Priority,
+    RiskPolicy,
     assess_risk,
 )
 from sova_security.adapters.vulnerability_reports import (
@@ -121,6 +124,46 @@ def test_compromise_does_not_recommend_only_a_patch(scope, now, compromise, resp
         now=now,
     )
     assert empty.decisions == () and "incident-response-required" in empty.reasons
+
+
+def test_php2shell_patch_does_not_clear_a_confirmed_ai_pentest_compromise(scope, now):
+    fixture = json.loads((Path(__file__).parents[1] / "fixtures/php2shell-advisory-projection.json").read_text())
+    inventory = cyclone_inventory(
+        json.dumps(fixture["sbom"]).encode(), scope=scope, resource_revision="php-server-v1",
+        source_digest="a" * 64, image_digest="b" * 64, configuration_digest="c" * 64,
+        collector_id="registered-php-inventory", coverage=Coverage.COMPLETE, observed_at=now,
+        valid_until=now + timedelta(minutes=10))
+    scan = trivy_scan(json.dumps(fixture["report"]).encode(), inventory=inventory,
+        profile=scanner_profile(), coverage=Coverage.COMPLETE, observed_at=now,
+        valid_until=now + timedelta(minutes=5))
+    exposure = ExposureObservation(scope, inventory.resource_revision, inventory.fingerprint, "e" * 64,
+        "registered-ai-pentest", Reachability.REACHABLE, Compromise.CONFIRMED, True,
+        ("CVE-2026-109618", "CVE-2026-109619"), now, now + timedelta(minutes=3))
+    policy = RiskPolicy(scope, "php2shell-response-v1", 1, now - timedelta(seconds=1),
+        now + timedelta(minutes=8), (scanner_profile().fingerprint,))
+    compromised = assess_risk(inventory, scan, exposure, policy, now=now)
+    assert not compromised.complete and compromised.reasons == ("incident-response-required",)
+    assert {decision.priority for decision in compromised.decisions} == {Priority.EMERGENCY}
+    assert {decision.response for decision in compromised.decisions} == {"preserve-rebuild-rotate"}
+
+    patched_sbom = json.loads(json.dumps(fixture["sbom"]))
+    patched_sbom["components"][0].update(version="8.4.27", purl="pkg:generic/php@8.4.27")
+    patched_inventory = cyclone_inventory(json.dumps(patched_sbom).encode(), scope=scope,
+        resource_revision="php-server-v2", source_digest="f" * 64, image_digest="1" * 64,
+        configuration_digest="2" * 64, collector_id="registered-php-inventory",
+        coverage=Coverage.COMPLETE, observed_at=now, valid_until=now + timedelta(minutes=10))
+    patched_report = json.loads(json.dumps(fixture["report"]))
+    patched_report["Metadata"]["RepoDigests"] = ["registry.example/php-test@sha256:" + "1" * 64]
+    patched_report["Results"][0]["Packages"][0]["Version"] = "8.4.27"
+    patched_report["Results"][0]["Vulnerabilities"] = []
+    patched_scan = trivy_scan(json.dumps(patched_report).encode(), inventory=patched_inventory,
+        profile=scanner_profile(), coverage=Coverage.COMPLETE, observed_at=now,
+        valid_until=now + timedelta(minutes=5))
+    still_compromised = replace(exposure, resource_revision=patched_inventory.resource_revision,
+        inventory_digest=patched_inventory.fingerprint, known_exploited=(), evidence_digest="3" * 64)
+    post_patch = assess_risk(patched_inventory, patched_scan, still_compromised, policy, now=now)
+    assert not post_patch.complete and post_patch.decisions == ()
+    assert post_patch.reasons == ("incident-response-required",)
 
 
 def test_unknown_is_not_a_low_risk_claim_and_kev_is_not_downgraded(scope, now):
