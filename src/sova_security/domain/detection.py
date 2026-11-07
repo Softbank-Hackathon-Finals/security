@@ -12,6 +12,7 @@ from sova_security.contracts.commands import (
 from sova_security.domain.assessment import Document, window
 
 SCHEMA_DIGEST = "22ad580baf4854ef1d272a497ebe708ef48a65d47fc3840eb2d00b3fa441f8b1"
+CURRENT_SCHEMA_DIGEST = "efa3e36bf8ec704622fefc40c84a2c23242f55b6a1907c151d3ffdda5f0e7202"
 SOURCES = {
     "aws_security_hub",
     "aws_guardduty",
@@ -42,7 +43,7 @@ class DetectionRegistration(Document):
             raise ContractError("Typed registered detection scope/source required")
         if (
             self.provider not in {"AWS", "GCP", "onprem"}
-            or self.schema_digest != SCHEMA_DIGEST
+            or self.schema_digest not in {SCHEMA_DIGEST, CURRENT_SCHEMA_DIGEST}
         ):
             raise ContractError("Pinned detection provider/schema required")
         expected = {
@@ -59,6 +60,11 @@ class DetectionRegistration(Document):
             self.resource_revision,
         ):
             identifier(value)
+        # T33 display masking is deliberately lossy. A collision between two
+        # masked accounts/resources cannot establish ownership of either one.
+        for value in (self.account_id, self.resource_uid, self.namespace):
+            if value is not None and ("*" in value or "[REDACTED" in value.upper()):
+                raise ContractError("Unmasked detection identity registration required")
         if (
             type(self.maximum_age_seconds) is not int
             or not 1 <= self.maximum_age_seconds <= 900

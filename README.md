@@ -3,6 +3,7 @@
 Team Bravo 플랫폼 연동을 위해 개인 환경에서 검증하는 공통 Python 보안 패키지와 선택형 보안 판정 서비스다. 보호 수준 비교, 근거 검증, 보안 보류와 제한된 대응 계획을 제공한다. **보안 판정은 사용자 승인이나 운영 실행 권한을 부여하지 않는다.**
 
 두 보안 문서 적용 결과와 플랫폼 연결 순서는 [인계 현황](docs/platform-handoff-status.md)에서 확인한다.
+T14·T33의 맥 인수 준비와 오프라인 20개 통제 요약은 [인수 실행 안내](docs/mac-t14-t33-intake.md)를 따른다.
 
 ## 현재 포함 범위
 
@@ -32,7 +33,7 @@ Sova의 실행 원장·승인 서비스·작업 큐·격리 실행 조정기·�
 Python 3.11 이상을 사용한다. 기본 설치에는 클라우드 SDK나 DB 연결이 필요 없다.
 
 ```sh
-python -m pip install /path/to/sova_security-0.11.0-py3-none-any.whl
+python -m pip install /path/to/sova_security-0.11.1-py3-none-any.whl
 # 개발 시 이 저장소에서
 python -m pip install -e '.[dev]'
 python -m pytest -q
@@ -51,6 +52,9 @@ cd /path/to/sova
 릴리스 소비 환경은 검증한 wheel과 해시를 고정한다. [CI 산출물 소비 방법](docs/distribution.md)을 따른다. 0.11.0은 0.10.0의 두 문서 통합 계약에 선택형 서비스를 추가하며 PyPI 배포를 뜻하지 않는다.
 
 서비스 실행은 `service` extra와 [설정·신뢰 경계·배포·인수 안내](docs/security-review-service.md)를 따른다. platform 고정 SHA의 소비 시험은 Python 3.12 이상에서 `dev,platform-test` extra로 수행한다. 기본 패키지 설치는 서비스를 자동 시작하지 않는다.
+
+0.11.1은 최신 T33 normalizer v2의 명시적 계약 선택, 인증 뒤 현재 권한 재검사와
+T14·T33 오프라인 인수 목록을 추가한다. 인수 목록의 schema 소비에는 `team` extra가 필요하다.
 
 두 문서의 원문·요구사항 추적·구현 경계는 [보안 설계 통합](docs/architecture-integration.md), 실제 `platform` 연결 순서는 Sova의 [인계 문서](../sova-test/docs/platform-security-handoff.md)를 참고한다. 카탈로그에 검사가 있다는 사실은 해당 환경의 통과 근거가 아니다.
 

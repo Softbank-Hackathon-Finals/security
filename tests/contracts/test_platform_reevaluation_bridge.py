@@ -8,7 +8,7 @@ import pytest
 from platform_review_support import attach, platform_admission as pinned_admission
 
 platform_admission = pinned_admission
-BASELINES = {"0795f65e24f58e43545b16b97757efcc0923fd4a", "445848d2ed9878e31eb6f5aabad0575c61739b47"}
+BASELINES = {"0795f65e24f58e43545b16b97757efcc0923fd4a", "445848d2ed9878e31eb6f5aabad0575c61739b47", "c364e6284d2e635ff86001e2feac88560ed23ebc"}
 
 
 @pytest.mark.parametrize("platform_admission", ["initial", "post_apply"], indirect=True)

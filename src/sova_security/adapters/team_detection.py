@@ -9,6 +9,7 @@ from datetime import UTC, datetime, timedelta
 import hashlib
 from importlib.resources import files
 import json
+from types import MappingProxyType
 
 from sova_security.adapters.vulnerability_reports import bounded_report
 from sova_security.contracts.commands import ContractError, utc
@@ -16,18 +17,26 @@ from sova_security.domain.detection import (
     DetectionRegistration,
     DetectionObservation,
     SCHEMA_DIGEST,
+    CURRENT_SCHEMA_DIGEST,
 )
 
 SOURCE_COMMIT = "cbb03cdb705719c94c7ad84fa8aa44f08a1b480b"
+CURRENT_SOURCE_COMMIT = "c364e6284d2e635ff86001e2feac88560ed23ebc"
+SCHEMA_FILES = MappingProxyType({
+    SCHEMA_DIGEST: "team-detection-v1.json",
+    CURRENT_SCHEMA_DIGEST: "team-detection-20261107.json",
+})
 
 
-def _validator():
+def _validator(schema_digest=SCHEMA_DIGEST):
     from jsonschema import Draft202012Validator
     from referencing import Registry
     from referencing.exceptions import NoSuchResource
 
-    raw = files("sova_security").joinpath("schemas/team-detection-v1.json").read_bytes()
-    if hashlib.sha256(raw).hexdigest() != SCHEMA_DIGEST:
+    if schema_digest not in SCHEMA_FILES:
+        raise ContractError("Registered detection schema snapshot required")
+    raw = files("sova_security").joinpath("schemas/" + SCHEMA_FILES[schema_digest]).read_bytes()
+    if hashlib.sha256(raw).hexdigest() != schema_digest:
         raise ContractError("Pinned detection schema changed")
     schema = json.loads(raw)
     Draft202012Validator.check_schema(schema)
@@ -71,7 +80,7 @@ def import_detection(
     from jsonschema.exceptions import ValidationError
 
     try:
-        _validator().validate(data)
+        _validator(r.schema_digest).validate(data)
     except ValidationError:
         raise ContractError("Detection does not match pinned team schema") from None
     report_digest = hashlib.sha256(raw).hexdigest()

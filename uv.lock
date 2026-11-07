@@ -906,7 +906,7 @@ wheels = [
 
 [[package]]
 name = "sova-security"
-version = "0.11.0"
+version = "0.11.1"
 source = { editable = "." }
 
 [package.optional-dependencies]

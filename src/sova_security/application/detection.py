@@ -29,20 +29,28 @@ class DetectionAdmission:
         self.artifacts, self.holds = artifacts, holds
         self.authorize, self.clock = authorize, clock
 
-    def _authority(self, actor, observation):
+    def _current(self, observation):
         r = observation.registration
-        scope = r.scope
+        if self.current_registration(r.scope, r.source) != r:
+            raise ContractError("Detection registration changed/revoked")
         now = utc(self.clock())
         if (
             not r.observed_at <= now < r.valid_until
             or not observation.observed_at <= now < observation.valid_until
         ):
             raise ContractError("Detection authority/evidence expired")
-        if self.current_registration(scope, r.source) != r:
-            raise ContractError("Detection registration changed/revoked")
+
+    def _authority(self, actor, observation):
+        r = observation.registration
+        scope = r.scope
+        self._current(observation)
         require_accept(self.authorize, actor, scope, "security:admit-detection")
         require_authentication(self.authenticate_registration, r)
         require_authentication(self.authenticate_observation, observation)
+        # Remote signature/key checks may take time or observe a revocation.
+        # Do not use their pre-call clock/registration snapshot for a new hold.
+        require_accept(self.authorize, actor, scope, "security:admit-detection")
+        self._current(observation)
 
     def admit(self, actor, observation):
         if not isinstance(observation, DetectionObservation):
@@ -57,6 +65,8 @@ class DetectionAdmission:
         if observation.requires_hold:
             require_accept(self.authorize, actor, scope, "security:hold")
             self._authority(actor, observation)
+            require_accept(self.authorize, actor, scope, "security:hold")
+            self._current(observation)
             # Stable per source/resource finding, independent of collection time.
             # A later clean/no-event sample does not close this incident.
             reason = "detection:" + observation.signal + ":" + observation.finding_key
