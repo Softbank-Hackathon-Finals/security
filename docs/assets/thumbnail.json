@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "repository": "Softbank-Hackathon-Finals/security",
+  "created_on": "2026-11-09",
+  "asset": {
+    "path": "docs/assets/thumbnail.png",
+    "width": 1600,
+    "height": 900,
+    "sha256": "710fdd56dacfff2b1662788ce575523566ecc3458e04d64776eadd3866c71a21"
+  },
+  "source": {
+    "kind": "code-rendered-package-architecture",
+    "commit": "cf33e09c8d3be567542a17fe039f3e6e2295568d"
+  },
+  "production_execution_evidence": false,
+  "description": "보안 패키지의 입력 수집·근거 검증·정책 평가·판정 흐름입니다. 사용자 승인과 실제 실행 권한은 통합 플랫폼이 담당합니다."
+}
