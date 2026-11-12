@@ -1,5 +1,9 @@
 # Sova Security
 
+[![Sova Security 보안 판정 흐름](docs/assets/thumbnail.png)](docs/assets/thumbnail.png)
+
+보안 패키지의 입력 수집·근거 검증·정책 평가·판정 흐름입니다. 사용자 승인과 실제 실행 권한은 통합 플랫폼이 담당합니다.
+
 Team Bravo 플랫폼 연동을 위해 개인 환경에서 검증하는 공통 Python 보안 패키지와 선택형 보안 판정 서비스다. 보호 수준 비교, 근거 검증, 보안 보류와 제한된 대응 계획을 제공한다. **보안 판정은 사용자 승인이나 운영 실행 권한을 부여하지 않는다.**
 
 두 보안 문서 적용 결과와 플랫폼 연결 순서는 [인계 현황](docs/platform-handoff-status.md)에서 확인한다.

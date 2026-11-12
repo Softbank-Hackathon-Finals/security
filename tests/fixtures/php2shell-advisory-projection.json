@@ -1,0 +1,54 @@
+{
+  "notice": "Synthetic bounded projection of the official PHP advisories. It contains no exploit payload and is not a claim about a scanned production server.",
+  "sbom": {
+    "bomFormat": "CycloneDX",
+    "specVersion": "1.6",
+    "components": [
+      {
+        "type": "library",
+        "bom-ref": "php-runtime",
+        "name": "php",
+        "version": "8.4.26",
+        "purl": "pkg:generic/php@8.4.26"
+      }
+    ]
+  },
+  "report": {
+    "SchemaVersion": 2,
+    "ArtifactType": "container_image",
+    "Metadata": {
+      "RepoDigests": [
+        "registry.example/php-test@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      ]
+    },
+    "Results": [
+      {
+        "Target": "php-runtime",
+        "Class": "lang-pkgs",
+        "Type": "php-runtime",
+        "Packages": [
+          {
+            "Name": "php",
+            "Version": "8.4.26"
+          }
+        ],
+        "Vulnerabilities": [
+          {
+            "VulnerabilityID": "CVE-2026-109618",
+            "PkgName": "php",
+            "InstalledVersion": "8.4.26",
+            "Severity": "CRITICAL",
+            "FixedVersion": "8.4.27"
+          },
+          {
+            "VulnerabilityID": "CVE-2026-109619",
+            "PkgName": "php",
+            "InstalledVersion": "8.4.26",
+            "Severity": "CRITICAL",
+            "FixedVersion": "8.4.27"
+          }
+        ]
+      }
+    ]
+  }
+}
