@@ -10,7 +10,11 @@ RUN python -m pip install --no-deps --require-hashes --only-binary=:all: -r /bui
     && python -m pip --python /opt/service check
 
 FROM python:3.12.16-alpine3.24@sha256:e064671ca452259bab50e8e2c7bd896e39e9a343bb06ca25234adf6fe18d0fc7
-RUN python -m pip uninstall --yes pip \
+# The pinned base still ships krb5-libs 1.22.2-r1 (HIGH, fixed in 1.22.3-r0).
+# Upgrade only that package to the exact fixed release; drop this once a
+# rebuilt base digest includes it (ADR-0014).
+RUN apk add --no-cache 'krb5-libs=1.22.3-r0' \
+    && python -m pip uninstall --yes pip \
     && python -c "import shutil,sysconfig; shutil.rmtree(sysconfig.get_path('stdlib') + '/ensurepip')"
 ENV PATH=/opt/service/bin:$PATH PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 COPY --from=build /opt/service /opt/service
